@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(blockr.dplyr)
+library(blockr.ai)
 
-test_check("blockr.dplyr")
+test_check("blockr.ai")

@@ -1,5 +1,5 @@
 Package: blockr.ai
-Title: TODO
+Title: AI-Powered Blocks for 'blockr.core'
 Version: 0.0.1
 Authors@R:
     c(person(given = "Nicolas",
@@ -15,7 +15,9 @@ Authors@R:
              role = c("aut"),
              email = "christoph@cynkra.com")
     )
-Description: TODO
+Description: Provides AI-powered functionality as blocks for 'blockr.core'.
+    Enables integration with various AI services and models to enhance
+    data analysis workflows.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -29,6 +31,9 @@ Imports:
     htmltools,
     bslib
 Suggests:
-    testthat (>= 3.0.0)
-Remotes: cynkra/blockr.core
+    testthat (>= 3.0.0),
+    blockr.dplyr
+Remotes:
+    cynkra/blockr.core,
+    cynkra/blockr.dplyr
 Config/testthat/edition: 3
