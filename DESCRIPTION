@@ -1,0 +1,34 @@
+Package: blockr.ai
+Title: TODO
+Version: 0.0.1
+Authors@R:
+    c(person(given = "Nicolas",
+             family = "Bennett",
+             role = c("aut", "cre"),
+             email = "nicolas@cynkra.com"),
+      person(given = "David",
+             family = "Granjon",
+             role = c("aut"),
+             email = "david@cynkra.com"),
+      person(given = "Christoph",
+             family = "Sax",
+             role = c("aut"),
+             email = "christoph@cynkra.com")
+    )
+Description: TODO
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    shiny,
+    blockr.core (>= 0.0.1),
+    dplyr,
+    shinyAce,
+    glue,
+    htmltools,
+    bslib
+Suggests:
+    testthat (>= 3.0.0)
+Remotes: cynkra/blockr.core
+Config/testthat/edition: 3

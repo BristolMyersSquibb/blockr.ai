@@ -1,0 +1,33 @@
+on:
+  push:
+    branches: main
+  pull_request:
+    branches: main
+
+name: ci
+
+jobs:
+
+  lint:
+
+    uses: ./.github/workflows/lint.yaml
+
+    secrets: inherit
+
+  smoke:
+
+    needs: lint
+
+    uses: ./.github/workflows/smoke.yaml
+
+    secrets: inherit
+
+  check:
+
+    needs: smoke
+
+    if: github.event_name != 'pull_request'
+
+    uses: ./.github/workflows/check.yaml
+
+    secrets: inherit
