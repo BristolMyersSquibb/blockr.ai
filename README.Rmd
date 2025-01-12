@@ -13,38 +13,35 @@ knitr::opts_chunk$set(
 )
 ```
 
-# Data transformation for `blockr.core`
+# blockr.ai
 
 <!-- badges: start -->
-[![check](https://github.com/cynkra/blockr.dplyr/actions/workflows/check.yaml/badge.svg)](https://github.com/cynkra/blockr.dplyr/actions/workflows/check.yaml)
 <!-- badges: end -->
 
-Extending `blockr.core` with blocks for data wrangling, `blockr.dplyr` wraps several `dplyr` verbs.
+## Overview
+
+`blockr.ai` provides AI-powered blocks for the `blockr.core` framework. It enables integration with various AI services and models to enhance data analysis workflows through natural language interactions.
+
+## Features
+
+- AI-assisted data transformations
+- Natural language query processing
+- Integration with language models for code generation
+- Interactive AI-powered data analysis
 
 ## Installation
 
-You can install the development version of blockr.dplyr from [GitHub](https://github.com/) with:
+You can install the development version of blockr.ai from GitHub with:
 
-``` r
-# install.packages("devtools")
-devtools::install_github("cynkra/blockr.dplyr")
+```r
+# install.packages("remotes")
+remotes::install_github("cynkra/blockr.ai")
 ```
 
-## Example
+## Usage
 
-A `dplyr::select()` block can be spun up as
+`blockr.ai` extends the `blockr.core` framework with AI capabilities. More documentation will be added as the package develops.
 
-```{r select, eval = FALSE}
-library(blockr.dplyr)
-blockr.core::serve(new_select_block(c("mpg", "cyl")), list(data = mtcars))
-```
+## License
 
-and a two-table verb such as `dplyr::join()` is available as
-
-```{r join, eval = FALSE}
-library(blockr.dplyr)
-blockr.core::serve(
-  new_join_block(by = "name"),
-  data = list(x = dplyr::band_members, y = dplyr::band_instruments)
-)
-```
+GPL (>= 3)

@@ -2,6 +2,4 @@
 
 import(blockr.core)
 import(shiny)
-importFrom(shinyAce,aceAutocomplete)
-importFrom(shinyAce,aceTooltip)
 importFrom(stats,setNames)

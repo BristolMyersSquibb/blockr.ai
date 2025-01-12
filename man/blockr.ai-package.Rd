@@ -4,9 +4,9 @@
 \name{blockr.ai-package}
 \alias{blockr.ai}
 \alias{blockr.ai-package}
-\title{blockr.ai: TODO}
+\title{blockr.ai: AI-Powered Blocks for 'blockr.core'}
 \description{
-TODO
+Provides AI-powered functionality as blocks for 'blockr.core'. Enables integration with various AI services and models to enhance data analysis workflows.
 }
 \author{
 \strong{Maintainer}: Nicolas Bennett \email{nicolas@cynkra.com}
