@@ -2,4 +2,5 @@ linters: linters_with_defaults(
   line_length_linter = NULL,
   object_usage_linter = NULL,
   commented_code_linter = NULL,
-  indentation_linter = NULL)
+  indentation_linter = NULL,
+  trailing_blank_lines_linter = NULL)
