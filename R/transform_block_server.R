@@ -45,7 +45,14 @@ transform_block_server <- function(...) moduleServer("expression", function(inpu
     current_question(input$question)
 
     # Execute code with retry logic and store result
-    result <- execute_code(code, datasets(), max_retries)
+    result <- execute_code(
+      code,
+      datasets(),
+      max_retries,
+      current_question(),
+      metadata()
+    )
+    current_code(result$code)
     execution_result(result)
 
     # Hide progress
