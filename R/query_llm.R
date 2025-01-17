@@ -33,7 +33,7 @@ query_llm <- function(question, metadata, error = NULL) {
 
   # Create chat instance with instructions
   chat <- chat_openai(
-    system = system_msg,
+    system_prompt = system_msg,
     model = "gpt-4o"
   )
 
