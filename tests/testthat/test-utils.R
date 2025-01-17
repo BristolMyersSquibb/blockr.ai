@@ -6,3 +6,8 @@ test_that("name_unnamed_datasets", {
   expect_equal(names(data_list2), c("a", "data2"))
   expect_equal(names(data_list3), c("a", "b"))
 })
+
+test_that("format_generated_code", {
+  expect_equal(format_generated_code(""), "No code generated yet")
+  expect_equal(format_generated_code(c("hello+world")), "hello + world")
+})
