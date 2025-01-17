@@ -1,3 +1,7 @@
+# transform_block_server is called from new_llm_transform_block() and its
+# environment is tweaked there so it can access the args. We define
+# global variables to avoid a note
+globalVariables(c("question", "max_retries"))
 transform_block_server <- function(...) moduleServer("expression", function(input, output, session) {
 
   # Reactive values for state
