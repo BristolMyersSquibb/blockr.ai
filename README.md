@@ -14,10 +14,10 @@ data analysis workflows through natural language interactions.
 
 ## Features
 
-- AI-assisted data transformations
-- Natural language query processing
-- Integration with language models for code generation
-- Interactive AI-powered data analysis
+- Natural language powered plot creation through `new_llm_plot_block()`
+- AI-assisted data transformations through `new_llm_transform_block()`
+- Integration with OpenAI’s GPT models
+- Interactive blocks that can be composed with other blockr components
 
 ## Installation
 
@@ -31,7 +31,22 @@ remotes::install_github("cynkra/blockr.ai")
 ## Usage
 
 `blockr.ai` extends the `blockr.core` framework with AI capabilities.
-More documentation will be added as the package develops.
+
+### Examples
+
+``` r
+library(blockr.ai)
+
+blockr.core::serve(
+  blockr.ai::new_llm_plot_block(),
+  data = list(x = iris)
+)
+
+blockr.core::serve(
+  blockr.ai::new_llm_transform_block(),
+  data = list(x = iris)
+)
+```
 
 ## License
 
