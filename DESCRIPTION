@@ -27,7 +27,8 @@ Imports:
     blockr.core (>= 0.0.1),
     rlang,
     dplyr,
-    ellmer
+    ellmer,
+    stringr
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
