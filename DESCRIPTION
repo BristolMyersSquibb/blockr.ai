@@ -24,7 +24,9 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports:
     shiny,
-    blockr.core (>= 0.0.1)
+    blockr.core (>= 0.0.1),
+    rlang,
+    dplyr
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

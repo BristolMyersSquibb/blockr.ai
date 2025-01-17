@@ -32,10 +32,7 @@ new_llm_transform_block <- function(question = character(),
             actual_data <- lapply(list(...), function(x) {
               if (is.reactive(x)) x() else x
             })
-            # Name the datasets if they aren't already named
-            if (is.null(names(actual_data))) {
-              names(actual_data) <- paste0("data", seq_along(actual_data))
-            }
+            actual_data <- name_unnamed_datasets(actual_data)
             actual_data
           })
 
