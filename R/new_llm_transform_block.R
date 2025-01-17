@@ -79,14 +79,8 @@ new_llm_transform_block <- function(question = character(),
 
           # Add code display output
           output$code_display <- renderText({
-            req(current_code())
             # Format the code nicely
-            code <- current_code()
-            if (nchar(code) > 0) {
-              formatR::tidy_source(text = code, output = FALSE)$text.tidy
-            } else {
-              "No code generated yet"
-            }
+            format_generated_code(req(current_code()))
           })
 
           # Render explanation

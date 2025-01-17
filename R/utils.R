@@ -16,3 +16,11 @@ type_response <- function() {
     code = type_string("R code to perform the analysis")
   )
 }
+
+format_generated_code <- function(code) {
+  if (nchar(code) > 0) {
+    formatR::tidy_source(text = code, output = FALSE)$text.tidy
+  } else {
+    "No code generated yet"
+  }
+}
