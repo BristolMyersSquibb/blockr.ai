@@ -91,15 +91,10 @@ new_llm_transform_block <- function(question = character(),
 
           list(
             expr = reactive({
-              req(current_code())
-              result <- execution_result()
-              warning("Expression status: ", result$success,
-                      "\nFinal code:\n", current_code())
-              if (isTRUE(result$success)) {
-                result$result  # Return the cached result
-              } else {
-                data.frame()  # Return empty dataframe on error
-              }
+              return_result_if_success(
+                result = execution_result(),
+                code = req(current_code())
+              )
             }),
             state = list(
               question = reactive(current_question()),

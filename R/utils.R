@@ -25,3 +25,12 @@ format_generated_code <- function(code) {
     "No code generated yet"
   }
 }
+
+return_result_if_success <- function(result, code) {
+  warning("Expression status: ", result$success, "\nFinal code:\n", code)
+  if (isTRUE(result$success)) {
+    result$result  # Return the cached result
+  } else {
+    data.frame()  # Return empty dataframe on error
+  }
+}
