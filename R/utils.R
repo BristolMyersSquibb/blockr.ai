@@ -18,6 +18,7 @@ type_response <- function() {
 }
 
 format_generated_code <- function(code) {
+  if (!is_string(code)) abort("`code` must be a string")
   if (nchar(code) > 0) {
     formatR::tidy_source(text = code, output = FALSE)$text.tidy
   } else {
