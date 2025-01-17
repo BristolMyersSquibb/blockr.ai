@@ -2,7 +2,7 @@
 
 # Function to execute code with retry logic
 execute_code <- function(code, datasets, max_retries, current_question, metadata) {
-  for(i in 1:max_retries) {
+  for (i in 1:max_retries) {
     tryCatch({
       # Create environment with datasets
       env <- list2env(datasets)
@@ -12,7 +12,7 @@ execute_code <- function(code, datasets, max_retries, current_question, metadata
       warning("Code execution successful:\n", code)
       return(list(success = TRUE, code = code, result = result))
     }, error = function(e) {
-      if(i == max_retries) {
+      if (i == max_retries) {
         warning("Code execution failed after ", max_retries, " attempts:\n",
                 "Last code:\n", code, "\nError: ", e$message)
         return(list(success = FALSE, error = e$message))
