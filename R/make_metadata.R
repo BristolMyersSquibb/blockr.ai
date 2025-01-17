@@ -1,4 +1,3 @@
-#'@export
 make_metadata <- function(
     reactive_datasets,
     extract_codelist_vars = c("-.*DTC$", "-STUDYID", "-USUBJID", "-DOMAIN", "-SUBJID", "-SITEID", "-COUNTRY", "-.*ID$", "-.*NAM$"),

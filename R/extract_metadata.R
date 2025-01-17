@@ -1,4 +1,3 @@
-#'@export
 extract_metadata <- function(data, domain, extract_codelist_vars = NULL, max_unique_values = 1e6) {
   # Determine the domain label
   domain_label <- ifelse(is.null(attr(data, "label")), domain, attr(data, "label"))
