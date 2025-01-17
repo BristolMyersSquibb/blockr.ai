@@ -1,7 +1,7 @@
 # FIXME: would it be better to use purrr::insistently() on a wrapper that calls query_llm and evals?
 
 # Function to execute code with retry logic
-execute_code <- function(code, datasets, max_retries, current_question, metadata) {
+execute_code <- function(code, datasets, max_retries, current_question, metadata, plot = FALSE) {
   for (i in 1:max_retries) {
     tryCatch({
       # Create environment with datasets
@@ -20,7 +20,7 @@ execute_code <- function(code, datasets, max_retries, current_question, metadata
       warning("Code execution attempt ", i, " failed:\n",
               "Code:\n", code, "\nError: ", e$message)
       # Query LLM with error
-      response <- query_llm(current_question, metadata, e$message)
+      response <- query_llm(current_question, metadata, e$message, plot = plot)
       code <- response$code
     })
   }
