@@ -1,3 +1,5 @@
+# FIXME: would it be better to use purrr::insistently() on a wrapper that calls query_llm and evals?
+
 # Function to execute code with retry logic
 execute_code <- function(code, datasets, max_retries) {
   for(i in 1:max_retries) {
