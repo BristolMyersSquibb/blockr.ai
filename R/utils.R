@@ -9,3 +9,10 @@ name_unnamed_datasets <- function(x) {
   x
 }
 
+# Define response types
+type_response <- function() {
+  type_object(
+    explanation = type_string("Explanation of the analysis approach"),
+    code = type_string("R code to perform the analysis")
+  )
+}

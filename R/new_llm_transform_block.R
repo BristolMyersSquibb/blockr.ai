@@ -44,12 +44,6 @@ new_llm_transform_block <- function(question = character(),
             m
           })
 
-          # Define response types
-          type_response <- type_object(
-            explanation = type_string("Explanation of the analysis approach"),
-            code = type_string("R code to perform the analysis")
-          )
-
           # Function to query LLM
           query_llm <- function(question, metadata, error = NULL) {
             # Create system message with examples
@@ -92,7 +86,7 @@ new_llm_transform_block <- function(question = character(),
             # Get structured response
             response <- chat$extract_data(
               user_msg,
-              type = type_response
+              type = type_response()
             )
 
             return(response)
