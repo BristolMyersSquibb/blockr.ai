@@ -28,7 +28,10 @@ Imports:
     rlang,
     dplyr,
     ellmer,
-    stringr
+    stringr,
+    formatR,
+    shinyjs,
+    jsonlite
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
