@@ -26,3 +26,8 @@ new_llm_plot_block(
 \description{
 This block allows for plotting data using LLM-generated R code based on natural language questions
 }
+\examples{
+\dontrun{
+pkgload::load_all(); serve(new_llm_plot_block(), list(data = mtcars))
+}
+}
