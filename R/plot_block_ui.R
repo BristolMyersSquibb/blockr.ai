@@ -1,4 +1,9 @@
-plot_block_ui <- function(ns, question = "", code = "", store = FALSE) {
+plot_block_ui <- function(ns) {
+
+  question <- ""
+  code <- ""
+  store <- FALSE
+
   tagList(
     shinyjs::useShinyjs(),
     # Styling

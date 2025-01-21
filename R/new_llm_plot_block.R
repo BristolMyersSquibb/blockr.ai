@@ -9,6 +9,10 @@
 #' @param ... Forwarded to [new_block()]
 #'
 #' @export
+#' @examples
+#' \dontrun{
+#' pkgload::load_all(); serve(new_llm_plot_block(), list(data = mtcars))
+#' }
 new_llm_plot_block <- function(question = character(),
                                     code = character(),
                                     store = FALSE,
