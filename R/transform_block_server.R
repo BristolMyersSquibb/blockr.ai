@@ -2,9 +2,9 @@
 # environment is tweaked there so it can access the args. We define
 # global variables to avoid a note
 globalVariables(c("question", "max_retries"))
-transform_block_server <- function(...) {
+transform_block_server <- function(id, ...) {
   moduleServer(
-    "expression",
+    id,
     function(input, output, session) {
 
       # Reactive values for state

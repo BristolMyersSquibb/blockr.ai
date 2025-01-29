@@ -1,4 +1,4 @@
-transform_block_ui <- function(ns) {
+transform_block_ui <- function(id) {
 
   question <- ""
   code <- ""
@@ -49,7 +49,7 @@ transform_block_ui <- function(ns) {
       class = "llm-block",
       # Question input section
       textAreaInput(
-        ns("expression", "question"),
+        NS(id, "question"),
         "Question",
         value = question,
         rows = 3,
@@ -60,12 +60,12 @@ transform_block_ui <- function(ns) {
       div(
         style = "display: flex; gap: 10px; align-items: center;",
         actionButton(
-          ns("expression", "ask"),
+          NS(id, "ask"),
           "Ask",
           class = "btn-primary"
         ),
         checkboxInput(
-          ns("expression", "store"),
+          NS(id, "store"),
           "Store Response",
           value = store
         )
@@ -74,7 +74,7 @@ transform_block_ui <- function(ns) {
       # Progress indicator
       div(
         class = "llm-progress",
-        id = ns("expression", "progress_container"),
+        id = NS(id, "progress_container"),
         div(
           class = "progress",
           div(
@@ -96,7 +96,7 @@ transform_block_ui <- function(ns) {
           tags$summary("Explanation"),
           div(
             style = "padding: 10px;",
-            textOutput(ns("expression", "explanation"))
+            textOutput(NS(id, "explanation"))
           )
         ),
 
@@ -107,7 +107,7 @@ transform_block_ui <- function(ns) {
           tags$summary("Generated Code"),
           tags$pre(
             class = "llm-code",
-            textOutput(ns("expression", "code_display"))
+            textOutput(NS(id, "code_display"))
           )
         )
       )
