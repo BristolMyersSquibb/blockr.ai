@@ -2,25 +2,17 @@
 # environment is tweaked there so it can access the args. We define
 # global variables to avoid a note
 globalVariables(c("question", "max_retries"))
-transform_block_server <- function(...) {
+transform_block_server <- function(id, ...args) {
   moduleServer(
-    "expression",
+    id,
     function(input, output, session) {
+      # capture the datasets into a list
+      datasets <- reactive(reactiveValuesToList(...args))
 
       # Reactive values for state
       stored_response <- reactiveVal(NULL)
       current_code <- reactiveVal(code)
       current_question <- reactiveVal(question)
-
-      # Get all input datasets
-      datasets <- reactive({
-        # Convert list of reactives to list of actual data
-        actual_data <- lapply(list(...), function(x) {
-          if (is.reactive(x)) x() else x
-        })
-        actual_data <- name_unnamed_datasets(actual_data)
-        actual_data
-      })
 
       # Generate metadata when datasets change
       metadata <- reactive({
