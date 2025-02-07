@@ -88,7 +88,6 @@ plot_block_ui <- function(id) {
         # Explanation details
         tags$details(
           class = "llm-details",
-          open = TRUE,  # Open by default
           tags$summary("Explanation"),
           div(
             style = "padding: 10px;",
@@ -99,7 +98,6 @@ plot_block_ui <- function(id) {
         # Code details
         tags$details(
           class = "llm-details",
-          open = TRUE,  # Open by default
           tags$summary("Generated Code"),
           tags$pre(
             class = "llm-code",
