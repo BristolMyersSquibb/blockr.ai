@@ -105,15 +105,9 @@ plot_block_ui <- function(id) {
           )
         ),
 
-        # Plot output
-        tags$details(
-          class = "llm-plot",
-          open = TRUE,  # Open by default
-          tags$summary("plot"),
-          tags$pre(
-            class = "llm-code",
-            plotOutput(NS(id, "plot"))
-          )
+        div(
+          class = "llm-details",
+          plotOutput(NS(id, "plot"))
         )
       )
     )
