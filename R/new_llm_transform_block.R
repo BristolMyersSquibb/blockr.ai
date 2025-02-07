@@ -15,8 +15,9 @@ new_llm_transform_block <- function(question = character(),
                                     max_retries = 3,
                                     ...) {
 
-  # change environment so transform_block_server has access to arguments
+  # change environment so server and ui have access to arguments
   environment(transform_block_server) <- environment()
+  environment(transform_block_ui) <- environment()
   new_transform_block(
     server = transform_block_server,
     ui = transform_block_ui,
