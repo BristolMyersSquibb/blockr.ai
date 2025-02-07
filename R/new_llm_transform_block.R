@@ -9,8 +9,8 @@
 #' @param ... Forwarded to [new_block()]
 #'
 #' @export
-new_llm_transform_block <- function(question = character(),
-                                    code = character(),
+new_llm_transform_block <- function(question = "",
+                                    code = "",
                                     store = FALSE,
                                     max_retries = 3,
                                     ...) {

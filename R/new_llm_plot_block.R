@@ -13,11 +13,11 @@
 #' \dontrun{
 #' pkgload::load_all(); serve(new_llm_plot_block(), list(data = mtcars))
 #' }
-new_llm_plot_block <- function(question = character(),
-                                    code = character(),
-                                    store = FALSE,
-                                    max_retries = 3,
-                                    ...) {
+new_llm_plot_block <- function(question = "",
+                               code = "",
+                               store = FALSE,
+                               max_retries = 3,
+                               ...) {
 
   # change environment so server and ui have access to arguments
   environment(plot_block_server) <- environment()
