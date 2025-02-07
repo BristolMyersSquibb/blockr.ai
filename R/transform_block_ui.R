@@ -1,9 +1,4 @@
 transform_block_ui <- function(id) {
-
-  question <- ""
-  code <- ""
-  store <- FALSE
-
   tagList(
     shinyjs::useShinyjs(),
     # Styling
