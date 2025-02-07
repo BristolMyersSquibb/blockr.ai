@@ -16,6 +16,7 @@ transform_block_ui <- function(id) {
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             margin-top: 10px;
+            border: none;
           }
           .llm-details summary {
             padding: 8px;
