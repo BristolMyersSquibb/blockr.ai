@@ -88,29 +88,32 @@ plot_block_ui <- function(id) {
         p("Thinking...", style = "text-align: center; color: #666;")
       ),
 
-      # Response section
-      div(
-        class = "llm-response",
-        # Explanation details
-        tags$details(
-          class = "llm-details",
-          tags$summary("Explanation"),
-          div(
-            style = "padding: 10px;",
-            textOutput(NS(id, "explanation"))
-          )
-        ),
-
-        # Code details
-        tags$details(
-          class = "llm-details",
-          tags$summary("Generated Code"),
-          uiOutput(NS(id, "code_display"))
-        ),
-
+      conditionalPanel(
+        condition = sprintf("output['%s'] == true", NS(id, "result_is_available")),
+        # Response section
         div(
-          class = "llm-plot",
-          plotOutput(NS(id, "plot"))
+          class = "llm-response",
+          # Explanation details
+          tags$details(
+            class = "llm-details",
+            tags$summary("Explanation"),
+            div(
+              style = "padding: 10px;",
+              textOutput(NS(id, "explanation"))
+            )
+          ),
+
+          # Code details
+          tags$details(
+            class = "llm-details",
+            tags$summary("Generated Code"),
+            uiOutput(NS(id, "code_display"))
+          ),
+
+          div(
+            class = "llm-plot",
+            plotOutput(NS(id, "plot"))
+          )
         )
       )
     )

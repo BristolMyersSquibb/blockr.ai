@@ -73,6 +73,11 @@ transform_block_server <- function(id, ...args) {
         stored_response()$explanation
       })
 
+      output$result_is_available <- reactive({
+        req(execution_result()$success)
+      })
+      outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
+
       list(
         expr = reactive({
           return_result_if_success(

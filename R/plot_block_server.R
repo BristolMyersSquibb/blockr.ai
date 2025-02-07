@@ -75,6 +75,11 @@ plot_block_server <- function(id, ...args) {
         stored_response()$explanation
       })
 
+      output$result_is_available <- reactive({
+        req(execution_result()$success)
+      })
+      outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
+
       output$plot <- renderPlot({
         req(execution_result())
         print(execution_result()$result)
