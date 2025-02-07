@@ -17,15 +17,6 @@ type_response <- function() {
   )
 }
 
-format_generated_code <- function(code) {
-  if (!is_string(code)) abort("`code` must be a string")
-  if (nchar(code) > 0) {
-    formatR::tidy_source(text = code, output = FALSE)$text.tidy
-  } else {
-    "No code generated yet"
-  }
-}
-
 return_result_if_success <- function(result, code) {
   warning("Expression status: ", result$success, "\nFinal code:\n", code)
   if (isTRUE(result$success)) {
@@ -33,4 +24,20 @@ return_result_if_success <- function(result, code) {
   } else {
     data.frame()  # Return empty dataframe on error
   }
+}
+
+fixed_ace_editor <- function(code) {
+  code_styled <- styler::style_text(code)
+  n_lines <- length(code_styled)
+  # FIXME: is there a better or more robust way to set a height to fit input?
+  height <- sprintf("%spx", n_lines * 12 * 1.4)
+  shinyAce::aceEditor(
+    "codeEditor",
+    mode = "r",
+    theme = "chrome",
+    value = code_styled,
+    readOnly = TRUE,
+    height = height,
+    showPrintMargin = FALSE
+  )
 }

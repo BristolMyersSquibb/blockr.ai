@@ -29,9 +29,10 @@ Imports:
     dplyr,
     ellmer,
     stringr,
-    formatR,
     shinyjs,
-    jsonlite
+    jsonlite,
+    shinyAce,
+    styler
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

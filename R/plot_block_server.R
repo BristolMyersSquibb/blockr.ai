@@ -65,9 +65,8 @@ plot_block_server <- function(id, ...args) {
       })
 
       # Add code display output
-      output$code_display <- renderText({
-        # Format the code nicely
-        format_generated_code(req(current_code()))
+      output$code_display <- renderUI({
+        fixed_ace_editor(current_code())
       })
 
       # Render explanation

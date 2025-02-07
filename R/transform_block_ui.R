@@ -100,10 +100,7 @@ transform_block_ui <- function(id) {
         tags$details(
           class = "llm-details",
           tags$summary("Generated Code"),
-          tags$pre(
-            class = "llm-code",
-            textOutput(NS(id, "code_display"))
-          )
+          uiOutput(NS(id, "code_display"))
         )
       )
     )
