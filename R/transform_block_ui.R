@@ -48,6 +48,7 @@ transform_block_ui <- function(id) {
         "Question",
         value = question,
         rows = 3,
+        width = "100%",
         resize = "vertical"
       ),
 
