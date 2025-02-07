@@ -32,6 +32,11 @@ plot_block_ui <- function(id) {
             border-radius: 4px;
             font-family: monospace;
           }
+          .llm-plot {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
+          }
           .llm-progress {
             margin-top: 10px;
             display: none;
@@ -107,7 +112,7 @@ plot_block_ui <- function(id) {
         ),
 
         div(
-          class = "llm-details",
+          class = "llm-plot",
           plotOutput(NS(id, "plot"))
         )
       )
