@@ -80,10 +80,10 @@ transform_block_server <- function(id, ...args) {
 
       list(
         expr = reactive({
-          return_result_if_success(
-            result = execution_result(),
-            code = req(current_code())
-          )
+          req(execution_result()$success)
+          out <- str2lang(sprintf("{%s}", current_code()))
+          attr(out, "result") <- execution_result()$result
+          out
         }),
         state = list(
           question = reactive(current_question()),
