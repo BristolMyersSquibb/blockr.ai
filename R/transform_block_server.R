@@ -1,7 +1,7 @@
 # transform_block_server is called from new_llm_transform_block() and its
 # environment is tweaked there so it can access the args. We define
 # global variables to avoid a note
-globalVariables(c("question", "max_retries"))
+globalVariables(c("question", "max_retries", "code", "store"))
 transform_block_server <- function(id, ...args) {
   moduleServer(
     id,
@@ -63,9 +63,8 @@ transform_block_server <- function(id, ...args) {
       })
 
       # Add code display output
-      output$code_display <- renderText({
-        # Format the code nicely
-        format_generated_code(req(current_code()))
+      output$code_display <- renderUI({
+        fixed_ace_editor(current_code())
       })
 
       # Render explanation
@@ -74,12 +73,17 @@ transform_block_server <- function(id, ...args) {
         stored_response()$explanation
       })
 
+      output$result_is_available <- reactive({
+        req(execution_result()$success)
+      })
+      outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
+
       list(
         expr = reactive({
-          return_result_if_success(
-            result = execution_result(),
-            code = req(current_code())
-          )
+          req(execution_result()$success)
+          out <- str2lang(sprintf("{%s}", current_code()))
+          attr(out, "result") <- execution_result()$result
+          out
         }),
         state = list(
           question = reactive(current_question()),

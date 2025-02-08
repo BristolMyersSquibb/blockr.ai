@@ -5,8 +5,8 @@
 \title{LLM plot block constructor}
 \usage{
 new_llm_plot_block(
-  question = character(),
-  code = character(),
+  question = "",
+  code = "",
   store = FALSE,
   max_retries = 3,
   ...

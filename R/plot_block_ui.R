@@ -1,9 +1,4 @@
 plot_block_ui <- function(id) {
-
-  question <- ""
-  code <- ""
-  store <- FALSE
-
   tagList(
     shinyjs::useShinyjs(),
     # Styling
@@ -21,6 +16,7 @@ plot_block_ui <- function(id) {
             border: 1px solid #e0e0e0;
             border-radius: 4px;
             margin-top: 10px;
+            border: none;
           }
           .llm-details summary {
             padding: 8px;
@@ -35,6 +31,11 @@ plot_block_ui <- function(id) {
             padding: 10px;
             border-radius: 4px;
             font-family: monospace;
+          }
+          .llm-plot {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-top: 10px;
           }
           .llm-progress {
             margin-top: 10px;
@@ -53,6 +54,7 @@ plot_block_ui <- function(id) {
         "Question",
         value = question,
         rows = 3,
+        width = "100%",
         resize = "vertical"
       ),
 
@@ -86,38 +88,30 @@ plot_block_ui <- function(id) {
         p("Thinking...", style = "text-align: center; color: #666;")
       ),
 
-      # Response section
-      div(
-        class = "llm-response",
-        # Explanation details
-        tags$details(
-          class = "llm-details",
-          open = TRUE,  # Open by default
-          tags$summary("Explanation"),
+      conditionalPanel(
+        condition = sprintf("output['%s'] == true", NS(id, "result_is_available")),
+        # Response section
+        div(
+          class = "llm-response",
+          # Explanation details
+          tags$details(
+            class = "llm-details",
+            tags$summary("Explanation"),
+            div(
+              style = "padding: 10px;",
+              textOutput(NS(id, "explanation"))
+            )
+          ),
+
+          # Code details
+          tags$details(
+            class = "llm-details",
+            tags$summary("Generated Code"),
+            uiOutput(NS(id, "code_display"))
+          ),
+
           div(
-            style = "padding: 10px;",
-            textOutput(NS(id, "explanation"))
-          )
-        ),
-
-        # Code details
-        tags$details(
-          class = "llm-details",
-          open = TRUE,  # Open by default
-          tags$summary("Generated Code"),
-          tags$pre(
-            class = "llm-code",
-            textOutput(NS(id, "code_display"))
-          )
-        ),
-
-        # Plot output
-        tags$details(
-          class = "llm-plot",
-          open = TRUE,  # Open by default
-          tags$summary("plot"),
-          tags$pre(
-            class = "llm-code",
+            class = "llm-plot",
             plotOutput(NS(id, "plot"))
           )
         )

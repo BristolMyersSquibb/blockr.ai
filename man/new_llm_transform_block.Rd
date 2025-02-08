@@ -5,8 +5,8 @@
 \title{LLM Transform block constructor}
 \usage{
 new_llm_transform_block(
-  question = character(),
-  code = character(),
+  question = "",
+  code = "",
   store = FALSE,
   max_retries = 3,
   ...

@@ -65,9 +65,8 @@ plot_block_server <- function(id, ...args) {
       })
 
       # Add code display output
-      output$code_display <- renderText({
-        # Format the code nicely
-        format_generated_code(req(current_code()))
+      output$code_display <- renderUI({
+        fixed_ace_editor(current_code())
       })
 
       # Render explanation
@@ -76,6 +75,11 @@ plot_block_server <- function(id, ...args) {
         stored_response()$explanation
       })
 
+      output$result_is_available <- reactive({
+        req(execution_result()$success)
+      })
+      outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
+
       output$plot <- renderPlot({
         req(execution_result())
         print(execution_result()$result)
@@ -83,10 +87,10 @@ plot_block_server <- function(id, ...args) {
 
       list(
         expr = reactive({
-          return_result_if_success(
-            result = list(result = data.frame()), #execution_result(),
-            code = req(current_code())
-          )
+          req(execution_result()$success)
+          out <- str2lang(sprintf("{%s\ninvisible(data.frame())}", current_code()))
+          attr(out, "result") <- execution_result()$result
+          out
         }),
         state = list(
           question = reactive(current_question()),
