@@ -12,6 +12,9 @@ make_metadata <- function(
     metadata_list[[domain]] <- extract_metadata(data, domain, extract_codelist_vars, max_unique_values)
   }
 
+  # Use aliases in metadata
+  names(metadata_list) <- create_dataset_aliases(names(reactive_datasets))$names
+
   study_metadata <- list(
     context = paste("Treatment group information and population flags (sometimes called sets) are on DM and must be merged. Variables that end with FL are flag variables and are 'Y' when true. Visits should be displayed using VISIT, but ordered by VISITNUM. Unscheduled VISITs start with 'UNSCHEDULED'. ", tips),
     datasets = metadata_list
