@@ -49,12 +49,12 @@ library(blockr.ai)
 
 blockr.core::serve(
   blockr.ai::new_llm_plot_block(),
-  data = list(x = iris)
+  data = list(`1` = iris)
 )
 
 blockr.core::serve(
   blockr.ai::new_llm_transform_block(),
-  data = list(x = iris)
+  data = list(`1` = iris)
 )
 ```
 

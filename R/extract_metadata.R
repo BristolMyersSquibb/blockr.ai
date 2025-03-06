@@ -44,7 +44,7 @@ extract_metadata <- function(data, domain, extract_codelist_vars = NULL, max_uni
       }
     }
 
-    return(var_meta)
+    var_meta
   })
 
   # Create the metadata entry
@@ -53,5 +53,5 @@ extract_metadata <- function(data, domain, extract_codelist_vars = NULL, max_uni
     variables = variable_list
   )
 
-  return(metadata_entry)
+  metadata_entry
 }

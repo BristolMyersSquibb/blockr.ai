@@ -6,11 +6,18 @@ execute_code <- function(code, datasets, max_retries, current_question, metadata
     tryCatch({
       # Create environment with datasets
       env <- list2env(datasets)
+
+      code_aliased <- paste(
+        create_dataset_aliases(names(datasets))$code,
+        code,
+        sep = "\n"
+      )
+
       # Execute code
-      result <- eval(parse(text = code), envir = env)
+      result <- eval(parse(text = code_aliased), envir = env)
       # If we get here, code executed successfully
       warning("Code execution successful:\n", code)
-      return(list(success = TRUE, code = code, result = result))
+      return(list(success = TRUE, code = code_aliased, result = result))
     }, error = function(e) {
       if (i == max_retries) {
         warning("Code execution failed after ", max_retries, " attempts:\n",
@@ -27,4 +34,19 @@ execute_code <- function(code, datasets, max_retries, current_question, metadata
   # If we get here, max retries reached
   warning("Maximum retries reached. Last code:\n", code)
   return(list(success = FALSE, error = "Maximum retries reached"))
+}
+
+create_dataset_aliases <- function(dataset_names) {
+  numeric_names <- grepl("^[0-9]+$", dataset_names)
+  if (!any(numeric_names)) return(list(code = "", names = character(0)))
+
+  new_names <- paste0("dataset_", dataset_names[numeric_names])
+  alias_lines <- sapply(dataset_names[numeric_names], function(name) {
+    sprintf("dataset_%s <- `%s`", name, name)
+  })
+
+  list(
+    code = paste(alias_lines, collapse = "\n"),
+    names = new_names
+  )
 }
