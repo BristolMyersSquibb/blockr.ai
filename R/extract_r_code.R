@@ -29,5 +29,5 @@ extract_r_code <- function(text) {
   }
 
   # If no matches found or all empty, return empty character vector
-  return(character())
+  character()
 }
