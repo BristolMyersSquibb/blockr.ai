@@ -15,6 +15,7 @@ plot_block_server <- function(id, ...args) {
       current_question <- reactiveVal(question)
 
       # Generate metadata when datasets change
+      make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
       metadata <- reactive({
         req(length(datasets()) > 0)
         m <- make_metadata(datasets())

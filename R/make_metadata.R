@@ -1,4 +1,12 @@
-make_metadata <- function(
+
+make_metadata_default <- function(x) {
+  list(
+    context = "We provide the ptypes of the datasets, i.e. empty datasets with the correct column names and types",
+    ptypes = lapply(x, vctrs::vec_ptype)
+  )
+}
+
+make_metadata_bms <- function(
     reactive_datasets,
     extract_codelist_vars = c("-.*DTC$", "-STUDYID", "-USUBJID", "-DOMAIN", "-SUBJID", "-SITEID", "-COUNTRY", "-.*ID$", "-.*NAM$"),
     max_unique_values = 130,
