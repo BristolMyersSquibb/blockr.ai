@@ -32,7 +32,8 @@ Imports:
     shinyjs,
     jsonlite,
     shinyAce,
-    styler
+    styler,
+    vctrs
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
