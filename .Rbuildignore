@@ -2,3 +2,5 @@
 ^\.github$
 ^README\.(Rmd|html)$
 ^\.lintr$
+^.*\.Rproj$
+^\.Rproj\.user$

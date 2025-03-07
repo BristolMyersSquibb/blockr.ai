@@ -25,14 +25,15 @@ RoxygenNote: 7.3.2
 Imports:
     shiny,
     blockr.core (>= 0.0.1),
+    constructive,
     rlang,
     dplyr,
     ellmer,
     stringr,
     shinyjs,
-    jsonlite,
     shinyAce,
-    styler
+    styler,
+    vctrs
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

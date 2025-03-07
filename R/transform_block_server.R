@@ -15,10 +15,10 @@ transform_block_server <- function(id, ...args) {
       current_question <- reactiveVal(question)
 
       # Generate metadata when datasets change
+      make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
       metadata <- reactive({
         req(length(datasets()) > 0)
         m <- make_metadata(datasets())
-        print(m)
         m
       })
 
@@ -34,7 +34,7 @@ transform_block_server <- function(id, ...args) {
 
         # Query LLM if needed
         if (!input$store || is.null(stored_response())) {
-          response <- query_llm(input$question, metadata())
+          response <- query_llm(input$question, metadata(), names = create_dataset_aliases(names(datasets()))$names)
           stored_response(response)
         }
 
