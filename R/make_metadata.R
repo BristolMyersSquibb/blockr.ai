@@ -1,5 +1,6 @@
 
 make_metadata_default <- function(x) {
+  names(x) <- create_dataset_aliases(x)$names
   list(
     context = "We provide the ptypes of the datasets, i.e. empty datasets with the correct column names and types",
     ptypes = lapply(x, vctrs::vec_ptype)
