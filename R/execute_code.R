@@ -1,52 +1,42 @@
-# FIXME: would it be better to use purrr::insistently() on a wrapper that calls query_llm and evals?
+query_llm_and_execute_with_retries <- function(datasets, question, metadata, plot = FALSE, max_retries = 5) {
+  local_env <- environment()
+  dataset_env <- list2env(datasets, parent = .GlobalEnv)
+  error_message <- NULL
 
-# Function to execute code with retry logic
-execute_code <- function(code, datasets, max_retries, current_question, metadata, plot = FALSE) {
   for (i in 1:max_retries) {
     tryCatch({
-      # Create environment with datasets
-      env <- list2env(datasets)
-
-      code_aliased <- paste(
-        create_dataset_aliases(names(datasets))$code,
-        code,
-        sep = "\n"
-      )
-
-      # Execute code
-      result <- eval(parse(text = code_aliased), envir = env)
+      response <- query_llm(question, metadata, names(datasets), error_message, plot = plot)
+      result <- eval(parse(text = response$code), envir = dataset_env)
       # If we get here, code executed successfully
-      warning("Code execution successful:\n", code)
-      return(list(success = TRUE, code = code_aliased, result = result))
+      message("Code execution successful:\n", response$code)
+      return(list(result = result, code = response$code, explanation = response$explanation))
     }, error = function(e) {
-      if (i == max_retries) {
-        warning("Code execution failed after ", max_retries, " attempts:\n",
-                "Last code:\n", code, "\nError: ", e$message)
-        return(list(success = FALSE, error = e$message))
-      }
-      warning("Code execution attempt ", i, " failed:\n",
-              "Code:\n", code, "\nError: ", e$message)
-      # Query LLM with error
-      response <- query_llm(current_question, metadata, e$message, plot = plot)
-      code <- response$code
+      local_env$error_message <- e$message
+      warning(
+        "Code execution attempt ",
+        i,
+        " failed:\n",
+        "Code:\n",
+        code,
+        "\nError: ",
+        e$message
+      )
     })
   }
   # If we get here, max retries reached
   warning("Maximum retries reached. Last code:\n", code)
-  return(list(success = FALSE, error = "Maximum retries reached"))
+  return(list(error = "Maximum retries reached"))
 }
 
-create_dataset_aliases <- function(dataset_names) {
-  numeric_names <- grepl("^[0-9]+$", dataset_names)
-  if (!any(numeric_names)) return(list(code = "", names = character(0)))
+rename_datasets <- function(datasets) {
+  numeric_lgl <- grepl("^[0-9]+$", names(datasets))
+  names(datasets)[numeric_lgl] <- paste0("dataset_", names(datasets)[numeric_lgl])
+  datasets
+}
 
-  new_names <- paste0("dataset_", dataset_names[numeric_names])
-  alias_lines <- sapply(dataset_names[numeric_names], function(name) {
-    sprintf("dataset_%s <- `%s`", name, name)
-  })
-
-  list(
-    code = paste(alias_lines, collapse = "\n"),
-    names = new_names
-  )
+build_code_prefix <- function(datasets) {
+  numeric_lgl <- grepl("^[0-9]+$", names(datasets))
+  numeric_names <- names(datasets)[numeric_lgl]
+  code <- sprintf("dataset_%s <- `%s`", numeric_names, numeric_names)
+  paste(code, collapse = "\n")
 }
