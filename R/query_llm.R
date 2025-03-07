@@ -1,5 +1,5 @@
 # Function to query LLM
-query_llm <- function(question, metadata, error = NULL, plot = FALSE) {
+query_llm <- function(question, metadata, names, error = NULL, plot = FALSE) {
   # Create system message with examples
   if (plot) {
     system_msg <- plot_system_message()
@@ -9,12 +9,17 @@ query_llm <- function(question, metadata, error = NULL, plot = FALSE) {
 
 
   # Create user message
-  user_msg <- paste(
-    "Here are the datasets you can work with:",
-    jsonlite::toJSON(metadata, auto_unbox = TRUE, pretty = TRUE),
-    "\nYour question:", question,
+  user_msg <- paste(c(
+    "Dataset names:",
+    toString(shQuote(names)),
+    metadata$description,
+    constructive::construct_multi(metadata$summaries)$code,
+    "\nYour question:",
+    question,
     if (!is.null(error)) paste("\nMy previous code generated this error:", error) else ""
-  )
+  ), collapse = "\n")
+
+  cat("\n", user_msg, "\n")
 
   # Create chat instance with instructions
   chat <- chat_openai(
