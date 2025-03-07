@@ -1,4 +1,3 @@
-
 make_metadata_default <- function(x) {
   names(x) <- create_dataset_aliases(names(x))$names
   list(
@@ -6,4 +5,3 @@ make_metadata_default <- function(x) {
     summaries = lapply(x, vctrs::vec_ptype)
   )
 }
-
