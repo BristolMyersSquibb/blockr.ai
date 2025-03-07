@@ -19,7 +19,6 @@ plot_block_server <- function(id, ...args) {
       metadata <- reactive({
         req(length(datasets()) > 0)
         m <- make_metadata(datasets())
-        print(m)
         m
       })
 
@@ -35,7 +34,7 @@ plot_block_server <- function(id, ...args) {
 
         # Query LLM if needed
         if (!input$store || is.null(stored_response())) {
-          response <- query_llm(input$question, metadata(), plot = TRUE)
+          response <- query_llm(input$question, metadata(), names = create_dataset_aliases(names(datasets()))$names, plot = TRUE)
           stored_response(response)
         }
 
