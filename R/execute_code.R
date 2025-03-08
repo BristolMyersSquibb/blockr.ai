@@ -4,7 +4,7 @@ query_llm_and_execute_with_retries <- function(datasets, question, metadata, plo
   error_message <- NULL
 
   for (i in 1:max_retries) {
-    tryCatch({
+    rlang::try_fetch({
       response <- query_llm(question, metadata, names(datasets), error_message, plot = plot)
       result <- eval(parse(text = response$code), envir = dataset_env)
       # If we get here, code executed successfully
