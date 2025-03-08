@@ -24,7 +24,7 @@ query_llm_and_execute_with_retries <- function(datasets, question, metadata, plo
     })
   }
   # If we get here, max retries reached
-  warning("Maximum retries reached. Last code:\n", code)
+  warning("Maximum retries reached. Last code:\n", response$code)
   return(list(error = "Maximum retries reached"))
 }
 
