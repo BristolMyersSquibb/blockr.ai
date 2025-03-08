@@ -1,52 +1,59 @@
 # Function to query LLM
-query_llm <- function(question, metadata, names, error = NULL, plot = FALSE) {
-  # Create system message with examples
+query_llm <- function(question, metadata, names, error = NULL, plot = FALSE, verbose = getOption("blockr.ai.verbose", TRUE)) {
+  # system message -------------------------------------------------------------
   if (plot) {
-    system_msg <- plot_system_message()
+    system_prompt <- plot_system_prompt(names, metadata)
   } else {
-    system_msg <- transform_system_message()
+    system_prompt <- transform_system_prompt(names, metadata)
   }
 
+  # user message ---------------------------------------------------------------
+  user_prompt <- question
+  if (!is.null(error)) {
+    user_prompt <-
+      paste(
+        question,
+        "\nIn another conversation your solution resulted in this error:",
+        shQuote(error, type = "cmd"),
+        "Be careful to provide a solution that doesn't reproduce this problem",
+        sep = "\n"
+      )
+    }
 
-  # Create user message
-  user_msg <- paste(c(
-    "Dataset names:",
-    toString(shQuote(names)),
-    metadata$description,
-    constructive::construct_multi(metadata$summaries)$code,
-    "\nYour question:",
-    question,
-    if (!is.null(error)) paste("\nMy previous code generated this error:", error) else ""
-  ), collapse = "\n")
+  if (verbose) {
+    cat(
+      "\n-------------------- system prompt --------------------\n",
+      system_prompt,
 
-  cat("\n", user_msg, "\n")
+      "\n-------------------- user prompt --------------------\n",
+      user_prompt,
+      "\n"
+    )
+  }
 
-  # Create chat instance with instructions
-  chat <- chat_openai(
-    system_prompt = system_msg,
-    model = "gpt-4o"
-  )
-
-  # Get structured response
-  response <- chat$extract_data(
-    user_msg,
-    type = type_response()
-  )
-
-  return(response)
+  # response -------------------------------------------------------------------
+  chat <- chat_dispatch(system_prompt)
+  response <- chat$extract_data(user_prompt, type = type_response())
+  response
 }
 
-transform_system_message <- function() {
+transform_system_prompt <- function(names, metadata)  {
   paste(
-    "I am an R programming assistant. I help users analyze datasets by generating R code.",
-    "I will provide clear explanations in first person and generate working R code.",
-    "The user is expected to provide me with metadata about 1 or more input datasets.",
-    "This metadata might contain the names of the datasets and I'll be very careful",
-    "to use precisely those in my explanations and code.",
-    "Never produce code to rebuild the input objects, instead assume that you",
-    "have them at your disposal.",
-    "Important: My code must always return a dataframe as the last expression.",
-    "\nExamples of good code I might write:",
+    "You are a R programming assistant. You help users analyze datasets by generating R code.",
+    "You will provide clear explanations and generate working R code.",
+    "You have the following dataset(s) at my disposal:",
+    toString(shQuote(names)),
+    "These come with summaries or metadata given below along with a description:",
+    shQuote(metadata$description, type = "cmd"),
+    "",
+    "```{r}",
+    paste(constructive::construct_multi(metadata$summaries)$code, collapse = "\n"),
+    "```",
+    "",
+    "You'll be very careful to use the provided names in my explanations and code.",
+    "You'll Never produce code to rebuild the input objects.",
+    "Important: Your code must always return a dataframe as the last expression.",
+    "\nExamples of good code You might write:",
     "1. Direct transformation:",
     "data %>%",
     "  group_by(category) %>%",
@@ -61,21 +68,28 @@ transform_system_message <- function() {
     "result <- data %>% summarize(...)",
     "# Printing instead of returning:",
     "print(data %>% summarize(...))",
-    "\nI always ensure my code returns a dataframe."
+    "\nYou always ensure your code returns a dataframe.",
+    sep = "\n"
   )
 }
 
-plot_system_message <- function() {
+plot_system_prompt <- function(names, metadata) {
   paste(
-    "I am an R programming assistant. I help users analyze datasets by generating R code.",
-    "I will provide clear explanations in first person and generate working R code.",
-    "The user is expected to provide me with metadata about 1 or more input datasets.",
-    "This metadata might contain the names of the datasets and I'll be very careful",
-    "to use precisely those in my explanations and code.",
-    "Never produce code to rebuild the input objects, instead assume that you",
-    "have them at your disposal.",
-    "Important: My code must always return a ggplot2 plot object as the last expression.",
-    "\nExamples of good code I might write:",
+    "You are a R programming assistant. You help users analyze datasets by generating R code.",
+    "You will provide clear explanations and generate working R code.",
+    "You have the following dataset(s) at my disposal:",
+    toString(shQuote(names)),
+    "These come with summaries or metadata given below along with a description:",
+    shQuote(metadata$description, type = "cmd"),
+    "",
+    "```{r}",
+    paste(constructive::construct_multi(metadata$summaries)$code, collapse = "\n"),
+    "```",
+    "",
+    "You'll be very careful to use the provided names in my explanations and code.",
+    "You'll Never produce code to rebuild the input objects.",
+    "Important: Your code must always return a ggplot2 plot object as the last expression.",
+    "\nExamples of good code you might write:",
     " ggplot(data) + ",
     "   geom_point(aes(x = displ, y = hwy)) +",
     "   facet_wrap(~ class, nrow = 2)",
