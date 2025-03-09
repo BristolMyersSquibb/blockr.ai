@@ -49,8 +49,8 @@ transform_block_server <- function(id, ...args) {
       })
 
       # Render explanation
-      output$explanation <- renderText({
-        rv_result()$explanation
+      output$explanation <- renderUI({
+        markdown(rv_result()$explanation)
       })
 
       output$result_is_available <- reactive({

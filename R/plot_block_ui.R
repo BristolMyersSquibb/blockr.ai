@@ -94,7 +94,7 @@ plot_block_ui <- function(id) {
             tags$summary("Explanation"),
             div(
               style = "padding: 10px;",
-              textOutput(NS(id, "explanation"))
+              htmlOutput(NS(id, "explanation"))
             )
           ),
 
