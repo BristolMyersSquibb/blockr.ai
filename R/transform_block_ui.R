@@ -60,11 +60,6 @@ transform_block_ui <- function(id) {
           NS(id, "ask"),
           "Ask",
           class = "btn-primary"
-        ),
-        checkboxInput(
-          NS(id, "store"),
-          "Store Response",
-          value = store
         )
       ),
 
@@ -94,7 +89,7 @@ transform_block_ui <- function(id) {
             tags$summary("Explanation"),
             div(
               style = "padding: 10px;",
-              textOutput(NS(id, "explanation"))
+              htmlOutput(NS(id, "explanation"))
             )
           ),
 

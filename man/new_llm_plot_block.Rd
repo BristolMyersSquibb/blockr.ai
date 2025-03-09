@@ -4,20 +4,12 @@
 \alias{new_llm_plot_block}
 \title{LLM plot block constructor}
 \usage{
-new_llm_plot_block(
-  question = "",
-  code = "",
-  store = FALSE,
-  max_retries = 3,
-  ...
-)
+new_llm_plot_block(question = "", code = "", max_retries = 3, ...)
 }
 \arguments{
 \item{question}{Initial question (optional)}
 
 \item{code}{Initial code (optional)}
-
-\item{store}{Whether to store and reuse previous LLM response}
 
 \item{max_retries}{Maximum number of retries for code execution}
 

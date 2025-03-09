@@ -33,7 +33,8 @@ Imports:
     shinyjs,
     shinyAce,
     styler,
-    vctrs
+    vctrs,
+    ggplot2
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

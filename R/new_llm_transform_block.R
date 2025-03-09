@@ -4,14 +4,12 @@
 #'
 #' @param question Initial question (optional)
 #' @param code Initial code (optional)
-#' @param store Whether to store and reuse previous LLM response
 #' @param max_retries Maximum number of retries for code execution
 #' @param ... Forwarded to [new_block()]
 #'
 #' @export
 new_llm_transform_block <- function(question = "",
                                     code = "",
-                                    store = FALSE,
                                     max_retries = 3,
                                     ...) {
 
