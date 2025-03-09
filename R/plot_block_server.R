@@ -26,7 +26,7 @@ plot_block_server <- function(id, ...args) {
         shinyjs::show(id = "progress_container", anim = TRUE)
 
         # Execute code with retry logic and store result
-        result <- query_llm_and_execute_with_retries(
+        result <- query_llm_and_run_with_retries(
           datasets = r_datasets_renamed(),
           user_prompt = input$question,
           system_prompt = r_system_prompt(),

@@ -1,4 +1,4 @@
-query_llm_and_execute_with_retries <- function(datasets, user_prompt, system_prompt, max_retries = 5) {
+query_llm_and_run_with_retries <- function(datasets, user_prompt, system_prompt, max_retries = 5) {
   local_env <- environment()
   dataset_env <- list2env(datasets, parent = .GlobalEnv)
   error_message <- NULL
