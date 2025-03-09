@@ -15,9 +15,6 @@ query_llm <- function(user_prompt, system_prompt, error = NULL, verbose = getOpt
 
   if (verbose) {
     cat(
-      "\n-------------------- system prompt --------------------\n",
-      system_prompt,
-
       "\n-------------------- user prompt --------------------\n",
       user_prompt,
       "\n"
@@ -27,13 +24,25 @@ query_llm <- function(user_prompt, system_prompt, error = NULL, verbose = getOpt
   # response -------------------------------------------------------------------
   chat <- chat_dispatch(system_prompt)
   response <- chat$extract_data(user_prompt, type = type_response())
+
+  if (verbose) {
+    cat(
+      "\n-------------------- response explanation -----------\n",
+      response$explanation,
+      "\n",
+      "\n-------------------- response code ------------------\n",
+      response$code,
+      "\n"
+    )
+  }
+
   response
 }
 
-transform_system_prompt <- function(datasets) {
+transform_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
   make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
   metadata <- make_metadata(datasets)
-  paste(
+  system_prompt <- paste(
     "You are a R programming assistant. You help users analyze datasets by generating R code.",
     "You will provide clear explanations and generate working R code.",
     "You have the following dataset(s) at my disposal:",
@@ -68,12 +77,21 @@ transform_system_prompt <- function(datasets) {
     "\nYou always ensure your code returns a dataframe.",
     sep = "\n"
   )
+
+  if (verbose) {
+    cat(
+      "\n-------------------- system prompt --------------------\n",
+      system_prompt,
+      "\n"
+    )
+  }
+  system_prompt
 }
 
-plot_system_prompt <- function(datasets) {
+plot_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
   make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
   metadata <- make_metadata(datasets)
-  paste(
+  system_prompt <- paste(
     "You are a R programming assistant. You help users analyze datasets by generating R code.",
     "You will provide clear explanations and generate working R code.",
     "You have the following dataset(s) at my disposal:",
@@ -96,4 +114,13 @@ plot_system_prompt <- function(datasets) {
     "   facet_wrap(~ class, nrow = 2)",
     sep = "\n"
   )
+
+  if (verbose) {
+    cat(
+      "\n-------------------- system prompt --------------------\n",
+      system_prompt,
+      "\n"
+    )
+  }
+  system_prompt
 }

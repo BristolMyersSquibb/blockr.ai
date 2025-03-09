@@ -13,7 +13,7 @@ query_llm_and_execute_with_retries <- function(datasets, user_prompt, system_pro
         suppressMessages(ggplot2::ggplotGrob(result))
       }
       # If we get here, code executed successfully
-      message("Code execution successful:\n", response$code)
+      message("Code execution successful")
       return(list(result = result, code = response$code, explanation = response$explanation))
     }, error = function(e) {
       local_env$error_message <- e$message
