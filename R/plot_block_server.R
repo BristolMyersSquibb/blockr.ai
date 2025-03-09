@@ -3,8 +3,6 @@
 # global variables to avoid a note
 globalVariables(c("question", "max_retries"))
 plot_block_server <- function(id, ...args) {
-  # globals
-  make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
   moduleServer(
     id,
     function(input, output, session) {
@@ -12,9 +10,9 @@ plot_block_server <- function(id, ...args) {
       r_datasets <- reactive(reactiveValuesToList(...args))
       r_datasets_renamed <- reactive(rename_datasets(r_datasets()))
       r_code_prefix <- reactive(build_code_prefix(r_datasets())) # the dataset_1 <- `1` part
-      r_metadata <- reactive({
+      r_system_prompt <- reactive({
         req(length(r_datasets_renamed()) > 0)
-        make_metadata(r_datasets_renamed())
+        plot_system_prompt(r_datasets_renamed())
       })
 
       # reactive values --------------------------------------------------------
@@ -34,9 +32,8 @@ plot_block_server <- function(id, ...args) {
         # Execute code with retry logic and store result
         result_code_explanation_error <- query_llm_and_execute_with_retries(
           datasets = r_datasets_renamed(),
-          question = input$question,
-          metadata = r_metadata(),
-          plot = TRUE,
+          user_prompt = input$question,
+          system_prompt = r_system_prompt(),
           max_retries = max_retries
         )
         rv_result(result_code_explanation_error$result)

@@ -1,11 +1,11 @@
-query_llm_and_execute_with_retries <- function(datasets, question, metadata, plot = FALSE, max_retries = 5) {
+query_llm_and_execute_with_retries <- function(datasets, user_prompt, system_prompt, max_retries = 5) {
   local_env <- environment()
   dataset_env <- list2env(datasets, parent = .GlobalEnv)
   error_message <- NULL
 
   for (i in 1:max_retries) {
     rlang::try_fetch({
-      response <- query_llm(question, metadata, names(datasets), error_message, plot = plot)
+      response <- query_llm(user_prompt, system_prompt, error_message)
       result <- eval(parse(text = response$code), envir = dataset_env)
       # plots might not fail at definition time but only when printing.
       # We trigger the failure early with ggplotGrob()
