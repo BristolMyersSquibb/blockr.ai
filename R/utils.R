@@ -36,12 +36,13 @@ get_model <- function() {
 }
 
 get_model_family <- function() {
+  # commented out inconsistent apis
   supported <- c(
-    # "azure", # chat_azure() has different args
+    # "azure",
     "bedrock",
     "claude",
-    #"cortex",
-    #"databricks",
+    # "cortex",
+    # "databricks",
     "gemini",
     "github",
     "groq",
