@@ -22,7 +22,7 @@ query_llm_and_execute_with_retries <- function(datasets, question, metadata, plo
         i,
         " failed:\n",
         "Code:\n",
-        code,
+        response$code,
         "\nError: ",
         e$message
       )
