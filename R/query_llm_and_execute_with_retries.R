@@ -6,15 +6,15 @@ query_llm_and_execute_with_retries <- function(datasets, user_prompt, system_pro
   for (i in 1:max_retries) {
     rlang::try_fetch({
       response <- query_llm(user_prompt, system_prompt, error_message)
-      result <- eval(parse(text = response$code), envir = dataset_env)
+      value <- eval(parse(text = response$code), envir = dataset_env)
       # plots might not fail at definition time but only when printing.
       # We trigger the failure early with ggplotGrob()
-      if (ggplot2::is.ggplot(result)) {
-        suppressMessages(ggplot2::ggplotGrob(result))
+      if (ggplot2::is.ggplot(value)) {
+        suppressMessages(ggplot2::ggplotGrob(value))
       }
       # If we get here, code executed successfully
       message("Code execution successful")
-      return(list(result = result, code = response$code, explanation = response$explanation))
+      return(list(value = value, code = response$code, explanation = response$explanation))
     }, error = function(e) {
       local_env$error_message <- e$message
       warning(

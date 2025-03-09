@@ -17,10 +17,6 @@ plot_block_server <- function(id, ...args) {
 
       # reactive values --------------------------------------------------------
       rv_result <- reactiveVal(NULL)
-      rv_code <- reactiveVal(code)
-      rv_explanation <- reactiveVal(NULL)
-      rv_error <- reactiveVal(NULL)
-      #current_question <- reactiveVal(question)
 
       # observers --------------------------------------------------------------
       observeEvent(input$ask, {
@@ -30,61 +26,58 @@ plot_block_server <- function(id, ...args) {
         shinyjs::show(id = "progress_container", anim = TRUE)
 
         # Execute code with retry logic and store result
-        result_code_explanation_error <- query_llm_and_execute_with_retries(
+        result <- query_llm_and_execute_with_retries(
           datasets = r_datasets_renamed(),
           user_prompt = input$question,
           system_prompt = r_system_prompt(),
           max_retries = max_retries
         )
-        rv_result(result_code_explanation_error$result)
-        rv_code(result_code_explanation_error$code)
-        rv_explanation(result_code_explanation_error$explanation)
-        rv_error(result_code_explanation_error$error)
+        rv_result(result)
 
         # Hide progress
         shinyjs::hide(id = "progress_container", anim = TRUE)
 
-        if (is.null(rv_result())) {
-          showNotification(rv_error(), type = "error")
+        if (!is.null(rv_result()$error)) {
+          showNotification(rv_result()$error, type = "error")
         }
       })
 
       # Dynamic UI -------------------------------------------------------------
       # Add code display output
       output$code_display <- renderUI({
-        fixed_ace_editor(rv_code())
+        fixed_ace_editor(rv_result()$code)
       })
 
       # Render explanation
       output$explanation <- renderText({
-        rv_explanation()
+        rv_result()$explanation
       })
 
       output$result_is_available <- reactive({
-        !is.null(rv_result())
+        !is.null(rv_result()$value)
       })
       outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
 
       output$plot <- renderPlot({
-        print(req(rv_result()))
+        print(req(rv_result()$value))
       })
 
       # Output -----------------------------------------------------------------
       list(
         expr = reactive({
-          req(rv_result())
+          req(rv_result()$value)
           out <- str2lang(sprintf(
             "{%s\n%s\ninvisible(data.frame())}",
             r_code_prefix(),
-            rv_code())
+            rv_result()$code)
           )
           # provide result, in case we want to avoid recalculation
-          attr(out, "result") <- rv_result()
+          attr(out, "value") <- rv_result()$value
           out
         }),
         state = list(
           question = reactive(input$question),
-          code = reactive(rv_code()),
+          code = reactive(rv_result()$code),
           store = reactive(input$store),
           max_retries = reactive(max_retries)
         )
