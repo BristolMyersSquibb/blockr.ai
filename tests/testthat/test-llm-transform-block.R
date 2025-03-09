@@ -9,7 +9,6 @@ test_that("llm transform block constructor handles parameters", {
   blk <- new_llm_transform_block(
     question = "What is the mean of x?",
     code = "mean(x)",
-    store = TRUE,
     max_retries = 5
   )
   expect_s3_class(blk, c("llm_transform_block", "transform_block", "block"))

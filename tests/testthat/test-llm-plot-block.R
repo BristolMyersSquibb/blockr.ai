@@ -9,7 +9,6 @@ test_that("llm plot block constructor handles parameters", {
   blk <- new_llm_plot_block(
     question = "Plot x vs y",
     code = "plot(x, y)",
-    store = TRUE,
     max_retries = 5
   )
   expect_s3_class(blk, c("llm_plot_block", "transform_block", "block"))

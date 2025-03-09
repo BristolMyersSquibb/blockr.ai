@@ -65,11 +65,6 @@ plot_block_ui <- function(id) {
           NS(id, "ask"),
           "Ask",
           class = "btn-primary"
-        ),
-        checkboxInput(
-          NS(id, "store"),
-          "Store Response",
-          value = store
         )
       ),
 

@@ -1,7 +1,7 @@
 # transform_block_server is called from new_llm_transform_block() and its
 # environment is tweaked there so it can access the args. We define
 # global variables to avoid a note
-globalVariables(c("question", "max_retries", "code", "store"))
+globalVariables(c("question", "max_retries", "code"))
 transform_block_server <- function(id, ...args) {
   moduleServer(
     id,
@@ -73,7 +73,6 @@ transform_block_server <- function(id, ...args) {
         state = list(
           question = reactive(input$question),
           code = reactive(rv_result()$code),
-          store = reactive(input$store),
           max_retries = reactive(max_retries)
         )
       )

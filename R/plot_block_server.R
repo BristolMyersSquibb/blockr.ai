@@ -78,7 +78,6 @@ plot_block_server <- function(id, ...args) {
         state = list(
           question = reactive(input$question),
           code = reactive(rv_result()$code),
-          store = reactive(input$store),
           max_retries = reactive(max_retries)
         )
       )
