@@ -40,8 +40,8 @@ query_llm <- function(user_prompt, system_prompt, error = NULL, verbose = getOpt
 }
 
 transform_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
-  make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
-  metadata <- make_metadata(datasets)
+  build_metadata <- getOption("blockr.ai.make_meta_data", build_metadata_default)
+  metadata <- build_metadata(datasets)
   system_prompt <- paste(
     "You are a R programming assistant. You help users analyze datasets by generating R code.",
     "You will provide clear explanations and generate working R code.",
@@ -89,8 +89,8 @@ transform_system_prompt <- function(datasets, verbose = getOption("blockr.ai.ver
 }
 
 plot_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
-  make_metadata <- getOption("blockr.ai.make_meta_data", make_metadata_default)
-  metadata <- make_metadata(datasets)
+  build_metadata <- getOption("blockr.ai.build_meta_data", build_metadata_default)
+  metadata <- build_metadata(datasets)
   system_prompt <- paste(
     "You are a R programming assistant. You help users analyze datasets by generating R code.",
     "You will provide clear explanations and generate working R code.",
