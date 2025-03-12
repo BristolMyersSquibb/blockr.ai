@@ -45,7 +45,7 @@ transform_block_server <- function(id, ...args) {
       # Dynamic UI -------------------------------------------------------------
       # Add code display output
       output$code_display <- renderUI({
-        fixed_ace_editor(rv_result()$code)
+        fixed_ace_editor(session$ns(NULL), rv_result()$code)
       })
 
       # Render explanation

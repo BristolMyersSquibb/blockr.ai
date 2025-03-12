@@ -15,13 +15,13 @@ return_result_if_success <- function(result, code) {
   }
 }
 
-fixed_ace_editor <- function(code) {
+fixed_ace_editor <- function(id, code) {
   code_styled <- styler::style_text(code)
   n_lines <- length(code_styled)
   # FIXME: is there a better or more robust way to set a height to fit input?
   height <- sprintf("%spx", n_lines * 12 * 1.4)
   shinyAce::aceEditor(
-    "codeEditor",
+    NS(id, "codeEditor"),
     mode = "r",
     theme = "chrome",
     value = code_styled,
