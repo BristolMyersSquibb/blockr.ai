@@ -17,7 +17,8 @@ query_llm <- function(user_prompt, system_prompt, error = NULL, verbose = getOpt
     cat(
       "\n-------------------- user prompt --------------------\n",
       user_prompt,
-      "\n"
+      "\n",
+      sep = ""
     )
   }
 
@@ -32,95 +33,116 @@ query_llm <- function(user_prompt, system_prompt, error = NULL, verbose = getOpt
       "\n",
       "\n-------------------- response code ------------------\n",
       response$code,
-      "\n"
+      "\n",
+      sep = ""
     )
   }
 
   response
 }
 
-transform_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
-  build_metadata <- getOption("blockr.ai.make_meta_data", build_metadata_default)
-  metadata <- build_metadata(datasets)
-  system_prompt <- paste(
-    "You are a R programming assistant. You help users analyze datasets by generating R code.",
-    "You will provide clear explanations and generate working R code.",
-    "You have the following dataset(s) at my disposal:",
-    toString(shQuote(names(datasets))),
-    "These come with summaries or metadata given below along with a description:",
-    shQuote(metadata$description, type = "cmd"),
-    "",
-    "```{r}",
-    paste(constructive::construct_multi(metadata$summaries)$code, collapse = "\n"),
-    "```",
-    "",
-    "You'll be very careful to use the provided names in your explanations and code.",
-    "This means you will never use generic names of undefined datasets like `x`",
-    "Or `data` unless these are explicitly provided.",
-    "You'll Never produce code to rebuild the input objects.",
-    "Important: Your code must always return a dataframe as the last expression.",
-    "\nExamples of good code You might write:",
-    "1. Direct transformation:",
-    "data %>%",
-    "  group_by(category) %>%",
-    "  summarize(mean_value = mean(value))",
-    "\n2. With intermediate steps:",
-    "result <- data %>%",
-    "  filter(value > 0)",
-    "result %>% group_by(group) %>%",
-    "  summarize(total = sum(value))",
-    "\nI avoid these mistakes:",
-    "# Assigning without returning:",
-    "result <- data %>% summarize(...)",
-    "# Printing instead of returning:",
-    "print(data %>% summarize(...))",
-    "\nYou always ensure your code returns a dataframe.",
-    sep = "\n"
+general_system_prompt <- function() {
+  paste0(
+    "You are an R programming assistant.\n",
+    "Your task is to produce working R code according to user instructions.\n",
+    "In addition, you should provide clear explanations to accompany the ",
+    "generated R code.\n",
+    "If you call functions in packages, always use namespace prefixes.\n",
+    "Do not use libarary calls for attaching package namespaces."
   )
-
-  if (verbose) {
-    cat(
-      "\n-------------------- system prompt --------------------\n",
-      system_prompt,
-      "\n"
-    )
-  }
-  system_prompt
 }
 
-plot_system_prompt <- function(datasets, verbose = getOption("blockr.ai.verbose", TRUE)) {
-  build_metadata <- getOption("blockr.ai.build_meta_data", build_metadata_default)
+input_system_prompt <- function(datasets) {
+
+  build_metadata <- getOption(
+    "blockr.ai.make_meta_data",
+    build_metadata_default
+  )
+
   metadata <- build_metadata(datasets)
-  system_prompt <- paste(
-    "You are a R programming assistant. You help users analyze datasets by generating R code.",
-    "You will provide clear explanations and generate working R code.",
-    "You have the following dataset(s) at my disposal:",
-    toString(shQuote(names(datasets))),
-    "These come with summaries or metadata given below along with a description:",
-    shQuote(metadata$description, type = "cmd"),
-    "",
-    "```{r}",
-    paste(constructive::construct_multi(metadata$summaries)$code, collapse = "\n"),
-    "```",
-    "",
-    "You'll be very careful to use the provided names in your explanations and code.",
-    "This means you will never use generic names of undefined datasets like `x`",
-    "Or `data` unless these are explicitly provided.",
-    "You'll Never produce code to rebuild the input objects.",
-    "Important: Your code must always return a ggplot2 plot object as the last expression.",
-    "\nExamples of good code you might write:",
-    " ggplot(data) + ",
-    "   geom_point(aes(x = displ, y = hwy)) +",
-    "   facet_wrap(~ class, nrow = 2)",
-    sep = "\n"
+
+  paste0(
+    "You have the following dataset at your disposal:",
+    shQuote(names(datasets)), ".\n",
+    "These come with summaries or metadata given below along with a ",
+    "description: ", shQuote(metadata$description, type = "cmd"), ".\n\n",
+    "```{r}\n",
+    paste(
+      constructive::construct_multi(metadata$summaries)$code,
+      collapse = "\n"
+    ),
+    "\n```\n\n",
+    "Be very careful to use only the provided names in your explanations ",
+    "and code.\n",
+    "This means you should not use generic names of undefined datasets ",
+    "like `x` or `data` unless these are explicitly provided.\n",
+    "You should not produce code to rebuild the input objects.\n"
+  )
+}
+
+transform_system_prompt <- function(datasets, verbose = NULL) {
+
+  if (is.null(verbose)) {
+    verbose <- getOption("blockr.ai.verbose", TRUE)
+  }
+
+  prompt <- paste0(
+    general_system_prompt(),
+    "\n\n",
+    input_system_prompt(datasets),
+    "\n\n",
+    "Your task is to transform input datasets into a single output dataset.\n",
+    "If possible, use dplyr for data transformations.\n",
+    "Use the base R pipe and not the magrittr pipe to make nested function ",
+    "calls more readable.\n\n",
+    "Example of good code you might write:\n",
+    "data |>\n",
+    "  group_by(category) |>\n",
+    "  summarize(mean_value = mean(value))\n\n",
+    "Important: make sure that your code always returns a transformed ",
+    "data.frame.\n"
   )
 
   if (verbose) {
     cat(
       "\n-------------------- system prompt --------------------\n",
-      system_prompt,
+      prompt,
+      "\n",
+      sep = ""
+    )
+  }
+
+  prompt
+}
+
+plot_system_prompt <- function(datasets, verbose = NULL) {
+
+  if (is.null(verbose)) {
+    verbose <- getOption("blockr.ai.verbose", TRUE)
+  }
+
+  prompt <- paste0(
+    general_system_prompt(),
+    "\n\n",
+    input_system_prompt(datasets),
+    "\n\n",
+    "Your task is to produce code to generate a data visualization using ",
+    "the ggplot package.\n",
+    "Example of good code you might write:\n",
+    "ggplot(data) +\n",
+    "  geom_point(aes(x = displ, y = hwy)) +\n",
+    "  facet_wrap(~ class, nrow = 2)\n\n",
+    "Important: Your code must always return a ggplot2 plot object as the ",
+    "last expression.\n"
+  )
+
+  if (verbose) {
+    cat(
+      "\n-------------------- system prompt --------------------\n",
+      prompt,
       "\n"
     )
   }
-  system_prompt
+
+  prompt
 }
