@@ -103,11 +103,6 @@ plot_block_ui <- function(id) {
             class = "llm-details",
             tags$summary("Generated Code"),
             uiOutput(NS(id, "code_display"))
-          ),
-
-          div(
-            class = "llm-plot",
-            plotOutput(NS(id, "plot"))
           )
         )
       )

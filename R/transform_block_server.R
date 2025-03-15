@@ -1,7 +1,7 @@
 # transform_block_server is called from new_llm_transform_block() and its
 # environment is tweaked there so it can access the args. We define
 # global variables to avoid a note
-globalVariables(c("question", "max_retries", "code"))
+globalVariables(c("question", "max_retries", "code", "explanation"))
 transform_block_server <- function(id, ...args) {
   moduleServer(
     id,
@@ -17,6 +17,8 @@ transform_block_server <- function(id, ...args) {
 
       # reactive values --------------------------------------------------------
       rv_result <- reactiveVal(NULL)
+      rv_code <- reactiveVal(code)
+      rv_expl <- reactiveVal(explanation)
 
       # observers --------------------------------------------------------------
       observeEvent(input$ask, {
@@ -40,40 +42,43 @@ transform_block_server <- function(id, ...args) {
         if (!is.null(rv_result()$error)) {
           showNotification(rv_result()$error, type = "error")
         }
+
+        rv_code(rv_result()$code)
+        rv_expl(rv_result()$explanation)
       })
 
       # Dynamic UI -------------------------------------------------------------
       # Add code display output
       output$code_display <- renderUI({
-        fixed_ace_editor(session$ns(NULL), rv_result()$code)
+        fixed_ace_editor(session$ns(NULL), rv_code())
       })
 
       # Render explanation
       output$explanation <- renderUI({
-        markdown(rv_result()$explanation)
+        markdown(rv_expl())
       })
 
       output$result_is_available <- reactive({
-        !is.null(rv_result()$value)
+        length(rv_code()) > 0 && nzchar(rv_code())
       })
       outputOptions(output, "result_is_available", suspendWhenHidden = FALSE)
 
       # Output -----------------------------------------------------------------
       list(
-        expr = reactive({
-          req(rv_result()$value)
-          out <- str2lang(sprintf(
-            "{%s\n%s}",
-            r_code_prefix(),
-            rv_result()$code
-            ))
-          attr(out, "result") <- rv_result()$value
-          out
-        }),
+        expr = reactive(
+          str2lang(
+            sprintf(
+              "{%s\n%s}",
+              r_code_prefix(),
+              rv_code()
+            )
+          )
+        ),
         state = list(
           question = reactive(input$question),
-          code = reactive(rv_result()$code),
-          max_retries = reactive(max_retries)
+          code = rv_code,
+          explanation = rv_expl,
+          max_retries = max_retries
         )
       )
     }
