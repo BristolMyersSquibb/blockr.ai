@@ -4,6 +4,7 @@
 # blockr.ai
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 ## Overview
@@ -35,16 +36,36 @@ remotes::install_github("cynkra/blockr.ai")
 ### Examples
 
 ``` r
+library(blockr.core)
 library(blockr.ai)
 
-blockr.core::serve(
-  blockr.ai::new_llm_plot_block(),
+serve(
+  new_llm_plot_block(),
   data = list(`1` = iris)
 )
 
-blockr.core::serve(
-  blockr.ai::new_llm_transform_block(),
+serve(
+  new_llm_transform_block(),
   data = list(`1` = iris)
+)
+
+serve(
+  new_board(
+    blocks = blocks(
+      a = new_dataset_block("iris"),
+      b = new_llm_plot_block(
+        "Createa a scatterplot of Sepal.Length against Sepal.Width.",
+        paste(
+          "ggplot2::ggplot(dataset_1) +",
+          "  ggplot2::geom_point(",
+          "    ggplot2::aes(x = Sepal.Width, y = Sepal.Length)",
+          "  )",
+          sep = "\n"
+        )
+      )
+    ),
+    links = links("a", "b")
+  )
 )
 ```
 

@@ -4,12 +4,20 @@
 \alias{new_llm_transform_block}
 \title{LLM Transform block constructor}
 \usage{
-new_llm_transform_block(question = "", code = "", max_retries = 3, ...)
+new_llm_transform_block(
+  question = "",
+  code = "",
+  explanation = "",
+  max_retries = 3,
+  ...
+)
 }
 \arguments{
 \item{question}{Initial question (optional)}
 
 \item{code}{Initial code (optional)}
+
+\item{explanation}{Explanation for initial code (optional)}
 
 \item{max_retries}{Maximum number of retries for code execution}
 
