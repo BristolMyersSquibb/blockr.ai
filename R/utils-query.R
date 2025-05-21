@@ -45,3 +45,46 @@ build_code_prefix <- function(datasets) {
   code <- sprintf("dataset_%s <- `%s`", numeric_names, numeric_names)
   paste(code, collapse = "\n")
 }
+
+query_llm <- function(user_prompt, system_prompt, error = NULL,
+                      verbose = blockr_option("verbose", TRUE)) {
+
+  # user message ---------------------------------------------------------------
+  if (!is.null(error)) {
+    user_prompt <-
+      paste(
+        user_prompt,
+        "\nIn another conversation your solution resulted in this error:",
+        shQuote(error, type = "cmd"),
+        "Be careful to provide a solution that doesn't reproduce this problem",
+        sep = "\n"
+      )
+    }
+
+  if (verbose) {
+    cat(
+      "\n-------------------- user prompt --------------------\n",
+      user_prompt,
+      "\n",
+      sep = ""
+    )
+  }
+
+  # response -------------------------------------------------------------------
+  chat <- chat_dispatch(system_prompt)
+  response <- chat$extract_data(user_prompt, type = type_response())
+
+  if (verbose) {
+    cat(
+      "\n-------------------- response explanation -----------\n",
+      response$explanation,
+      "\n",
+      "\n-------------------- response code ------------------\n",
+      response$code,
+      "\n",
+      sep = ""
+    )
+  }
+
+  response
+}
