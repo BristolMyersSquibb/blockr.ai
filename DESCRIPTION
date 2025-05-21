@@ -29,7 +29,6 @@ Imports:
     rlang,
     dplyr,
     ellmer,
-    stringr,
     shinyjs,
     shinyAce,
     styler,
