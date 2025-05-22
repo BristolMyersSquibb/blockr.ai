@@ -15,22 +15,6 @@ return_result_if_success <- function(result, code) {
   }
 }
 
-fixed_ace_editor <- function(id, code) {
-  code_styled <- styler::style_text(code)
-  n_lines <- length(code_styled)
-  # FIXME: is there a better or more robust way to set a height to fit input?
-  height <- sprintf("%spx", n_lines * 12 * 1.4)
-  shinyAce::aceEditor(
-    NS(id, "codeEditor"),
-    mode = "r",
-    theme = "chrome",
-    value = code_styled,
-    readOnly = TRUE,
-    height = height,
-    showPrintMargin = FALSE
-  )
-}
-
 get_model <- function() {
   getOption("blockr.ai.model", "gpt-4o")
 }
@@ -67,4 +51,24 @@ chat_dispatch <- function(system_prompt, ..., turns = NULL, model = get_model(),
     openai = ellmer::chat_openai(system_prompt, turns, model = model, ...),
     perplexity = ellmer::chat_perplexity(system_prompt, turns, model = model, ...),
   )
+}
+
+eval_code <- function(code, data) {
+  eval(
+    parse(text = code),
+    envir = list2env(data, parent = baseenv())
+  )
+}
+
+try_eval_code <- function(...) {
+  tryCatch(
+    eval_code(...),
+    error = function(e) {
+      structure(conditionMessage(e), class = c(class(e), "try_error"))
+    }
+  )
+}
+
+style_code <- function(code) {
+  paste0(styler::style_text(code), collapse = "\n")
 }
