@@ -24,7 +24,7 @@ system_prompt.default <- function(x, ...) {
     "In addition, you should provide clear explanations to accompany the ",
     "generated R code.\n",
     "Important: If you call functions in packages, always use namespace ",
-    "prefixes. Do not use libarary calls for attaching package namespaces.\n",
+    "prefixes. Do not use library calls for attaching package namespaces.\n"
   )
 }
 
