@@ -71,6 +71,14 @@ llm_block_ui.llm_block_proxy <- function(x) {
 	          tags$details(
 	            class = "llm-details",
 	            tags$summary("Generated Code"),
+	            shinyAce::aceEditor(
+						    NS(id, "code_editor"),
+						    mode = "r",
+						    theme = "chrome",
+						    value = style_code(x[["code"]]),
+						    showPrintMargin = FALSE,
+						    height = "200px"
+						  ),
 	            uiOutput(NS(id, "code_display"))
 	          )
 	        )
