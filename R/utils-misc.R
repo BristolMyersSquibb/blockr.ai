@@ -62,9 +62,19 @@ eval_code <- function(code, data) {
 
 try_eval_code <- function(...) {
   tryCatch(
-    eval_code(...),
+    {
+      res <- eval_code(...)
+
+      # plots might not fail at definition time but only when printing.
+      # We trigger the failure early with ggplotGrob()
+      if (ggplot2::is.ggplot(res)) {
+        suppressMessages(ggplot2::ggplotGrob(res))
+      }
+
+      res
+    },
     error = function(e) {
-      structure(conditionMessage(e), class = c(class(e), "try_error"))
+      structure(conditionMessage(e), class = "try-error")
     }
   )
 }

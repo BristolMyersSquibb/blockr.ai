@@ -20,13 +20,7 @@ query_llm_and_run_with_retries <- function(datasets, user_prompt, system_prompt,
       next
     }
 
-    # plots might not fail at definition time but only when printing.
-    # We trigger the failure early with ggplotGrob()
-    if (ggplot2::is.ggplot(val)) {
-      suppressMessages(ggplot2::ggplotGrob(val))
-    }
-
-    message("Code execution successful")
+    log_debug("Code execution successful")
 
     return(
       list(value = val, code = res$code, explanation = res$explanation)
