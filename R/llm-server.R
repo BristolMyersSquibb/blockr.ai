@@ -9,19 +9,14 @@ llm_block_server <- function(x) {
 #' @export
 llm_block_server.llm_block_proxy <- function(x) {
 
-  function(id, ...args) {
+  function(id, data, ...args) {
     moduleServer(
       id,
       function(input, output, session) {
 
-        r_datasets <- reactive(reactiveValuesToList(...args))
-        r_datasets_renamed <- reactive(rename_datasets(r_datasets()))
-        # the dataset_1 <- `1` part
-        r_code_prefix <- reactive(build_code_prefix(r_datasets()))
-        r_system_prompt <- reactive({
-          req(length(r_datasets_renamed()) > 0)
-          system_prompt(x, r_datasets_renamed())
-        })
+        r_datasets <- reactive(
+        	c(list(data = data()), reactiveValuesToList(...args))
+        )
 
         rv_code <- reactiveVal()
         rv_expl <- reactiveVal(x[["explanation"]])
@@ -34,16 +29,18 @@ llm_block_server.llm_block_proxy <- function(x) {
         observeEvent(
           input$ask,
           {
+          	dat <- r_datasets()
             req(input$question)
+            req(dat[["data"]])
 
             # Show progress
             shinyjs::show(id = "progress_container", anim = TRUE)
 
             # Execute code with retry logic and store result
-            result <- query_llm_and_run_with_retries(
-              datasets = r_datasets_renamed(),
+            result <- query_llm_with_retry(
+              datasets = dat,
               user_prompt = input$question,
-              system_prompt = r_system_prompt(),
+              system_prompt = system_prompt(x, dat),
               max_retries = x[["max_retries"]]
             )
 
@@ -71,7 +68,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         observeEvent(
           input$code_editor,
           {
-            res <- try_eval_code(input$code_editor, r_datasets_renamed())
+            res <- try_eval_code(input$code_editor, r_datasets())
             if (inherits(res, "try-error")) {
             	rv_cond$warning <- paste0(
             		"Encountered an error evaluating code: ", res
@@ -96,9 +93,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         list(
-          expr = reactive(
-            str2lang(sprintf("{%s\n%s}", r_code_prefix(), rv_code()))
-          ),
+          expr = reactive(str2expression(rv_code())),
           state = list(
             question = reactive(input$question),
             code = rv_code,

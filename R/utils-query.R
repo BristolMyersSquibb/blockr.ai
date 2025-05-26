@@ -1,5 +1,5 @@
-query_llm_and_run_with_retries <- function(datasets, user_prompt, system_prompt,
-                                           max_retries = 5) {
+query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
+                                 max_retries = 5) {
 
   error_msg <- NULL
   curr_try <- 1L
@@ -30,19 +30,6 @@ query_llm_and_run_with_retries <- function(datasets, user_prompt, system_prompt,
   warning("Maximum retries reached. Last code:\n", res$code)
 
   list(error = "Maximum retries reached")
-}
-
-rename_datasets <- function(datasets) {
-  numeric_lgl <- grepl("^[0-9]+$", names(datasets))
-  names(datasets)[numeric_lgl] <- paste0("dataset_", names(datasets)[numeric_lgl])
-  datasets
-}
-
-build_code_prefix <- function(datasets) {
-  numeric_lgl <- grepl("^[0-9]+$", names(datasets))
-  numeric_names <- names(datasets)[numeric_lgl]
-  code <- sprintf("dataset_%s <- `%s`", numeric_names, numeric_names)
-  paste(code, collapse = "\n")
 }
 
 query_llm <- function(user_prompt, system_prompt, error = NULL,
