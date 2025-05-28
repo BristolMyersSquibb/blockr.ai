@@ -38,3 +38,10 @@ new_llm_block <- function(class, question = "", code = "",
 		...
 	)
 }
+
+#' @param x Proxy LLM block object
+#' @rdname new_llm_block
+#' @export
+result_ptype <- function(x) {
+	UseMethod("result_ptype")
+}

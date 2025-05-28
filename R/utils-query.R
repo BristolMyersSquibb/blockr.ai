@@ -1,5 +1,12 @@
 query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
-                                 max_retries = 5) {
+                                 max_retries = 5, progress = FALSE) {
+
+  if (isTRUE(progress)) {
+    shinyjs::show(id = "progress_container", anim = TRUE)
+    on.exit(
+      shinyjs::hide(id = "progress_container", anim = TRUE)
+    )
+  }
 
   error_msg <- NULL
   curr_try <- 1L
@@ -29,7 +36,11 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
 
   warning("Maximum retries reached. Last code:\n", res$code)
 
-  list(error = "Maximum retries reached")
+  list(
+    error = "Maximum retries reached",
+    code = res$code,
+    explanation = res$explanation
+  )
 }
 
 query_llm <- function(user_prompt, system_prompt, error = NULL,
@@ -72,5 +83,6 @@ query_llm <- function(user_prompt, system_prompt, error = NULL,
     )
   }
 
+  response$code <- paste(response$code, collapse = "\n")
   response
 }

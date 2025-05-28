@@ -5,6 +5,7 @@
 \alias{new_llm_plot_block}
 \alias{new_llm_transform_block}
 \alias{new_llm_block}
+\alias{result_ptype}
 \alias{llm_block_server}
 \alias{llm_block_server.llm_block_proxy}
 \alias{llm_block_ui}
@@ -24,6 +25,8 @@ new_llm_block(
   ctor = sys.parent(),
   ...
 )
+
+result_ptype(x)
 
 llm_block_server(x)
 

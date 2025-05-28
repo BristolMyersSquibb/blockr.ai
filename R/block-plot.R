@@ -15,3 +15,8 @@ block_ui.llm_plot_block <- function(id, x, ...) {
 block_output.llm_plot_block <- function(x, result, session) {
   renderPlot(result)
 }
+
+#' @export
+result_ptype.llm_plot_block_proxy <- function(x) {
+  ggplot2::ggplot()
+}

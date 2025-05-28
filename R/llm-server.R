@@ -1,4 +1,3 @@
-#' @param x Proxy LLM block object
 #' @rdname new_llm_block
 #' @export
 llm_block_server <- function(x) {
@@ -8,6 +7,9 @@ llm_block_server <- function(x) {
 #' @rdname new_llm_block
 #' @export
 llm_block_server.llm_block_proxy <- function(x) {
+
+	result_ptype <- result_ptype(x)
+	result_base_class <- last(class(result_ptype))
 
   function(id, data, ...args) {
     moduleServer(
@@ -33,25 +35,29 @@ llm_block_server.llm_block_proxy <- function(x) {
             req(input$question)
             req(dat[["data"]])
 
-            # Show progress
-            shinyjs::show(id = "progress_container", anim = TRUE)
-
-            # Execute code with retry logic and store result
             result <- query_llm_with_retry(
               datasets = dat,
               user_prompt = input$question,
               system_prompt = system_prompt(x, dat),
-              max_retries = x[["max_retries"]]
+              max_retries = x[["max_retries"]],
+              progress = TRUE
             )
 
-            # Hide progress
-            shinyjs::hide(id = "progress_container", anim = TRUE)
-
-            if (!is.null(result$error)) {
-              showNotification(result$error, type = "error")
+            if ("error" %in% names(result)) {
+            	rv_cond$error <- result$error
+            	rv_cond$warning <- character()
+            } else if (!inherits(result$value, result_base_class)) {
+            	rv_cond$error <- character()
+            	rv_cond$warning <- paste0(
+            		"Expecting code to evaluate to an object inheriting from `",
+            		result_base_class, "`."
+            	)
+            } else {
+            	rv_cond$error <- character()
+            	rv_cond$warning <- character()
             }
 
-            rv_code(paste(result$code, collapse = "\n"))
+            rv_code(result$code)
             rv_expl(result$explanation)
           }
         )
@@ -70,12 +76,12 @@ llm_block_server.llm_block_proxy <- function(x) {
           {
             res <- try_eval_code(input$code_editor, r_datasets())
             if (inherits(res, "try-error")) {
-            	rv_cond$warning <- paste0(
+            	rv_cond$error <- paste0(
             		"Encountered an error evaluating code: ", res
             	)
             } else {
               rv_code(input$code_editor)
-              rv_cond$warning <- character()
+              rv_cond$error <- character()
             }
           }
         )
