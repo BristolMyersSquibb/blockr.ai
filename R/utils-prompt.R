@@ -62,16 +62,11 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
   )
 }
 
-#' @param verbose Logical flag which enables printing of the system prompt
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_transform_block_proxy <- function(
-  x,
-  datasets,
-  verbose = blockr_option("verbose", TRUE),
-  ...) {
+system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
 
-  prompt <- paste0(
+  paste0(
     NextMethod(),
     "\n\n",
     "Your task is to transform input datasets into a single output dataset.\n",
@@ -85,32 +80,13 @@ system_prompt.llm_transform_block_proxy <- function(
     "Important: make sure that your code always returns a transformed ",
     "data.frame.\n"
   )
-
-  if (isTRUE(verbose)) {
-    cat(
-      "\n-------------------- system prompt --------------------\n",
-      prompt,
-      "\n",
-      sep = ""
-    )
-  }
-
-  prompt
 }
 
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_plot_block_proxy <- function(
-  x,
-  datasets,
-  verbose = blockr_option("verbose", TRUE),
-  ...) {
+system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
 
-  if (is.null(verbose)) {
-    verbose <- getOption("blockr.ai.verbose", TRUE)
-  }
-
-  prompt <- paste0(
+  paste0(
     NextMethod(),
     "\n\n",
     "Your task is to produce code to generate a data visualization using ",
@@ -122,16 +98,6 @@ system_prompt.llm_plot_block_proxy <- function(
     "Important: Your code must always return a ggplot2 plot object as the ",
     "last expression.\n"
   )
-
-  if (isTRUE(verbose)) {
-    cat(
-      "\n-------------------- system prompt --------------------\n",
-      prompt,
-      "\n"
-    )
-  }
-
-  prompt
 }
 
 build_metadata_default <- function(x) {

@@ -18,8 +18,8 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
 
     if (inherits(val, "try-error")) {
 
-      warning("Code execution attempt ", curr_try, " failed:\nCode:\n",
-              res$code, "\nError: ", val)
+      log_warn("Code execution attempt ", curr_try, " failed:\nCode:\n",
+               res$code, "\nError: ", val)
 
       curr_try <- curr_try + 1L
       error_msg <- unclass(val)
@@ -34,7 +34,7 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
     )
   }
 
-  warning("Maximum retries reached. Last code:\n", res$code)
+  log_warn("Maximum retries reached. Last code:\n", res$code)
 
   list(
     error = "Maximum retries reached",
@@ -43,46 +43,47 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
   )
 }
 
-query_llm <- function(user_prompt, system_prompt, error = NULL,
-                      verbose = blockr_option("verbose", TRUE)) {
+query_llm <- function(user_prompt, system_prompt, error = NULL) {
 
   # user message ---------------------------------------------------------------
   if (!is.null(error)) {
-    user_prompt <-
-      paste(
-        user_prompt,
-        "\nIn another conversation your solution resulted in this error:",
-        shQuote(error, type = "cmd"),
-        "Be careful to provide a solution that doesn't reproduce this problem",
-        sep = "\n"
-      )
-    }
-
-  if (verbose) {
-    cat(
-      "\n-------------------- user prompt --------------------\n",
+    user_prompt <- paste(
       user_prompt,
-      "\n",
-      sep = ""
+      "\nIn another conversation your solution resulted in this error:",
+      shQuote(error, type = "cmd"),
+      "Be careful to provide a solution that doesn't reproduce this problem",
+      sep = "\n"
     )
   }
 
-  # response -------------------------------------------------------------------
+  log_wrap(
+    "\n----------------- user prompt -----------------\n\n",
+    user_prompt,
+    "\n",
+    "\n---------------- system prompt ----------------\n\n",
+    system_prompt,
+    "\n",
+    level = "debug"
+  )
+
   chat <- chat_dispatch(system_prompt)
   response <- chat$extract_data(user_prompt, type = type_response())
 
-  if (verbose) {
-    cat(
-      "\n-------------------- response explanation -----------\n",
-      response$explanation,
-      "\n",
-      "\n-------------------- response code ------------------\n",
-      response$code,
-      "\n",
-      sep = ""
-    )
-  }
+  response$code <- style_code(response$code)
 
-  response$code <- paste(response$code, collapse = "\n")
+  log_wrap(
+    "\n------------- response explanation ------------\n\n",
+    response$explanation,
+    "\n",
+    level = "debug"
+  )
+
+  log_asis(
+    "\n---------------- response code ----------------\n\n",
+    response$code,
+    "\n\n",
+    level = "debug"
+  )
+
   response
 }
