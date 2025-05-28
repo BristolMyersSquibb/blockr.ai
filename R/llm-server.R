@@ -16,6 +16,19 @@ llm_block_server.llm_block_proxy <- function(x) {
       id,
       function(input, output, session) {
 
+        observeEvent(
+          color_mode(),
+          shinyAce::updateAceEditor(
+            session,
+            "code_editor",
+            theme = switch(
+              color_mode(),
+              light = "katzenmilch",
+              dark = "dracula"
+            )
+          )
+        )
+
         r_datasets <- reactive(
         	c(list(data = data()), reactiveValuesToList(...args))
         )

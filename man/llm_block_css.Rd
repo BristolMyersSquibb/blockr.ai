@@ -3,14 +3,11 @@
 \name{llm_block_css}
 \alias{llm_block_css}
 \alias{llm_block_css.llm_block_proxy}
-\alias{llm_block_css.llm_plot_block_proxy}
 \title{Block-specific UI}
 \usage{
 llm_block_css(x)
 
 \method{llm_block_css}{llm_block_proxy}(x)
-
-\method{llm_block_css}{llm_plot_block_proxy}(x)
 }
 \arguments{
 \item{x}{LLM block proxy object}

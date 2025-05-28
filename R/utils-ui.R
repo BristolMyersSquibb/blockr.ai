@@ -16,33 +16,27 @@ llm_block_css <- function(x) {
 llm_block_css.llm_block_proxy <- function(x) {
   "
   .llm-block {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--bs-light-border-subtle);
     border-radius: 8px;
     padding: 15px;
-    background: #ffffff;
   }
   .llm-response {
     margin-top: 15px;
   }
   .llm-details {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
     margin-top: 10px;
     border: none;
   }
+  [data-bs-theme=dark] .llm-details summary {
+    background: var(--bs-light-bg-subtle);
+  }
+  [data-bs-theme=light] .llm-details summary {
+    background: var(--bs-dark-bg-subtle);
+  }
   .llm-details summary {
     padding: 8px;
-    background: #f8f9fa;
     cursor: pointer;
-  }
-  .llm-details summary:hover {
-    background: #e9ecef;
-  }
-  .llm-code {
-    background-color: #f5f5f5;
-    padding: 10px;
-    border-radius: 4px;
-    font-family: monospace;
+    margin-bottom: 10px;
   }
   .llm-progress {
     margin-top: 10px;
@@ -51,18 +45,4 @@ llm_block_css.llm_block_proxy <- function(x) {
   .llm-progress.active {
     display: block;
   }"
-}
-
-#' @rdname llm_block_css
-#' @export
-llm_block_css.llm_plot_block_proxy <- function(x) {
-
-  extra <- "
-  .llm-plot {
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    margin-top: 10px;
-  }"
-
-  paste0(NextMethod(), extra)
 }

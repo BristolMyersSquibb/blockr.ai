@@ -74,7 +74,6 @@ llm_block_ui.llm_block_proxy <- function(x) {
 	            shinyAce::aceEditor(
 						    NS(id, "code_editor"),
 						    mode = "r",
-						    theme = "chrome",
 						    value = style_code(x[["code"]]),
 						    showPrintMargin = FALSE,
 						    height = "200px"

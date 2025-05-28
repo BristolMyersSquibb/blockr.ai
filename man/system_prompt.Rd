@@ -14,9 +14,9 @@ system_prompt(x, ...)
 
 \method{system_prompt}{llm_block_proxy}(x, datasets, ...)
 
-\method{system_prompt}{llm_transform_block_proxy}(x, datasets, verbose = blockr_option("verbose", TRUE), ...)
+\method{system_prompt}{llm_transform_block_proxy}(x, datasets, ...)
 
-\method{system_prompt}{llm_plot_block_proxy}(x, datasets, verbose = blockr_option("verbose", TRUE), ...)
+\method{system_prompt}{llm_plot_block_proxy}(x, datasets, ...)
 }
 \arguments{
 \item{x}{LLM block proxy object}
@@ -24,8 +24,6 @@ system_prompt(x, ...)
 \item{...}{Generic consistency}
 
 \item{datasets}{Data sets from which to extract metadata}
-
-\item{verbose}{Logical flag which enables printing of the system prompt}
 }
 \value{
 A string.
