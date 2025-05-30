@@ -17,12 +17,12 @@ llm_block_server.llm_block_proxy <- function(x) {
       function(input, output, session) {
 
         observeEvent(
-          color_mode(),
+          get_board_option_or_default("dark_mode"),
           shinyAce::updateAceEditor(
             session,
             "code_editor",
             theme = switch(
-              color_mode(),
+              get_board_option_or_default("dark_mode"),
               light = "katzenmilch",
               dark = "dracula"
             )
