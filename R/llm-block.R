@@ -16,32 +16,32 @@
 #'
 #' @export
 new_llm_block <- function(class, question = "", code = "",
-													explanation = character(),
-													max_retries = blockr_option("max_retries", 3L),
-													ctor = sys.parent(),
-													...) {
+                          explanation = character(),
+                          max_retries = blockr_option("max_retries", 3L),
+                          ctor = sys.parent(),
+                          ...) {
 
-	cls <- c(class, "llm_block")
+  cls <- c(class, "llm_block")
 
-	llm_obj <- structure(
-		list(question = question, code = code, explanation = explanation,
-				 max_retries = max_retries),
-		class = paste0(cls, "_proxy")
-	)
-	
-	new_block(
-		server = llm_block_server(llm_obj),
-		ui = llm_block_ui(llm_obj),
-		class = cls,
-		ctor = ctor,
-		allow_empty_state = "explanation",
-		...
-	)
+  llm_obj <- structure(
+    list(question = question, code = code, explanation = explanation,
+         max_retries = max_retries),
+    class = paste0(cls, "_proxy")
+  )
+
+  new_block(
+    server = llm_block_server(llm_obj),
+    ui = llm_block_ui(llm_obj),
+    class = cls,
+    ctor = ctor,
+    allow_empty_state = "explanation",
+    ...
+  )
 }
 
 #' @param x Proxy LLM block object
 #' @rdname new_llm_block
 #' @export
 result_ptype <- function(x) {
-	UseMethod("result_ptype")
+  UseMethod("result_ptype")
 }

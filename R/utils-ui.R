@@ -8,7 +8,7 @@
 #'
 #' @export
 llm_block_css <- function(x) {
-	UseMethod("llm_block_css")
+  UseMethod("llm_block_css")
 }
 
 #' @rdname llm_block_css

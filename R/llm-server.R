@@ -8,8 +8,8 @@ llm_block_server <- function(x) {
 #' @export
 llm_block_server.llm_block_proxy <- function(x) {
 
-	result_ptype <- result_ptype(x)
-	result_base_class <- last(class(result_ptype))
+  result_ptype <- result_ptype(x)
+  result_base_class <- last(class(result_ptype))
 
   function(id, data, ...args) {
     moduleServer(
@@ -30,21 +30,21 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         r_datasets <- reactive(
-        	c(list(data = data()), reactiveValuesToList(...args))
+          c(list(data = data()), reactiveValuesToList(...args))
         )
 
         rv_code <- reactiveVal()
         rv_expl <- reactiveVal(x[["explanation"]])
         rv_cond <- reactiveValues(
-      		error = character(),
-      		warning = character(),
-      		message = character()
+          error = character(),
+          warning = character(),
+          message = character()
         )
 
         observeEvent(
           input$ask,
           {
-          	dat <- r_datasets()
+            dat <- r_datasets()
             req(input$question)
             req(dat[["data"]])
 
@@ -57,17 +57,17 @@ llm_block_server.llm_block_proxy <- function(x) {
             )
 
             if ("error" %in% names(result)) {
-            	rv_cond$error <- result$error
-            	rv_cond$warning <- character()
+              rv_cond$error <- result$error
+              rv_cond$warning <- character()
             } else if (!inherits(result$value, result_base_class)) {
-            	rv_cond$error <- character()
-            	rv_cond$warning <- paste0(
-            		"Expecting code to evaluate to an object inheriting from `",
-            		result_base_class, "`."
-            	)
+              rv_cond$error <- character()
+              rv_cond$warning <- paste0(
+                "Expecting code to evaluate to an object inheriting from `",
+                result_base_class, "`."
+              )
             } else {
-            	rv_cond$error <- character()
-            	rv_cond$warning <- character()
+              rv_cond$error <- character()
+              rv_cond$warning <- character()
             }
 
             rv_code(result$code)
@@ -89,9 +89,9 @@ llm_block_server.llm_block_proxy <- function(x) {
           {
             res <- try_eval_code(input$code_editor, r_datasets())
             if (inherits(res, "try-error")) {
-            	rv_cond$error <- paste0(
-            		"Encountered an error evaluating code: ", res
-            	)
+              rv_cond$error <- paste0(
+                "Encountered an error evaluating code: ", res
+              )
             } else {
               rv_code(input$code_editor)
               rv_cond$error <- character()
