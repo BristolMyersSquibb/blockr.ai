@@ -6,10 +6,10 @@ Authors@R:
              family = "Bennett",
              role = c("aut", "cre"),
              email = "nicolas@cynkra.com"),
-      person(given = "David",
-             family = "Granjon",
+      person(given = "Antoine",
+             family = "Fabri",
              role = c("aut"),
-             email = "david@cynkra.com"),
+             email = "antoine@cynkra.com"),
       person(given = "Christoph",
              family = "Sax",
              role = c("aut"),
@@ -39,5 +39,5 @@ Suggests:
     blockr.dplyr
 Remotes:
     BristolMyersSquibb/blockr.core,
-    cynkra/blockr.dplyr
+    BristolMyersSquibb/blockr.dplyr
 Config/testthat/edition: 3
