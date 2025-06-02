@@ -28,7 +28,7 @@ Imports:
     constructive,
     rlang,
     dplyr,
-    ellmer,
+    ellmer (>= 0.2.0),
     shinyjs,
     shinyAce,
     styler,

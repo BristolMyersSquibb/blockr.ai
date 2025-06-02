@@ -11,7 +11,7 @@ llm_block_server.llm_block_proxy <- function(x) {
   result_ptype <- result_ptype(x)
   result_base_class <- last(class(result_ptype))
 
-  function(id, data, ...args) {
+  function(id, data, ...args = list()) {
     moduleServer(
       id,
       function(input, output, session) {
@@ -30,7 +30,12 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         r_datasets <- reactive(
-          c(list(data = data()), reactiveValuesToList(...args))
+          c(
+            list(data = data()),
+            if (is.reactivevalues(...args)) {
+              (reactiveValuesToList(...args))
+            }
+          )
         )
 
         rv_code <- reactiveVal()

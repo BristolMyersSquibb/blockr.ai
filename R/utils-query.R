@@ -23,6 +23,8 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
         msg <- conditionMessage(attr(res, "condition"))
       }
 
+      log_error("Error encountered querying: ", msg)
+
       return(list(error = msg))
     }
 
@@ -83,7 +85,7 @@ query_llm <- function(user_prompt, system_prompt, error = NULL) {
   )
 
   chat <- chat_dispatch(system_prompt)
-  response <- chat$extract_data(user_prompt, type = type_response())
+  response <- chat$chat_structured(user_prompt, type = type_response())
 
   response$code <- style_code(response$code)
 
@@ -111,7 +113,7 @@ type_response <- function() {
   )
 }
 
-chat_dispatch <- function(system_prompt, ..., turns = NULL,
+chat_dispatch <- function(system_prompt, ...,
                           model = blockr_option("chat_model", "gpt-4o"),
                           vendor = blockr_option("chat_vendor", "openai")) {
 
@@ -128,5 +130,5 @@ chat_dispatch <- function(system_prompt, ..., turns = NULL,
     stop("Unknown LLM vendor ", vendor, ".")
   )
 
-  chat(system_prompt, turns, model = model, ...)
+  chat(system_prompt, model = model, ...)
 }
