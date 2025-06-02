@@ -13,7 +13,19 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
 
   while (curr_try <= max_retries) {
 
-    res <- query_llm(user_prompt, system_prompt, error_msg)
+    res <- try_query_llm(user_prompt, system_prompt, error_msg)
+
+    if (inherits(res, "try-error")) {
+
+      if (is.null(attr(res, "condition"))) {
+        msg <- unclass(res)
+      } else {
+        msg <- conditionMessage(attr(res, "condition"))
+      }
+
+      return(list(error = msg))
+    }
+
     val <- try_eval_code(res$code, datasets)
 
     if (inherits(val, "try-error")) {
@@ -41,6 +53,10 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
     code = res$code,
     explanation = res$explanation
   )
+}
+
+try_query_llm <- function(...) {
+  try(query_llm(...), silent = TRUE)
 }
 
 query_llm <- function(user_prompt, system_prompt, error = NULL) {
@@ -86,4 +102,31 @@ query_llm <- function(user_prompt, system_prompt, error = NULL) {
   )
 
   response
+}
+
+type_response <- function() {
+  type_object(
+    explanation = type_string("Explanation of the analysis approach"),
+    code = type_string("R code to perform the analysis")
+  )
+}
+
+chat_dispatch <- function(system_prompt, ..., turns = NULL,
+                          model = blockr_option("chat_model", "gpt-4o"),
+                          vendor = blockr_option("chat_vendor", "openai")) {
+
+  chat <- switch(
+    vendor,
+    bedrock = ellmer::chat_bedrock,
+    claude = ellmer::chat_claude,
+    gemini = ellmer::chat_gemini,
+    github = ellmer::chat_github,
+    groq = ellmer::chat_groq,
+    ollama = ellmer::chat_ollama,
+    openai = ellmer::chat_openai,
+    perplexity = ellmer::chat_perplexity,
+    stop("Unknown LLM vendor ", vendor, ".")
+  )
+
+  chat(system_prompt, turns, model = model, ...)
 }

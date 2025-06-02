@@ -1,30 +1,3 @@
-type_response <- function() {
-  type_object(
-    explanation = type_string("Explanation of the analysis approach"),
-    code = type_string("R code to perform the analysis")
-  )
-}
-
-chat_dispatch <- function(system_prompt, ..., turns = NULL,
-                          model = blockr_option("chat_model", "gpt-4o"),
-                          vendor = blockr_option("chat_vendor", "openai")) {
-
-  chat <- switch(
-    vendor,
-    bedrock = ellmer::chat_bedrock,
-    claude = ellmer::chat_claude,
-    gemini = ellmer::chat_gemini,
-    github = ellmer::chat_github,
-    groq = ellmer::chat_groq,
-    ollama = ellmer::chat_ollama,
-    openai = ellmer::chat_openai,
-    perplexity = ellmer::chat_perplexity,
-    stop("Unknown LLM vendor ", vendor, ".")
-  )
-
-  chat(system_prompt, turns, model = model, ...)
-}
-
 eval_code <- function(code, data) {
   eval(
     parse(text = code),
