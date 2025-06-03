@@ -11,7 +11,7 @@ llm_block_server.llm_block_proxy <- function(x) {
   result_ptype <- result_ptype(x)
   result_base_class <- last(class(result_ptype))
 
-  function(id, data, ...args = list()) {
+  function(id, data = NULL, ...args = list()) {
     moduleServer(
       id,
       function(input, output, session) {
@@ -31,10 +31,8 @@ llm_block_server.llm_block_proxy <- function(x) {
 
         r_datasets <- reactive(
           c(
-            list(data = data()),
-            if (is.reactivevalues(...args)) {
-              (reactiveValuesToList(...args))
-            }
+            if (is.reactive(data)) list(data = data()),
+            if (is.reactivevalues(...args)) reactiveValuesToList(...args)
           )
         )
 
@@ -51,7 +49,7 @@ llm_block_server.llm_block_proxy <- function(x) {
           {
             dat <- r_datasets()
             req(input$question)
-            req(dat[["data"]])
+            req(dat)
 
             result <- query_llm_with_retry(
               datasets = dat,
