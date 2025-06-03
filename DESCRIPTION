@@ -33,7 +33,9 @@ Imports:
     shinyAce,
     styler,
     vctrs,
-    ggplot2
+    ggplot2,
+    gt,
+    bslib
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

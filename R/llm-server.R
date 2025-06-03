@@ -31,7 +31,7 @@ llm_block_server.llm_block_proxy <- function(x) {
 
         r_datasets <- reactive(
           c(
-            if (is.reactive(data)) list(data = data()),
+            if (is.reactive(data) && !is.null(data())) list(data = data()),
             if (is.reactivevalues(...args)) reactiveValuesToList(...args)
           )
         )
@@ -48,8 +48,13 @@ llm_block_server.llm_block_proxy <- function(x) {
           input$ask,
           {
             dat <- r_datasets()
-            req(input$question)
-            req(dat)
+
+            req(
+              input$question,
+              dat,
+              length(dat) > 0,
+              all(lengths(dat) > 0)
+            )
 
             result <- query_llm_with_retry(
               datasets = dat,
