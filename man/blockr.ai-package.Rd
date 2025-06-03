@@ -13,7 +13,7 @@ Provides AI-powered functionality as blocks for 'blockr.core'. Enables integrati
 
 Authors:
 \itemize{
-  \item David Granjon \email{david@cynkra.com}
+  \item Antoine Fabri \email{antoine@cynkra.com}
   \item Christoph Sax \email{christoph@cynkra.com}
 }
 

@@ -100,6 +100,25 @@ system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
   )
 }
 
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to produce code to generate a table using the gt package.\n",
+    "Example of good code you might write:\n",
+    "gt::gt(data) |>\n",
+    "  tab_header(\"",
+    "    title = \"Some title\",",
+    "    subtitle = \"Some subtitle\"",
+    "  )\n\n",
+    "Important: Your code must always return a gt object as the last ",
+    "expression.\n"
+  )
+}
+
 build_metadata_default <- function(x) {
   list(
     description = paste0(
