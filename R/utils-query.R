@@ -113,22 +113,16 @@ type_response <- function() {
   )
 }
 
-chat_dispatch <- function(system_prompt, ...,
-                          model = blockr_option("chat_model", "gpt-4o"),
-                          vendor = blockr_option("chat_vendor", "openai")) {
+default_chat <- function(system_prompt) {
+  ellmer::chat_openai(system_prompt, model = "gpt-4o")
+}
 
-  chat <- switch(
-    vendor,
-    bedrock = ellmer::chat_bedrock,
-    claude = ellmer::chat_claude,
-    gemini = ellmer::chat_gemini,
-    github = ellmer::chat_github,
-    groq = ellmer::chat_groq,
-    ollama = ellmer::chat_ollama,
-    openai = ellmer::chat_openai,
-    perplexity = ellmer::chat_perplexity,
-    stop("Unknown LLM vendor ", vendor, ".")
+chat_dispatch <- function(...) {
+
+  fun <- blockr_option(
+    "chat_function",
+    default_chat
   )
 
-  chat(system_prompt, model = model, ...)
+  fun(...)
 }
