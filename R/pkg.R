@@ -12,5 +12,3 @@
 #' @importFrom rlang names2
 #' @importFrom stats setNames
 NULL
-
-globalVariables(c("question", "max_retries", "code", "explanation"))
