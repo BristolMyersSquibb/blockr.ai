@@ -1,3 +1,8 @@
+#' AI-powered blocks for the blockr framework
+#'
+#' Provides AI-powered blocks that extend the blockr.core framework with
+#' natural language capabilities for data analysis and visualization.
+#'
 #' @keywords internal
 "_PACKAGE"
 
@@ -12,5 +17,3 @@
 #' @importFrom rlang names2
 #' @importFrom stats setNames
 NULL
-
-globalVariables(c("question", "max_retries", "code", "explanation"))

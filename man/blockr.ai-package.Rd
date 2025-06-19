@@ -4,9 +4,18 @@
 \name{blockr.ai-package}
 \alias{blockr.ai}
 \alias{blockr.ai-package}
-\title{blockr.ai: AI-Powered Blocks for 'blockr.core'}
+\title{AI-powered blocks for the blockr framework}
 \description{
-Provides AI-powered functionality as blocks for 'blockr.core'. Enables integration with various AI services and models to enhance data analysis workflows.
+Provides AI-powered blocks that extend the blockr.core framework with
+natural language capabilities for data analysis and visualization.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/BristolMyersSquibb/blockr.ai}
+  \item Report bugs at \url{https://github.com/BristolMyersSquibb/blockr.ai/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Nicolas Bennett \email{nicolas@cynkra.com}
