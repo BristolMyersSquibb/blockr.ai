@@ -13,7 +13,6 @@
 #' @importFrom ellmer type_object
 #' @importFrom ellmer type_string
 #' @importFrom rlang abort
-#' @importFrom rlang is_string
 #' @importFrom rlang names2
 #' @importFrom stats setNames
 NULL
