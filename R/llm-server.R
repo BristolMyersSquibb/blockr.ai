@@ -120,7 +120,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         list(
-          expr = reactive(str2lang(rv_code())),
+          expr = reactive(str2expression(rv_code())),
           state = list(
             question = reactive(input$question),
             code = rv_code,
