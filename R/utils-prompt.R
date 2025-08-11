@@ -77,8 +77,12 @@ system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
     "data |>\n",
     "  dplyr::group_by(category) |>\n",
     "  dplyr::summarize(mean_value = mean(value))\n\n",
-    "Important: make sure that your code always returns a transformed ",
-    "data.frame.\n"
+    "CRITICAL: Your code MUST always return a data.frame object as the ",
+    "final result. Do NOT return lists, vectors, or other object types.\n",
+    "BAD examples that will FAIL:\n",
+    "- Returning a list: list(summary = data)\n",
+    "- Returning a vector: c(1, 2, 3)\n",
+    "- Returning other objects: matrix(), tibble without data.frame conversion\n"
   )
 }
 
@@ -90,13 +94,19 @@ system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
     NextMethod(),
     "\n\n",
     "Your task is to produce code to generate a data visualization using ",
-    "the ggplot package.\n",
+    "the ggplot2 package.\n",
     "Example of good code you might write:\n",
     "ggplot2::ggplot(data) +\n",
     "  ggplot2::geom_point(ggplot2::aes(x = displ, y = hwy)) +\n",
     "  ggplot2::facet_wrap(~ class, nrow = 2)\n\n",
-    "Important: Your code must always return a ggplot2 plot object as the ",
-    "last expression.\n"
+    "CRITICAL: Your code MUST always return a ggplot2 object as the ",
+    "final result. The plot must be complete and renderable.\n",
+    "BAD examples that will FAIL:\n",
+    "- Saving to file: ggsave('plot.png', plot)\n",
+    "- Returning NULL or other objects\n",
+    "- Using base R plot() functions\n",
+    "- Incomplete ggplot objects missing required aesthetics\n",
+    "GOOD: Always end with a complete ggplot2::ggplot() + geom_*() expression.\n"
   )
 }
 
@@ -110,12 +120,21 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
     "Your task is to produce code to generate a table using the gt package.\n",
     "Example of good code you might write:\n",
     "gt::gt(data) |>\n",
-    "  tab_header(\"",
-    "    title = \"Some title\",",
-    "    subtitle = \"Some subtitle\"",
-    "  )\n\n",
-    "Important: Your code must always return a gt object as the last ",
-    "expression.\n"
+    "  gt::tab_header(\n",
+    "    title = \"Summary Statistics\",\n",
+    "    subtitle = \"Data Overview\"\n",
+    "  ) |>\n",
+    "  gt::fmt_number(columns = c(mpg, hp), decimals = 1)\n\n",
+    "CRITICAL: Your code MUST always return a properly constructed gt object.\n",
+    "- ALWAYS start with gt::gt(your_data_frame)\n",
+    "- Use the pipe operator |> to chain gt functions\n",
+    "- Always use namespace prefixes: gt::tab_header(), gt::fmt_number(), etc.\n\n",
+    "BAD examples that will FAIL:\n",
+    "- Returning a data.frame instead of gt object\n",
+    "- Missing gt::gt() constructor: tab_header(data, title = 'x')\n",
+    "- Malformed function calls with syntax errors\n",
+    "- Using print() or other output functions\n\n",
+    "GOOD: Always end with a complete gt pipeline starting with gt::gt(data).\n"
   )
 }
 

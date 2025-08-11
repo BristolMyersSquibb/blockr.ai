@@ -67,15 +67,17 @@ llm_block_server.llm_block_proxy <- function(x) {
             if ("error" %in% names(result)) {
               rv_cond$error <- result$error
               rv_cond$warning <- character()
-            } else if (!inherits(result$value, result_base_class)) {
-              rv_cond$error <- character()
-              rv_cond$warning <- paste0(
-                "Expecting code to evaluate to an object inheriting from `",
-                result_base_class, "`."
-              )
             } else {
-              rv_cond$error <- character()
-              rv_cond$warning <- character()
+              # Enhanced validation based on block type
+              validation_result <- validate_block_result(result$value, x)
+              
+              if (!validation_result$valid) {
+                rv_cond$error <- character()
+                rv_cond$warning <- validation_result$message
+              } else {
+                rv_cond$error <- character()
+                rv_cond$warning <- character()
+              }
             }
 
             rv_code(result$code)
