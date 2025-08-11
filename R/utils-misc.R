@@ -1,7 +1,13 @@
 eval_code <- function(code, data) {
+  # Optional warning for file operations that might not be intended
+  if (grepl("read\\.(csv|xlsx|table)|write\\.", code)) {
+    warning("Code contains file I/O operations - consider using provided data instead", 
+            call. = FALSE)
+  }
+  
   eval(
     parse(text = code),
-    envir = list2env(data, parent = baseenv())
+    envir = list2env(data, parent = globalenv())
   )
 }
 

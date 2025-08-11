@@ -41,24 +41,22 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
 
   metadata <- build_metadata(datasets)
 
+  # Format metadata for better LLM understanding
+  metadata_text <- format_metadata_for_prompt(metadata$summaries, names(datasets))
+  
   res <- paste0(
-    NextMethod(),
+    system_prompt.default(x, ...),
     "\n\n",
-    "You have the following dataset at your disposal: ",
+    "You have the following dataset(s) at your disposal: ",
     paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    "These come with summaries or metadata given below along with a ",
-    "description: ", shQuote(metadata$description, type = "cmd"), ".\n\n",
-    "```{r}\n",
-    paste(
-      constructive::construct_multi(metadata$summaries)$code,
-      collapse = "\n"
-    ),
-    "\n```\n\n",
-    "Be very careful to use only the provided names in your explanations ",
-    "and code.\n",
+    metadata$description, "\n\n",
+    metadata_text, "\n\n",
+    "IMPORTANT: Be very careful to use only the provided dataset names in your code.\n",
     "This means you should not use generic names of undefined datasets ",
-    "like `x` or `data` unless these are explicitly provided.\n",
-    "You should not produce code to rebuild the input objects.\n"
+    "like `x`, `df`, or `my_data` unless these are explicitly provided.\n",
+    "You should not produce code to rebuild the input objects.\n",
+    "Use the exact dataset names shown above: ", 
+    paste(shQuote(names(datasets)), collapse = ", "), ".\n"
   )
 }
 
@@ -67,7 +65,7 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
 system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
 
   paste0(
-    NextMethod(),
+    system_prompt.llm_block_proxy(x, datasets, ...),
     "\n\n",
     "Your task is to transform input datasets into a single output dataset.\n",
     "If possible, use dplyr for data transformations.\n",
@@ -91,7 +89,7 @@ system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
 system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
 
   paste0(
-    NextMethod(),
+    system_prompt.llm_block_proxy(x, datasets, ...),
     "\n\n",
     "Your task is to produce code to generate a data visualization using ",
     "the ggplot2 package.\n",
@@ -114,8 +112,8 @@ system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
 #' @export
 system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
 
-  paste0(
-    NextMethod(),
+  prompt <- paste0(
+    system_prompt.llm_block_proxy(x, datasets, ...),
     "\n\n",
     "Your task is to produce code to generate a table using the gt package.\n",
     "Example of good code you might write:\n",
@@ -136,14 +134,74 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
     "- Using print() or other output functions\n\n",
     "GOOD: Always end with a complete gt pipeline starting with gt::gt(data).\n"
   )
+
+  # Add explicit console output for debugging
+  cat("==== GT BLOCK SYSTEM PROMPT ====\n")
+  cat(prompt)
+  cat("\n==== END GT BLOCK SYSTEM PROMPT ====\n")
+
+  # Also use the logging system
+  log_info("GT Block system prompt generated for datasets: ", paste(names(datasets), collapse = ", "))
+
+  prompt
 }
 
 build_metadata_default <- function(x) {
+  # Use the rich metadata extraction with no filtering patterns
+  # This ensures we capture all variables and their unique values
+  metadata <- make_metadata(x, extract_codelist_vars = NULL)
+  
   list(
     description = paste0(
-      "We provide below the ptypes (i.e. the output of `vctrs::vec_ptype()`) ",
-      "of the actual datasets that you have at your disposal:"
+      "You have access to the following datasets with their detailed metadata: "
     ),
-    summaries = lapply(x, vctrs::vec_ptype)
+    summaries = metadata$datasets
   )
+}
+
+#' Format metadata for LLM prompt
+#' 
+#' @param metadata_list List of metadata for each dataset
+#' @param dataset_names Names of the datasets
+#' @return Formatted string for LLM prompt
+format_metadata_for_prompt <- function(metadata_list, dataset_names) {
+  if (length(metadata_list) == 0) return("")
+  
+  formatted_parts <- mapply(function(meta, name) {
+    if (is.null(meta$variables) || length(meta$variables) == 0) {
+      return(paste0("Dataset '", name, "': No variables available"))
+    }
+    
+    # Format variables info
+    var_info <- sapply(meta$variables, function(var) {
+      var_text <- paste0("  - ", var$name)
+      if (!is.null(var$label) && !is.na(var$label) && nzchar(var$label)) {
+        var_text <- paste0(var_text, " (", var$label, ")")
+      }
+      var_text <- paste0(var_text, ": ", paste(var$type, collapse = ", "))
+      
+      # Add unique values or levels if available
+      if (!is.null(var$unique_values) && length(var$unique_values) > 0) {
+        unique_vals <- head(var$unique_values, 10)  # Limit to first 10
+        var_text <- paste0(var_text, " [values: ", paste(unique_vals, collapse = ", "))
+        if (length(var$unique_values) > 10) {
+          var_text <- paste0(var_text, ", ...]")
+        } else {
+          var_text <- paste0(var_text, "]")
+        }
+      }
+      
+      return(var_text)
+    })
+    
+    dataset_desc <- if (!is.null(meta$description) && nzchar(meta$description)) {
+      paste0("Dataset '", name, "' (", meta$description, "):")
+    } else {
+      paste0("Dataset '", name, "':")
+    }
+    
+    return(paste0(dataset_desc, "\n", paste(var_info, collapse = "\n")))
+  }, metadata_list, dataset_names, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+  
+  return(paste(formatted_parts, collapse = "\n\n"))
 }
