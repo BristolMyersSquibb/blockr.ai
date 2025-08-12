@@ -13,13 +13,13 @@ system_prompt(x, ...)
 
 \method{system_prompt}{default}(x, ...)
 
-\method{system_prompt}{llm_block_proxy}(x, datasets, ...)
+\method{system_prompt}{llm_block_proxy}(x, datasets, has_image = FALSE, ...)
 
 \method{system_prompt}{llm_transform_block_proxy}(x, datasets, ...)
 
-\method{system_prompt}{llm_plot_block_proxy}(x, datasets, ...)
+\method{system_prompt}{llm_plot_block_proxy}(x, datasets, has_image = FALSE, ...)
 
-\method{system_prompt}{llm_gt_block_proxy}(x, datasets, ...)
+\method{system_prompt}{llm_gt_block_proxy}(x, datasets, has_image = FALSE, ...)
 }
 \arguments{
 \item{x}{LLM block proxy object}
@@ -27,6 +27,8 @@ system_prompt(x, ...)
 \item{...}{Generic consistency}
 
 \item{datasets}{Data sets from which to extract metadata}
+
+\item{has_image}{Whether an image has been uploaded (optional)}
 }
 \value{
 A string.

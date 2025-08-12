@@ -29,9 +29,10 @@ system_prompt.default <- function(x, ...) {
 }
 
 #' @param datasets Data sets from which to extract metadata
+#' @param has_image Whether an image has been uploaded (optional)
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_block_proxy <- function(x, datasets, has_image = FALSE, ...) {
 
   build_metadata <- blockr_option("make_meta_data", build_metadata_default)
 
@@ -86,10 +87,10 @@ system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
 
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_plot_block_proxy <- function(x, datasets, has_image = FALSE, ...) {
 
-  paste0(
-    system_prompt.llm_block_proxy(x, datasets, ...),
+  base_prompt <- paste0(
+    system_prompt.llm_block_proxy(x, datasets, has_image = has_image, ...),
     "\n\n",
     "Your task is to produce code to generate a data visualization using ",
     "the ggplot2 package.\n",
@@ -106,14 +107,27 @@ system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
     "- Incomplete ggplot objects missing required aesthetics\n",
     "GOOD: Always end with a complete ggplot2::ggplot() + geom_*() expression.\n"
   )
+
+  # Add image-specific instructions if image is present
+  if (has_image) {
+    base_prompt <- paste0(
+      base_prompt,
+      "\n\nIMAGE CONTEXT: An example image has been provided. Use it as visual ",
+      "reference for the style, layout, or approach you should follow in your ",
+      "visualization. Pay attention to colors, themes, chart types, and overall ",
+      "aesthetic choices shown in the example image.\n"
+    )
+  }
+
+  base_prompt
 }
 
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_gt_block_proxy <- function(x, datasets, has_image = FALSE, ...) {
 
-  prompt <- paste0(
-    system_prompt.llm_block_proxy(x, datasets, ...),
+  base_prompt <- paste0(
+    system_prompt.llm_block_proxy(x, datasets, has_image = has_image, ...),
     "\n\n",
     "Your task is to produce code to generate a table using the gt package.\n",
     "Example of good code you might write:\n",
@@ -135,15 +149,26 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
     "GOOD: Always end with a complete gt pipeline starting with gt::gt(data).\n"
   )
 
+  # Add image-specific instructions if image is present
+  if (has_image) {
+    base_prompt <- paste0(
+      base_prompt,
+      "\n\nIMAGE CONTEXT: An example image has been provided showing a table ",
+      "layout or formatting style. Use it as reference for the visual appearance, ",
+      "styling, colors, and formatting approach you should follow in your gt table. ",
+      "Pay attention to headers, borders, alignment, and overall design shown in the example.\n"
+    )
+  }
+
   # Add explicit console output for debugging
   cat("==== GT BLOCK SYSTEM PROMPT ====\n")
-  cat(prompt)
+  cat(base_prompt)
   cat("\n==== END GT BLOCK SYSTEM PROMPT ====\n")
 
   # Also use the logging system
   log_info("GT Block system prompt generated for datasets: ", paste(names(datasets), collapse = ", "))
 
-  prompt
+  base_prompt
 }
 
 build_metadata_default <- function(x) {
@@ -182,7 +207,7 @@ format_metadata_for_prompt <- function(metadata_list, dataset_names) {
       
       # Add unique values or levels if available
       if (!is.null(var$unique_values) && length(var$unique_values) > 0) {
-        unique_vals <- head(var$unique_values, 10)  # Limit to first 10
+        unique_vals <- utils::head(var$unique_values, 10)  # Limit to first 10
         var_text <- paste0(var_text, " [values: ", paste(unique_vals, collapse = ", "))
         if (length(var$unique_values) > 10) {
           var_text <- paste0(var_text, ", ...]")

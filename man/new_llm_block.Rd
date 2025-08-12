@@ -25,6 +25,7 @@ new_llm_block(
   code = "",
   explanation = character(),
   max_retries = blockr_option("max_retries", 3L),
+  enable_image_upload = FALSE,
   ctor = sys.parent(),
   ...
 )
@@ -51,6 +52,8 @@ llm_block_ui(x)
 \item{explanation}{Explanation for the generated code}
 
 \item{max_retries}{Number of retries in case of erroneous code}
+
+\item{enable_image_upload}{Whether to enable image upload functionality}
 
 \item{ctor}{String-valued constructor name or function/frame number (mostly
 for internal use or when defining constructors for virtual classes)}

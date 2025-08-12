@@ -38,11 +38,38 @@ llm_block_server.llm_block_proxy <- function(x) {
 
         rv_code <- reactiveVal()
         rv_expl <- reactiveVal(x[["explanation"]])
+        rv_image_content <- reactiveVal(NULL)
         rv_cond <- reactiveValues(
           error = character(),
           warning = character(),
           message = character()
         )
+
+        # Handle image upload if enabled
+        if (x[["enable_image_upload"]]) {
+          observeEvent(input$image_upload, {
+            if (!is.null(input$image_upload)) {
+              file_path <- input$image_upload$datapath
+              if (file.exists(file_path)) {
+                tryCatch({
+                  # Use ellmer to process the image
+                  image_content <- ellmer::content_image_file(file_path)
+                  rv_image_content(image_content)
+                  log_debug("Image uploaded successfully: ", input$image_upload$name)
+                }, error = function(e) {
+                  rv_cond$warning <- paste("Error processing image:", conditionMessage(e))
+                  log_error("Image processing error: ", conditionMessage(e))
+                })
+              }
+            } else {
+              rv_image_content(NULL)
+            }
+          })
+          
+          observeEvent(input$remove_image, {
+            rv_image_content(NULL)
+          })
+        }
 
         observeEvent(
           input$ask,
@@ -59,8 +86,9 @@ llm_block_server.llm_block_proxy <- function(x) {
             result <- query_llm_with_retry(
               datasets = dat,
               user_prompt = input$question,
-              system_prompt = system_prompt(x, dat),
+              system_prompt = system_prompt(x, dat, has_image = !is.null(rv_image_content())),
               block_proxy = x,
+              image_content = rv_image_content(),
               max_retries = x[["max_retries"]],
               progress = TRUE
             )

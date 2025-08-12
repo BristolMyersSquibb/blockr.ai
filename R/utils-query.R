@@ -1,5 +1,5 @@
 query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
-                                 block_proxy = NULL, max_retries = 5, progress = FALSE) {
+                                 block_proxy = NULL, image_content = NULL, max_retries = 5, progress = FALSE) {
 
   if (isTRUE(progress)) {
     shinyjs::show(id = "progress_container", anim = TRUE)
@@ -13,7 +13,7 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
 
   while (curr_try <= max_retries) {
 
-    res <- try_query_llm(user_prompt, system_prompt, error_msg)
+    res <- try_query_llm(user_prompt, system_prompt, error_msg, image_content)
 
     if (inherits(res, "try-error")) {
 
@@ -74,7 +74,7 @@ try_query_llm <- function(...) {
   try(query_llm(...), silent = TRUE)
 }
 
-query_llm <- function(user_prompt, system_prompt, error = NULL) {
+query_llm <- function(user_prompt, system_prompt, error = NULL, image_content = NULL) {
 
   # user message ---------------------------------------------------------------
   if (!is.null(error)) {
@@ -98,7 +98,16 @@ query_llm <- function(user_prompt, system_prompt, error = NULL) {
   )
 
   chat <- chat_dispatch(system_prompt)
-  response <- chat$chat_structured(user_prompt, type = type_response())
+
+  # Build message content - combine text and image if available
+  if (!is.null(image_content)) {
+    # For multimodal content, pass both image and text
+    response <- chat$chat_structured(image_content, user_prompt, type = type_response())
+    log_debug("Multimodal query sent with image and text prompt")
+  } else {
+    # Text-only query
+    response <- chat$chat_structured(user_prompt, type = type_response())
+  }
 
   response$code <- style_code(response$code)
 
