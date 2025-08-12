@@ -112,7 +112,7 @@ validate_dataframe_object <- function(obj) {
 validate_block_result <- function(obj, block_proxy) {
   # Fallback to basic type checking first
   result_ptype <- result_ptype(block_proxy)
-  result_base_class <- last(class(result_ptype))
+  result_base_class <- class(result_ptype)[1]  # Get first class, not last
   
   if (!inherits(obj, result_base_class)) {
     return(list(

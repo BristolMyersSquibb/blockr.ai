@@ -1,5 +1,5 @@
 query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
-                                 max_retries = 5, progress = FALSE) {
+                                 block_proxy = NULL, max_retries = 5, progress = FALSE) {
 
   if (isTRUE(progress)) {
     shinyjs::show(id = "progress_container", anim = TRUE)
@@ -42,6 +42,19 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
     }
 
     log_debug("Code execution successful")
+
+    # Validate result type if block_proxy provided
+    if (!is.null(block_proxy)) {
+      validation <- validate_block_result(val, block_proxy)
+      if (!validation$valid) {
+        log_warn("Type validation attempt ", curr_try, " failed:\nCode:\n",
+                 res$code, "\nValidation error: ", validation$message)
+
+        error_msg <- validation$message
+        curr_try <- curr_try + 1L
+        next  # Retry with validation feedback
+      }
+    }
 
     return(
       list(value = val, code = res$code, explanation = res$explanation)

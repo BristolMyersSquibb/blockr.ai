@@ -9,7 +9,7 @@ llm_block_server <- function(x) {
 llm_block_server.llm_block_proxy <- function(x) {
 
   result_ptype <- result_ptype(x)
-  result_base_class <- last(class(result_ptype))
+  result_base_class <- class(result_ptype)[1]  # Get first class, not last
 
   function(id, data = NULL, ...args = list()) {
     moduleServer(
@@ -60,6 +60,7 @@ llm_block_server.llm_block_proxy <- function(x) {
               datasets = dat,
               user_prompt = input$question,
               system_prompt = system_prompt(x, dat),
+              block_proxy = x,
               max_retries = x[["max_retries"]],
               progress = TRUE
             )
@@ -68,16 +69,9 @@ llm_block_server.llm_block_proxy <- function(x) {
               rv_cond$error <- result$error
               rv_cond$warning <- character()
             } else {
-              # Enhanced validation based on block type
-              validation_result <- validate_block_result(result$value, x)
-              
-              if (!validation_result$valid) {
-                rv_cond$error <- character()
-                rv_cond$warning <- validation_result$message
-              } else {
-                rv_cond$error <- character()
-                rv_cond$warning <- character()
-              }
+              # Validation already happened in retry loop
+              rv_cond$error <- character()
+              rv_cond$warning <- character()
             }
 
             rv_code(result$code)
