@@ -33,27 +33,22 @@ system_prompt.default <- function(x, ...) {
 #' @export
 system_prompt.llm_block_proxy <- function(x, datasets, ...) {
 
-  build_metadata <- blockr_option("make_meta_data", build_metadata_default)
+  meta_builder <- blockr_option("make_meta_data", build_metadata_default)
 
-  if (!is.function(build_metadata)) {
-    build_metadata <- get(build_metadata, mode = "function")
+  if (!is.function(meta_builder)) {
+    meta_builder <- get(meta_builder, mode = "function")
   }
 
-  metadata <- build_metadata(datasets)
+  metadata <- meta_builder(datasets)
 
   res <- paste0(
     NextMethod(),
     "\n\n",
     "You have the following dataset at your disposal: ",
     paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    "These come with summaries or metadata given below along with a ",
-    "description: ", shQuote(metadata$description, type = "cmd"), ".\n\n",
-    "```{r}\n",
-    paste(
-      constructive::construct_multi(metadata$summaries)$code,
-      collapse = "\n"
-    ),
-    "\n```\n\n",
+    "These can be summarize in the following way:\n\n",
+    paste0("* ", names(metadata), ": ", metadata),
+    "\n\n",
     "Be very careful to use only the provided names in your explanations ",
     "and code.\n",
     "This means you should not use generic names of undefined datasets ",
@@ -110,7 +105,7 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
     "Your task is to produce code to generate a table using the gt package.\n",
     "Example of good code you might write:\n",
     "gt::gt(data) |>\n",
-    "  tab_header(\"",
+    "  gt::tab_header(\"",
     "    title = \"Some title\",",
     "    subtitle = \"Some subtitle\"",
     "  )\n\n",
@@ -119,12 +114,65 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
   )
 }
 
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to produce code to generate a table using the flextable ",
+    "package.\n",
+    "Example of good code you might write:\n",
+    "head(airquality) |>\n",
+    "  flextable::flextable() |>\n",
+    "  flextable::add_header_row(\n",
+    "    values = c(\"air quality\", \"time\"),\n",
+    "    colwidths = c(4, 2)\n",
+    "  ) |>\n",
+    "  flextable::add_footer_lines(\n",
+    "    \"Some footer note.\"\n",
+    "  )\n\n",
+    "Important: Your code must always return a flextable object as the last ",
+    "expression.\n"
+  )
+}
+
 build_metadata_default <- function(x) {
-  list(
-    description = paste0(
-      "We provide below the ptypes (i.e. the output of `vctrs::vec_ptype()`) ",
-      "of the actual datasets that you have at your disposal:"
+  lapply(x, build_metadata)
+}
+
+#' @export
+build_metadata <- function(x, ...) {
+  UseMethod("build_metadata")
+}
+
+#' @export
+build_metadata.data.frame <- function(x) {
+  paste0(
+    "This data.frame contains columns with that can be created as:\n\n",
+    "    ```r\n",
+    paste0(
+      "    ",
+      format(constructive::construct_multi(lapply(x, vctrs::vec_ptype))$code),
+      collapse = "\n"
     ),
-    summaries = lapply(x, vctrs::vec_ptype)
+    "\n    ```\n\n"
+  )
+}
+
+#' @export
+build_metadata.flextable <- function(x) {
+  paste0(
+    "This object is a flextable with columns ",
+    paste(shQuote(x$col_keys), collapse = ", ")
+  )
+}
+
+#' @export
+build_metadata.default <- function(x) {
+  paste0(
+    "This object has class attributes ",
+    paste(shQuote(class(x)), collapse = ", ")
   )
 }
