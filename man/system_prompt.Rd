@@ -8,6 +8,10 @@
 \alias{system_prompt.llm_plot_block_proxy}
 \alias{system_prompt.llm_gt_block_proxy}
 \alias{system_prompt.llm_flxtbl_block_proxy}
+\alias{build_metadata}
+\alias{build_metadata.data.frame}
+\alias{build_metadata.flextable}
+\alias{build_metadata.default}
 \title{LLM system prompts}
 \usage{
 system_prompt(x, ...)
@@ -23,6 +27,14 @@ system_prompt(x, ...)
 \method{system_prompt}{llm_gt_block_proxy}(x, datasets, ...)
 
 \method{system_prompt}{llm_flxtbl_block_proxy}(x, datasets, ...)
+
+build_metadata(x, ...)
+
+\method{build_metadata}{data.frame}(x, ...)
+
+\method{build_metadata}{flextable}(x, ...)
+
+\method{build_metadata}{default}(x, ...)
 }
 \arguments{
 \item{x}{LLM block proxy object}

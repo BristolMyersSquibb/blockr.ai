@@ -142,13 +142,15 @@ build_metadata_default <- function(x) {
   lapply(x, build_metadata)
 }
 
+#' @rdname system_prompt
 #' @export
 build_metadata <- function(x, ...) {
   UseMethod("build_metadata")
 }
 
+#' @rdname system_prompt
 #' @export
-build_metadata.data.frame <- function(x) {
+build_metadata.data.frame <- function(x, ...) {
   paste0(
     "This data.frame contains columns with that can be created as:\n\n",
     "    ```r\n",
@@ -161,16 +163,18 @@ build_metadata.data.frame <- function(x) {
   )
 }
 
+#' @rdname system_prompt
 #' @export
-build_metadata.flextable <- function(x) {
+build_metadata.flextable <- function(x, ...) {
   paste0(
     "This object is a flextable with columns ",
     paste(shQuote(x$col_keys), collapse = ", ")
   )
 }
 
+#' @rdname system_prompt
 #' @export
-build_metadata.default <- function(x) {
+build_metadata.default <- function(x, ...) {
   paste0(
     "This object has class attributes ",
     paste(shQuote(class(x)), collapse = ", ")
