@@ -8,6 +8,8 @@
 \alias{system_prompt.llm_plot_block_proxy}
 \alias{system_prompt.llm_gt_block_proxy}
 \alias{system_prompt.llm_flxtbl_block_proxy}
+\alias{system_prompt.llm_gtsummary_block_proxy}
+\alias{system_prompt.llm_table_insights_block_proxy}
 \title{LLM system prompts}
 \usage{
 system_prompt(x, ...)
@@ -23,6 +25,10 @@ system_prompt(x, ...)
 \method{system_prompt}{llm_gt_block_proxy}(x, datasets, ...)
 
 \method{system_prompt}{llm_flxtbl_block_proxy}(x, datasets, ...)
+
+\method{system_prompt}{llm_gtsummary_block_proxy}(x, datasets, ...)
+
+\method{system_prompt}{llm_table_insights_block_proxy}(x, datasets, ...)
 }
 \arguments{
 \item{x}{LLM block proxy object}
