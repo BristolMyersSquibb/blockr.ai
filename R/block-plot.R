@@ -1,7 +1,7 @@
 #' @rdname new_llm_block
 #' @export
 new_llm_plot_block <- function(...) {
-  new_llm_block("llm_plot_block", ...)
+  new_llm_block("llm_plot_block", enable_image_upload = TRUE, ...)
 }
 
 #' @export
