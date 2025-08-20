@@ -29,9 +29,10 @@ system_prompt.default <- function(x, ...) {
 }
 
 #' @param datasets Data sets from which to extract metadata
+#' @param has_image Whether an image has been uploaded (optional)
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_block_proxy <- function(x, datasets, has_image = FALSE, ...) {
 
   meta_builder <- blockr_option("make_meta_data", build_metadata_default)
 
@@ -44,16 +45,17 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
   res <- paste0(
     NextMethod(),
     "\n\n",
-    "You have the following dataset at your disposal: ",
+    "You have the following dataset(s) at your disposal: ",
     paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    "These can be summarize in the following way:\n\n",
-    paste0("* ", names(metadata), ": ", metadata),
+    "These can be summarized in the following way:\n\n",
+    paste0("* ", names(metadata), ": ", metadata, collapse = "\n"),
     "\n\n",
-    "Be very careful to use only the provided names in your explanations ",
-    "and code.\n",
+    "IMPORTANT: Be very careful to use only the provided dataset names in your code.\n",
     "This means you should not use generic names of undefined datasets ",
-    "like `x` or `data` unless these are explicitly provided.\n",
-    "You should not produce code to rebuild the input objects.\n"
+    "like `x`, `df`, or `my_data` unless these are explicitly provided.\n",
+    "You should not produce code to rebuild the input objects.\n",
+    "Use the exact dataset names shown above: ", 
+    paste(shQuote(names(datasets)), collapse = ", "), ".\n"
   )
 }
 
