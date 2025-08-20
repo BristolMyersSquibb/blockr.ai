@@ -36,7 +36,8 @@ Imports:
     ggplot2,
     gt,
     bslib,
-    huxtable
+    huxtable,
+    gtsummary
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
