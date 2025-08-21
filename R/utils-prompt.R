@@ -140,6 +140,53 @@ system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
   )
 }
 
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_gtsummary_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to create summary tables using the gtsummary package.\n",
+    "Example of good code you might write:\n",
+    "gtsummary::tbl_summary(data, by = group_var) |>\n",
+    "  gtsummary::add_p() |>\n",
+    "  gtsummary::add_overall()\n\n",
+    "For regression tables:\n",
+    "gtsummary::tbl_regression(model) |>\n",
+    "  gtsummary::add_global_p()\n\n",
+    "Important: Your code must always return a gtsummary object.\n"
+  )
+}
+
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_table_insights_block_proxy <- function(x, datasets, ...) {
+
+  ascii_table <- if (length(datasets) > 0 && inherits(datasets[[1]], "gtsummary")) {
+    huxtable::to_screen(gtsummary::as_hux_table(datasets[[1]]))
+  } else if (length(datasets) > 0) {
+    capture.output(print(datasets[[1]]))
+  } else {
+    "No table data provided"
+  }
+
+  paste0(
+    "You are an expert clinical data analyst and statistician.\n",
+    "Your task is to analyze and interpret the following table, providing:\n",
+    "- Key clinical findings and statistical insights\n",
+    "- Treatment effects and group comparisons\n",
+    "- Statistical significance interpretation\n",
+    "- Safety signals or notable patterns\n",
+    "- Clinical implications\n\n",
+    "**Table to analyze:**\n\n",
+    ascii_table,
+    "\n\n",
+    "Provide your analysis in markdown format with clear sections and bullet points.\n",
+    "Focus on clinically relevant insights rather than technical details.\n"
+  )
+}
+
 build_metadata_default <- function(x) {
   lapply(x, build_metadata)
 }

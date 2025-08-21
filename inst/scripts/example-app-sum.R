@@ -1,11 +1,10 @@
 #!/usr/bin/env Rscript
 
-# Test script to demonstrate image upload functionality
+# Demo script to test the new table summary block functionality
 library(blockr.core)
 pkgload::load_all()
 
 # Configure Azure OpenAI with debug output
-# Not necessary for outside of BMS
 options(blockr.chat_function = function(system_prompt) {
   cat("==== SYSTEM PROMPT BEING SENT TO LLM ====\n")
   cat(system_prompt)
@@ -20,24 +19,30 @@ options(blockr.chat_function = function(system_prompt) {
   )
 })
 
-# Create a combined demo with both plot and table blocks for recreating outputs
-demo_app <- function() {
+# Demo to test table summary block
+demo_table_summary <- function() {
+  
 
-  # Create a board with connected plot and table blocks using iris data
+  
   serve(
     new_board(
       blocks = blocks(
+        # Clinical data source
         data_src = new_dataset_block("iris"),
-        visualize = new_llm_plot_block(
-          question = "Recreate the plot shown in the uploaded image"
+        
+        # Create a gtsummary table
+        summary = new_llm_gtsummary_block(
+          question = "Create a summary table comparing groups"
         ),
-        table = new_llm_gt_block(
-          question = "Recreate the table format shown in the uploaded image"
+        
+        # Test the new table insights block
+        insights = new_llm_table_insights_block(
+          question = "Summarize the key findings"
         )
       ),
       links = list(
-        from = c("data_src", "data_src"),
-        to = c("visualize", "table"),
+        from = c("data_src", "summary"),
+        to = c("summary", "insights"),
         input = c("data", "data")
       )
     )
@@ -45,9 +50,4 @@ demo_app <- function() {
 }
 
 # Run the demo
-if (interactive()) {
-
-  # upload inst/data/iris_scatter to plot
-  # upload inst/data/iris_table to table
-  demo_app()
-}
+demo_table_summary()

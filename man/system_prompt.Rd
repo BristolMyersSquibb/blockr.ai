@@ -8,6 +8,8 @@
 \alias{system_prompt.llm_plot_block_proxy}
 \alias{system_prompt.llm_gt_block_proxy}
 \alias{system_prompt.llm_flxtbl_block_proxy}
+\alias{system_prompt.llm_gtsummary_block_proxy}
+\alias{system_prompt.llm_table_insights_block_proxy}
 \alias{build_metadata}
 \alias{build_metadata.data.frame}
 \alias{build_metadata.flextable}
@@ -27,6 +29,10 @@ system_prompt(x, ...)
 \method{system_prompt}{llm_gt_block_proxy}(x, datasets, ...)
 
 \method{system_prompt}{llm_flxtbl_block_proxy}(x, datasets, ...)
+
+\method{system_prompt}{llm_gtsummary_block_proxy}(x, datasets, ...)
+
+\method{system_prompt}{llm_table_insights_block_proxy}(x, datasets, ...)
 
 build_metadata(x, ...)
 

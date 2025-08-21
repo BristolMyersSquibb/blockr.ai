@@ -4,13 +4,15 @@ register_ai_blocks <- function() {
       "new_llm_transform_block",
       "new_llm_plot_block",
       "new_llm_gt_block",
-      "new_llm_flxtbl_block"
+      "new_llm_flxtbl_block", 
+      "new_llm_gtsummary_block"
     ),
     name = c(
       "LLM transform block",
       "LLM plot block",
       "LLM gt block",
-      "LLM flextable block"
+      "LLM flextable block",
+      "LLM gtsummary block"
     ),
     description = c(
       paste(
@@ -28,11 +30,16 @@ register_ai_blocks <- function() {
       paste(
         "Create flextables using LLM-generated R code based on natural",
         "language questions"
+      ),
+      paste(
+        "Create gtsummary tables using LLM-generated R code based on natural",
+        "language questions"
       )
     ),
     category = c(
       "transform",
       "plot",
+      "table",
       "table",
       "table"
     ),
