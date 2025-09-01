@@ -231,6 +231,184 @@ test_that("tool rejects after max retries", {
   expect_false(store$has_result())
 })
 
+test_that("create_r_help_tool creates valid ellmer tool", {
+  tool <- create_r_help_tool()
+  
+  # Should be an ellmer tool object (S7 object)
+  expect_s3_class(tool, c("ellmer::ToolDef", "S7_object"))
+  expect_true(inherits(tool, "ellmer::ToolDef"))
+})
+
+test_that("R help tool handles missing package parameter", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    result <- tool_fn()
+    expect_type(result, "character")
+    expect_match(result, "Error.*Package name is required")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("R help tool handles non-existent package", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    result <- tool_fn("nonexistent_package_xyz")
+    expect_type(result, "character")
+    expect_match(result, "Package.*not available or installed")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("R help tool retrieves base package help", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    # Test with base package (always available)
+    result <- tool_fn("base")
+    expect_type(result, "character")
+    expect_true(nchar(result) > 0)
+    expect_match(result, "R Help Documentation")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("R help tool retrieves specific function help", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    # Test with a common base function
+    result <- tool_fn("base", function_name = "mean")
+    expect_type(result, "character")
+    expect_true(nchar(result) > 0)
+    expect_match(result, "R Help Documentation.*mean")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("R help tool handles non-existent function", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    result <- tool_fn("base", function_name = "nonexistent_function_xyz")
+    expect_type(result, "character")
+    expect_match(result, "Function.*not found")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("R help tool searches within package", {
+  tool <- create_r_help_tool()
+  
+  # Get the function to test directly if possible, otherwise skip
+  tool_fn <- NULL
+  
+  tryCatch({
+    if (exists("fn", tool)) tool_fn <- tool$fn
+    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
+  }, error = function(e) {
+    skip("Cannot access tool function for testing")
+  })
+  
+  if (!is.null(tool_fn) && is.function(tool_fn)) {
+    # Search for functions containing "mean" in stats package
+    result <- tool_fn("stats", search_term = "mean")
+    expect_type(result, "character")
+    expect_true(nchar(result) > 0)
+    expect_match(result, "Functions matching.*mean")
+  } else {
+    skip("Tool function not accessible")
+  }
+})
+
+test_that("query_llm_with_retry registers both tools", {
+  datasets <- list(data = mtcars)
+  user_prompt <- "Create summary statistics"
+  system_prompt <- "You are an R expert"
+  
+  registered_tools <- list()
+  
+  mock_chat <- list(
+    register_tool = function(tool) {
+      registered_tools <<- append(registered_tools, list(tool))
+      invisible(NULL)
+    },
+    chat = function(prompt) "Mock response"
+  )
+  
+  local_mocked_bindings(
+    chat_dispatch = function(...) mock_chat
+  )
+  
+  query_llm_with_retry(
+    datasets = datasets,
+    user_prompt = user_prompt,
+    system_prompt = system_prompt,
+    max_retries = 3,
+    progress = FALSE
+  )
+  
+  # Should have registered exactly 2 tools
+  expect_equal(length(registered_tools), 2)
+  expect_true(all(sapply(registered_tools, function(t) inherits(t, "ellmer::ToolDef"))))
+})
+
 test_that("query_llm_with_retry works with successful execution", {
   datasets <- list(data = mtcars)
   user_prompt <- "Create summary statistics"

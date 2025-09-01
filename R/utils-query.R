@@ -100,6 +100,170 @@ create_code_execution_tool <- function(datasets, result_store,
   )
 }
 
+create_r_help_tool <- function() {
+
+  get_r_help <- function(package, function_name = NULL, search_term = NULL) {
+
+    log_debug("Looking up R help for package '", package, "'",
+              if (!is.null(function_name)) paste0(", function '", function_name, "'"),
+              if (!is.null(search_term)) paste0(", search term '", search_term, "'"))
+
+    # Validate inputs
+    if (missing(package) || is.null(package) || package == "") {
+      return("Error: Package name is required.")
+    }
+
+    # Check if package is available
+    if (!requireNamespace(package, quietly = TRUE)) {
+      available_packages <- rownames(utils::installed.packages())
+      similar_packages <- available_packages[
+        grepl(package, available_packages, ignore.case = TRUE)
+      ]
+
+      error_msg <- paste0(
+        "Package '", package, "' is not available or installed."
+      )
+
+      if (length(similar_packages) > 0) {
+        error_msg <- paste0(
+          error_msg, " Similar packages: ",
+          paste(utils::head(similar_packages, 3), collapse = ", ")
+        )
+      }
+
+      return(error_msg)
+    }
+
+    # Case 1: Package overview (no specific function or search term)
+    if (is.null(function_name) && is.null(search_term)) {
+      tryCatch({
+        help_content <- utils::capture.output(
+          utils::help(package = package, help_type = "text")
+        )
+
+        if (length(help_content) == 0) {
+          return(paste0(
+            "Package '", package, "' is available but no overview help found. ",
+            "Try specifying a function name."
+          ))
+        }
+
+        return(paste0(
+          "R Help Documentation for Package '", package, "':\n\n",
+          paste(help_content, collapse = "\n")
+        ))
+      }, error = function(e) {
+        return(paste0(
+          "Error retrieving package overview for '", package, "': ",
+          conditionMessage(e)
+        ))
+      })
+    }
+
+    # Case 2: Specific function help
+    if (!is.null(function_name)) {
+      tryCatch({
+        # Get help for specific function
+        help_obj <- utils::help(function_name, package = package,
+                        help_type = "text", verbose = FALSE)
+
+        if (length(help_obj) == 0) {
+          # Try to find similar function names in the package
+          package_functions <- tryCatch({
+            ls(paste0("package:", package))
+          }, error = function(e) character(0))
+
+          similar_functions <- package_functions[
+            grepl(function_name, package_functions, ignore.case = TRUE)
+          ]
+
+          error_msg <- paste0(
+            "Function '", function_name, "' not found in package '",
+            package, "'."
+          )
+
+          if (length(similar_functions) > 0) {
+            error_msg <- paste0(
+              error_msg, " Similar functions: ",
+              paste(utils::head(similar_functions, 5), collapse = ", ")
+            )
+          }
+
+          return(error_msg)
+        }
+
+        help_content <- utils::capture.output(print(help_obj))
+
+        return(paste0(
+          "R Help Documentation for '", function_name, "' in package '",
+          package, "':\n\n",
+          paste(help_content, collapse = "\n")
+        ))
+
+      }, error = function(e) {
+        return(paste0(
+          "Error retrieving help for function '", function_name,
+          "' in package '", package, "': ", conditionMessage(e)
+        ))
+      })
+    }
+
+    # Case 3: Search within package
+    if (!is.null(search_term)) {
+      tryCatch({
+        # Get all functions in package and search
+        package_functions <- ls(paste0("package:", package))
+        matching_functions <- package_functions[
+          grepl(search_term, package_functions, ignore.case = TRUE)
+        ]
+
+        if (length(matching_functions) == 0) {
+          return(paste0(
+            "No functions found matching '", search_term,
+            "' in package '", package, "'."
+          ))
+        }
+
+        result <- paste0(
+          "Functions matching '", search_term, "' in package '",
+          package, "':\n\n",
+          paste(utils::head(matching_functions, 10), collapse = ", ")
+        )
+
+        if (length(matching_functions) > 10) {
+          result <- paste0(result, "\n\n(Showing first 10 of ",
+                          length(matching_functions), " matches)")
+        }
+
+        return(paste0(result, "\n\nUse the function parameter to get ",
+                     "detailed help for any specific function."))
+
+      }, error = function(e) {
+        return(paste0(
+          "Error searching for '", search_term, "' in package '",
+          package, "': ", conditionMessage(e)
+        ))
+      })
+    }
+  }
+
+  ellmer::tool(
+    get_r_help,
+    .description = paste0(
+      "Get R documentation for packages and functions. Provide a package ",
+      "name (required) and optionally a specific function name for ",
+      "detailed help or a search term to find matching functions."
+    ),
+    package = ellmer::type_string("Name of the R package to query"),
+    function_name = ellmer::type_string(
+      "Optional: specific function name within the package"
+    ),
+    search_term = ellmer::type_string(
+      "Optional: term to search for within the package functions"
+    )
+  )
+}
+
 query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
                                  max_retries = 5, progress = FALSE) {
 
@@ -116,20 +280,27 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
   # Simple system prompt - tool handles retry instructions
   enhanced_system_prompt <- paste0(
     system_prompt,
-    "\n\nIMPORTANT: You must use the execute_r_code_with_retry tool to run ",
-    "any R code you generate. This tool will automatically handle retries ",
-    "if your code fails - just follow its guidance to fix any errors."
+    "\n\nIMPORTANT: You have access to two tools:\n",
+    "1. execute_r_code_with_retry: Use this to run any R code you generate. ",
+    "This tool will automatically handle retries if your code fails - just ",
+    "follow its guidance to fix any errors.\n",
+    "2. get_r_help: Use this to look up R documentation for packages and ",
+    "functions. This can help you understand function usage, parameters, ",
+    "and examples before writing code."
   )
 
   chat <- chat_dispatch(enhanced_system_prompt)
   code_tool <- create_code_execution_tool(datasets, result_store, max_retries)
+  help_tool <- create_r_help_tool()
   chat$register_tool(code_tool)
+  chat$register_tool(help_tool)
 
   # Simple user prompt - tool handles retry logic
   full_prompt <- paste0(
     user_prompt,
-    "\n\nPlease use the execute_r_code_with_retry tool to implement and ",
-    "test your solution."
+    "\n\nPlease use the available tools to implement and test your solution. ",
+    "Use get_r_help to look up documentation if needed, then use ",
+    "execute_r_code_with_retry to run your code."
   )
 
   log_wrap(
