@@ -23,39 +23,77 @@ create_result_store <- function() {
   )
 }
 
-create_code_execution_tool <- function(datasets, result_store) {
+create_code_execution_tool <- function(datasets, result_store,
+                                       max_retries = 5) {
+
+  # Track invocation count using closure
+  invocation_count <- 0
 
   execute_r_code <- function(code, explanation = "") {
 
-    log_debug("Executing R code:\n", code)
+    invocation_count <<- invocation_count + 1
+
+    log_debug("Executing R code (attempt ", invocation_count, "/", max_retries,
+              "):\n", code)
+
+    # Check if we've exceeded the retry limit
+    if (invocation_count > max_retries) {
+      log_warn("Maximum attempts (", max_retries, ") exceeded")
+      ellmer::tool_reject(
+        paste0(
+        "Maximum number of attempts (", max_retries, ") exceeded. ",
+        "Unable to execute code successfully after multiple tries."
+        )
+      )
+    }
 
     result <- try_eval_code(code, datasets)
 
     if (inherits(result, "try-error")) {
       error_msg <- unclass(result)
-      log_warn("Code execution failed:\n", error_msg)
-      # Store error for retrieval
-      result_store$set_error(error_msg)
-      # Return error message that LLM can use to retry
-      paste("Error:", error_msg)
+      log_warn("Code execution failed on attempt ", invocation_count, ":\n",
+               error_msg)
+
+      if (invocation_count < max_retries) {
+        # Return error with retry suggestion
+        return(
+          paste0(
+            "Error on attempt ", invocation_count, "/", max_retries, ": ",
+            error_msg, "\n\nPlease analyze this error and provide corrected ",
+            "code. Call this tool again with the fixed code."
+          )
+        )
+      } else {
+        # Final attempt failed, store error and reject further calls
+        log_warn("Final attempt failed")
+        result_store$set_error(error_msg)
+        ellmer::tool_reject(paste0(
+          "Final error after ", max_retries, " attempts: ", error_msg,
+          "\n\nUnable to execute code successfully."
+        ))
+      }
     } else {
-      log_debug("Code execution successful")
-      # Store result for retrieval
+      log_debug("Code execution successful on attempt ", invocation_count)
+      # Store successful result
       result_store$set_result(list(
         value = result,
         code = code,
         explanation = explanation
       ))
 
-      "Code executed successfully. Result stored."
+      return(paste0(
+        "Code executed successfully on attempt ", invocation_count, "/",
+        max_retries, ". Result stored."
+      ))
     }
   }
 
   ellmer::tool(
     execute_r_code,
     .description = paste0(
-      "Execute R code against the provided datasets. ",
-      "Returns success message or error details."
+      "Execute R code against the provided datasets. If code fails, you ",
+      "can call this tool again with corrected code. Maximum ", max_retries,
+      " attempts allowed before the tool rejects further calls."
     ),
     code = ellmer::type_string("R code to execute"),
     explanation = ellmer::type_string("Explanation of what the code does")
@@ -75,29 +113,23 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
   # Create a result store for this chat session
   result_store <- create_result_store()
 
-  # Enhanced system prompt with retry instructions
+  # Simple system prompt - tool handles retry instructions
   enhanced_system_prompt <- paste0(
     system_prompt,
-    "\n\nIMPORTANT INSTRUCTIONS:\n",
-    "1. You must use the execute_r_code tool to run any R code you generate.\n",
-    "2. If code execution fails, examine the error and try again with ",
-    "corrected code.\n",
-    "3. You have up to ", max_retries, " attempts to generate working code.\n",
-    "4. Keep trying until you produce code that executes successfully, or ",
-    "you reach the maximum attempts.\n",
-    "5. Do not give up after a single failure - analyze errors and iterate."
+    "\n\nIMPORTANT: You must use the execute_r_code_with_retry tool to run ",
+    "any R code you generate. This tool will automatically handle retries ",
+    "if your code fails - just follow its guidance to fix any errors."
   )
 
   chat <- chat_dispatch(enhanced_system_prompt)
-  code_tool <- create_code_execution_tool(datasets, result_store)
+  code_tool <- create_code_execution_tool(datasets, result_store, max_retries)
   chat$register_tool(code_tool)
 
-  # Enhanced user prompt with retry expectations
+  # Simple user prompt - tool handles retry logic
   full_prompt <- paste0(
     user_prompt,
-    "\n\nPlease use the execute_r_code tool to develop and test your ",
-    "solution. If the first attempt fails, analyze the error and try ",
-    "again with corrections. You have up to ", max_retries, " attempts."
+    "\n\nPlease use the execute_r_code_with_retry tool to implement and ",
+    "test your solution."
   )
 
   log_wrap(
@@ -107,7 +139,7 @@ query_llm_with_retry <- function(datasets, user_prompt, system_prompt,
     level = "debug"
   )
 
-  # Single chat call - let LLM handle retries internally
+  # Single chat call - tool handles all retry complexity
   response <- try(
     chat$chat(full_prompt),
     silent = TRUE
