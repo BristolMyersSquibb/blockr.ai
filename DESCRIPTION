@@ -37,7 +37,8 @@ Imports:
     gt,
     bslib,
     flextable,
-    utils
+    utils,
+    tools
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

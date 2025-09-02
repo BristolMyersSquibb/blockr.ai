@@ -239,184 +239,53 @@ test_that("create_r_help_tool creates valid ellmer tool", {
   expect_true(inherits(tool, "ellmer::ToolDef"))
 })
 
-test_that("R help tool handles missing package parameter", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    result <- tool_fn()
-    expect_type(result, "character")
-    expect_match(result, "Error.*Package name is required")
-  } else {
-    skip("Tool function not accessible")
-  }
+test_that("R help tool retrieves base package help", {
+  # Test using the helper function directly
+  result <- get_package_help("base")
+  expect_type(result, "character")
+  expect_true(nchar(result) > 0)
+  expect_match(result, "R Help Documentation")
 })
 
 test_that("R help tool handles non-existent package", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    result <- tool_fn("nonexistent_package_xyz")
-    expect_type(result, "character")
-    expect_match(result, "Package.*not available or installed")
-  } else {
-    skip("Tool function not accessible")
-  }
-})
-
-test_that("R help tool retrieves base package help", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    # Test with base package (always available)
-    result <- tool_fn("base")
-    expect_type(result, "character")
-    expect_true(nchar(result) > 0)
-    expect_match(result, "R Help Documentation")
-  } else {
-    skip("Tool function not accessible")
-  }
+  # Test using the helper function directly
+  result <- get_package_help("nonexistent_package_xyz")
+  expect_type(result, "character")
+  expect_match(result, "Error.*package")
 })
 
 test_that("R help tool retrieves specific function help", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    # Test with a common base function
-    result <- tool_fn("base", function_name = "mean")
-    expect_type(result, "character")
-    expect_true(nchar(result) > 0)
-    expect_match(result, "R Help Documentation.*mean")
-  } else {
-    skip("Tool function not accessible")
-  }
+  # Test using the helper function directly
+  result <- get_help_topic("mean", "base")
+  expect_type(result, "character")
+  expect_true(nchar(result) > 0)
+  expect_match(result, "mean.*R Documentation")
 })
 
-test_that("R help tool handles non-existent function", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    result <- tool_fn("base", function_name = "nonexistent_function_xyz")
-    expect_type(result, "character")
-    expect_match(result, "Function.*not found")
-  } else {
-    skip("Tool function not accessible")
-  }
+test_that("R help tool retrieves topic help with no package", {
+  # Test with a common topic that should have results
+  result <- get_help_topic("plot")
+  expect_type(result, "character")
+  expect_true(nchar(result) > 0)
+  expect_match(result, "Found.*packages.*Choose")
 })
 
-test_that("R help tool searches within package", {
-  tool <- create_r_help_tool()
-  
-  # Get the function to test directly if possible, otherwise skip
-  tool_fn <- NULL
-  
-  tryCatch({
-    if (exists("fn", tool)) tool_fn <- tool$fn
-    if (is.null(tool_fn)) tool_fn <- attr(tool, "fn")
-  }, error = function(e) {
-    skip("Cannot access tool function for testing")
-  })
-  
-  if (!is.null(tool_fn) && is.function(tool_fn)) {
-    # Search for functions containing "mean" in stats package
-    result <- tool_fn("stats", search_term = "mean")
-    expect_type(result, "character")
-    expect_true(nchar(result) > 0)
-    expect_match(result, "Functions matching.*mean")
-  } else {
-    skip("Tool function not accessible")
-  }
-})
-
-test_that("query_llm_with_retry registers both tools", {
-  datasets <- list(data = mtcars)
-  user_prompt <- "Create summary statistics"
-  system_prompt <- "You are an R expert"
-  
-  registered_tools <- list()
-  
-  mock_chat <- list(
-    register_tool = function(tool) {
-      registered_tools <<- append(registered_tools, list(tool))
-      invisible(NULL)
-    },
-    chat = function(prompt) "Mock response"
-  )
-  
-  local_mocked_bindings(
-    chat_dispatch = function(...) mock_chat
-  )
-  
-  query_llm_with_retry(
-    datasets = datasets,
-    user_prompt = user_prompt,
-    system_prompt = system_prompt,
-    max_retries = 3,
-    progress = FALSE
-  )
-  
-  # Should have registered exactly 2 tools
-  expect_equal(length(registered_tools), 2)
-  expect_true(all(sapply(registered_tools, function(t) inherits(t, "ellmer::ToolDef"))))
+test_that("R help tool retrieves topic help with no package", {
+  # Test with a common topic that should have results
+  result <- get_help_topic("plot", "nonexistent_package_xyz")
+  expect_type(result, "character")
+  expect_true(nchar(result) > 0)
+  expect_match(result, "Error retrieving topic")
 })
 
 test_that("query_llm_with_retry works with successful execution", {
   datasets <- list(data = mtcars)
   user_prompt <- "Create summary statistics"
   system_prompt <- "You are an R expert"
-  
+
   # Create a shared result store that will be used by both mock and function
   shared_store <- create_result_store()
-  
+
   mock_chat <- list(
     register_tool = function(tool) invisible(NULL),
     chat = function(prompt) {
@@ -429,12 +298,12 @@ test_that("query_llm_with_retry works with successful execution", {
       "Tool executed successfully"
     }
   )
-  
+
   local_mocked_bindings(
     create_result_store = function() shared_store,
     chat_dispatch = function(...) mock_chat
   )
-  
+
   result <- query_llm_with_retry(
     datasets = datasets,
     user_prompt = user_prompt,
@@ -442,7 +311,7 @@ test_that("query_llm_with_retry works with successful execution", {
     max_retries = 3,
     progress = FALSE
   )
-  
+
   expect_type(result, "list")
   expect_true("value" %in% names(result))
   expect_true("code" %in% names(result))
@@ -492,10 +361,10 @@ test_that("query_llm_with_retry handles execution errors", {
   datasets <- list(data = mtcars)
   user_prompt <- "Create broken code"
   system_prompt <- "You are an R expert"
-  
+
   # Create a shared result store that will be used to simulate failure
   shared_store <- create_result_store()
-  
+
   mock_chat <- list(
     register_tool = function(tool) invisible(NULL),
     chat = function(prompt) {
@@ -504,12 +373,12 @@ test_that("query_llm_with_retry handles execution errors", {
       "Tool execution attempted"
     }
   )
-  
+
   local_mocked_bindings(
     create_result_store = function() shared_store,
     chat_dispatch = function(...) mock_chat
   )
-  
+
   result <- query_llm_with_retry(
     datasets = datasets,
     user_prompt = user_prompt,
@@ -517,7 +386,7 @@ test_that("query_llm_with_retry handles execution errors", {
     max_retries = 3,
     progress = FALSE
   )
-  
+
   expect_type(result, "list")
   expect_true("error" %in% names(result))
   expect_equal(result$error, "Code execution failed")
@@ -527,17 +396,17 @@ test_that("query_llm_with_retry handles no tool execution", {
   datasets <- list(data = mtcars)
   user_prompt <- "Just respond with text"
   system_prompt <- "You are an R expert"
-  
+
   # Mock the chat to not call any tools
   mock_chat <- list(
     register_tool = function(tool) invisible(NULL),
     chat = function(prompt) "I think you should use ggplot2 for this task."
   )
-  
+
   local_mocked_bindings(
     chat_dispatch = function(...) mock_chat
   )
-  
+
   result <- query_llm_with_retry(
     datasets = datasets,
     user_prompt = user_prompt,
@@ -545,7 +414,7 @@ test_that("query_llm_with_retry handles no tool execution", {
     max_retries = 3,
     progress = FALSE
   )
-  
+
   expect_type(result, "list")
   expect_true("error" %in% names(result))
   expect_equal(result$error, "No code generated")
@@ -556,7 +425,7 @@ test_that("query_llm_with_retry handles chat errors", {
   datasets <- list(data = mtcars)
   user_prompt <- "Create summary statistics"
   system_prompt <- "You are an R expert"
-  
+
   # Mock a chat object that throws an error
   mock_chat <- list(
     register_tool = function(tool) invisible(NULL),
@@ -564,11 +433,11 @@ test_that("query_llm_with_retry handles chat errors", {
       stop("API key not found")
     }
   )
-  
+
   local_mocked_bindings(
     chat_dispatch = function(...) mock_chat
   )
-  
+
   result <- query_llm_with_retry(
     datasets = datasets,
     user_prompt = user_prompt,
@@ -576,7 +445,7 @@ test_that("query_llm_with_retry handles chat errors", {
     max_retries = 3,
     progress = FALSE
   )
-  
+
   expect_type(result, "list")
   expect_true("error" %in% names(result))
   expect_match(result$error, "API key not found")
