@@ -36,7 +36,9 @@ Imports:
     ggplot2,
     gt,
     bslib,
-    flextable
+    flextable,
+    utils,
+    tools
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
