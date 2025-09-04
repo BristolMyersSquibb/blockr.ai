@@ -38,7 +38,8 @@ Imports:
     bslib,
     flextable,
     utils,
-    tools
+    tools,
+    shinychat
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

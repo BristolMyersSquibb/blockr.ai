@@ -44,41 +44,71 @@ llm_block_server.llm_block_proxy <- function(x) {
           message = character()
         )
 
-        observeEvent(
-          input$ask,
-          {
-            dat <- r_datasets()
+        client <- chat_dispatch()
+        task <- setup_chat_task(session)
 
-            req(
-              input$question,
-              dat,
-              length(dat) > 0,
-              all(lengths(dat) > 0)
+        observeEvent(input$chat_user_input, {
+
+          dat <- r_datasets()
+
+          if (length(dat) == 0 || any(lengths(dat) == 0)) {
+
+            rv_cond$warning <- paste(
+              "No (or incomplete data) is currently available. Not continuing",
+              "until this is resolved."
             )
 
-            result <- query_llm_with_tools(
-              user_prompt = input$question,
-              system_prompt = system_prompt(x, dat),
-              tools = llm_tools(x, dat),
-              progress = TRUE
-            )
+          } else {
 
-            if ("error" %in% names(result)) {
-              rv_cond$error <- result$error
-              rv_cond$warning <- character()
-            } else if (!inherits(result$value, result_base_class)) {
-              rv_cond$error <- character()
-              rv_cond$warning <- paste0(
-                "Expecting code to evaluate to an object inheriting from `",
-                result_base_class, "`."
+            rv_cond$warning <- character()
+
+            user_prompt <- input$chat_user_input
+            system_prompt <- system_prompt(x, dat)
+            tools <- llm_tools(x, dat)
+
+            system_prompt <- paste0(
+              system_prompt,
+              "\n\n",
+              paste0(
+                filter(has_length, lapply(tools, get_prompt)),
+                collapse = "\n"
               )
-            } else {
-              rv_cond$error <- character()
-              rv_cond$warning <- character()
-            }
+            )
 
-            rv_code(result$code)
-            rv_expl(result$explanation)
+            log_wrap(
+              "\n----------------- user prompt -----------------\n\n",
+              user_prompt,
+              "\n",
+              "\n---------------- system prompt ----------------\n\n",
+              system_prompt,
+              "\n",
+              level = "debug"
+            )
+
+            client$set_system_prompt(system_prompt)
+            client$set_tools(lapply(tools, get_tool))
+
+            task$invoke(client, "chat", user_prompt)
+          }
+        })
+
+        observe(
+          {
+            res <- try(task$result(), silent = TRUE)
+
+            if (inherits(res, "try-error")) {
+
+              msg <- extract_try_error(res)
+              log_error("Error encountered during chat: ", msg)
+              rv_cond$error <- msg
+
+            } else {
+
+              rv_cond$error <- character()
+
+              rv_code(style_code(res$code))
+              rv_expl(res$explanation)
+            }
           }
         )
 
@@ -87,7 +117,7 @@ llm_block_server.llm_block_proxy <- function(x) {
           shinyAce::updateAceEditor(
             session,
             "code_editor",
-            value = style_code(rv_code())
+            value = rv_code()
           )
         )
 
@@ -100,7 +130,7 @@ llm_block_server.llm_block_proxy <- function(x) {
                 "Encountered an error evaluating code: ", res
               )
             } else {
-              rv_code(input$code_editor)
+              rv_code(style_code(input$code_editor))
               rv_cond$error <- character()
             }
           }
@@ -121,10 +151,9 @@ llm_block_server.llm_block_proxy <- function(x) {
         list(
           expr = reactive(str2expression(rv_code())),
           state = list(
-            question = reactive(input$question),
+            question = reactive(input$chat_user_input),
             code = rv_code,
-            explanation = rv_expl,
-            max_retries = x[["max_retries"]]
+            explanation = rv_expl
           ),
           cond = rv_cond
         )

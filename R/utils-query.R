@@ -72,8 +72,8 @@ query_llm_with_tools <- function(user_prompt, system_prompt, tools,
   response
 }
 
-default_chat <- function(system_prompt) {
-  ellmer::chat_openai(system_prompt, model = "gpt-4o")
+default_chat <- function(...) {
+  ellmer::chat_openai(..., model = "gpt-4o")
 }
 
 chat_dispatch <- function(...) {
@@ -90,5 +90,15 @@ type_response <- function() {
   type_object(
     explanation = type_string("Explanation of the analysis approach"),
     code = type_string("R code to perform the analysis")
+  )
+}
+
+setup_chat_task <- function(session) {
+  ExtendedTask$new(
+    function(client, ui_id, user_input) {
+      res <- client$chat(user_input)
+      shinychat::chat_append(ui_id, res, session = session)
+      client$chat_structured(res, type = type_response())
+    }
   )
 }
