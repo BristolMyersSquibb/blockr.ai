@@ -57,22 +57,18 @@ llm_block_server.llm_block_proxy <- function(x) {
 
           if (length(dat) == 0 || any(lengths(dat) == 0)) {
 
-            log_warning(
-              if (length(dat)) {
-                paste(
-                  "Incomplete data:",
-                  paste0(names(dat), " (", lengths(dat), ")", collapse = ", "),
-                  "."
-                )
-              } else {
-                "No data available."
-              }
-            )
+            if (length(dat)) {
+              msg <- paste(
+                "Incomplete data:",
+                paste0(names(dat), " (", lengths(dat), ")", collapse = ", "),
+                "."
+              )
+            } else {
+              msg <- "No data available."
+            }
 
-            rv_cond$warning <- paste(
-              "No (or incomplete data) is currently available. Not continuing",
-              "until this is resolved."
-            )
+            log_warning(msg)
+            rv_cond$warning <- msg
 
           } else {
 
