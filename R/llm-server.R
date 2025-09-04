@@ -51,6 +51,13 @@ llm_block_server.llm_block_proxy <- function(x) {
           switch(task$status(), error = FALSE, success = TRUE, NULL)
         )
 
+        if (length(x[["question"]]) && nchar(x[["question"]])) {
+          shinychat::update_chat_user_input(
+            "chat",
+            value = x[["question"]]
+          )
+        }
+
         observeEvent(input$chat_user_input, {
 
           dat <- r_datasets()
