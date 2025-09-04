@@ -1,27 +1,13 @@
-query_llm_with_tools <- function(user_prompt, system_prompt, tools,
-                                 progress = FALSE) {
-
-  if (isTRUE(progress)) {
-    shinyjs::show(id = "progress_container", anim = TRUE)
-    on.exit(
-      shinyjs::hide(id = "progress_container", anim = TRUE)
-    )
-  }
-
-  stopifnot(
-    is.list(tools), all(lgl_ply(tools, is_llm_tool))
-  )
-
-  chat <- chat_dispatch(system_prompt)
-
-  for (tool in lapply(tools, get_tool)) {
-    chat$register_tool(tool)
-  }
+query_llm_with_tools <- function(client, task, user_prompt, system_prompt,
+                                 tools) {
 
   system_prompt <- paste0(
     system_prompt,
     "\n\n",
-    paste0(filter(has_length, lapply(tools, get_prompt)), collapse = "\n")
+    paste0(
+      filter(has_length, lapply(tools, get_prompt)),
+      collapse = "\n"
+    )
   )
 
   log_wrap(
@@ -34,42 +20,12 @@ query_llm_with_tools <- function(user_prompt, system_prompt, tools,
     level = "debug"
   )
 
-  response <- try(
-    chat$chat_structured(
-      chat$chat(user_prompt),
-      type = type_response()
-    ),
-    silent = TRUE
-  )
+  client$set_system_prompt(system_prompt)
+  client$set_tools(lapply(tools, get_tool))
 
-  if (inherits(response, "try-error")) {
+  task$invoke(client, "chat", user_prompt)
 
-    msg <- extract_try_error(response)
-
-    log_error("Error encountered during chat: ", msg)
-
-    return(
-      list(error = msg)
-    )
-  }
-
-  response$code <- style_code(response$code)
-
-  log_wrap(
-    "\n------------- response explanation ------------\n\n",
-    response$explanation,
-    "\n",
-    level = "debug"
-  )
-
-  log_asis(
-    "\n---------------- response code ----------------\n\n",
-    response$code,
-    "\n\n",
-    level = "debug"
-  )
-
-  response
+  invisible()
 }
 
 default_chat <- function(...) {

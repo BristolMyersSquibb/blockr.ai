@@ -11,9 +11,9 @@
 #' `llm_tool`.
 #'
 #' @export
-new_llm_tool <- function(..., .prompt = character()) {
+new_llm_tool <- function(..., prompt = character()) {
   structure(
-    list(tool = ellmer::tool(...), prompt = .prompt),
+    list(tool = ellmer::tool(...), prompt = prompt),
     class = "llm_tool"
   )
 }

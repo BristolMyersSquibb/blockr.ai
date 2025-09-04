@@ -129,18 +129,20 @@ new_help_tool <- function(...) {
 
   new_llm_tool(
     get_r_help,
-    .description = paste(
+    description = paste(
       "Get R documentation and help. Use \"topic\" for cross-package search,",
       "\"package\" for package-specific help, or both \"package\" and",
       "\"topic\" for specific function documentation."
     ),
-    topic = ellmer::type_string(
-      "Optional: Search for a specific topic or function."
-    ),
-    package = ellmer::type_string(
-      paste(
-        "Optional: Restrict your search to a specific package or if no topic",
-        "is specified, retrieve a package overview."
+    arguments = list(
+      topic = ellmer::type_string(
+        "Optional: Search for a specific topic or function."
+      ),
+      package = ellmer::type_string(
+        paste(
+          "Optional: Restrict your search to a specific package or if no topic",
+          "is specified, retrieve a package overview."
+        )
       )
     )
   )

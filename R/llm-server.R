@@ -53,6 +53,18 @@ llm_block_server.llm_block_proxy <- function(x) {
 
           if (length(dat) == 0 || any(lengths(dat) == 0)) {
 
+            log_warning(
+              if (length(dat)) {
+                paste(
+                  "Incomplete data:",
+                  paste0(names(dat), " (", lengths(dat), ")", collapse = ", "),
+                  "."
+                )
+              } else {
+                "No data available."
+              }
+            )
+
             rv_cond$warning <- paste(
               "No (or incomplete data) is currently available. Not continuing",
               "until this is resolved."
@@ -62,37 +74,18 @@ llm_block_server.llm_block_proxy <- function(x) {
 
             rv_cond$warning <- character()
 
-            user_prompt <- input$chat_user_input
-            system_prompt <- system_prompt(x, dat)
-            tools <- llm_tools(x, dat)
-
-            system_prompt <- paste0(
-              system_prompt,
-              "\n\n",
-              paste0(
-                filter(has_length, lapply(tools, get_prompt)),
-                collapse = "\n"
-              )
+            query_llm_with_tools(
+              client = client,
+              task = task,
+              user_prompt = input$chat_user_input,
+              system_prompt = system_prompt(x, dat),
+              tools = llm_tools(x, dat)
             )
-
-            log_wrap(
-              "\n----------------- user prompt -----------------\n\n",
-              user_prompt,
-              "\n",
-              "\n---------------- system prompt ----------------\n\n",
-              system_prompt,
-              "\n",
-              level = "debug"
-            )
-
-            client$set_system_prompt(system_prompt)
-            client$set_tools(lapply(tools, get_tool))
-
-            task$invoke(client, "chat", user_prompt)
           }
         })
 
-        observe(
+        observeEvent(
+          identical(task$status(), "error"),
           {
             res <- try(task$result(), silent = TRUE)
 
@@ -103,12 +96,36 @@ llm_block_server.llm_block_proxy <- function(x) {
               rv_cond$error <- msg
 
             } else {
-
               rv_cond$error <- character()
-
-              rv_code(style_code(res$code))
-              rv_expl(res$explanation)
             }
+          }
+        )
+
+        observeEvent(
+          identical(task$status(), "success"),
+          {
+            res <- task$result()
+
+            rv_cond$error <- character()
+
+            code <- style_code(res$code)
+
+            log_wrap(
+              "\n------------- response explanation ------------\n\n",
+              res$explanation,
+              "\n",
+              level = "debug"
+            )
+
+            log_asis(
+              "\n---------------- response code ----------------\n\n",
+              code,
+              "\n\n",
+              level = "debug"
+            )
+
+            rv_code(code)
+            rv_expl(res$explanation)
           }
         )
 

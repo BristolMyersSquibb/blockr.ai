@@ -115,19 +115,21 @@ new_eval_tool <- function(datasets,
 
   new_llm_tool(
     execute_r_code,
-    .description = paste0(
+    description = paste0(
       "Execute R code against the provided datasets. If code fails, you ",
       "can call this tool again with corrected code. Maximum ", max_retries,
       " attempts allowed before the tool rejects further calls."
     ),
-    .name = "eval_tool",
-    .prompt = paste(
+    name = "eval_tool",
+    prompt = paste(
       "Before returning any code and accompanying explanations to the user,",
       "you must check your code using the \"eval_tool\" to make sure the code",
       "runs without errors. This is not optional. It is critical that you",
       "verify your result using the \"eval_tool\"."
     ),
-    code = ellmer::type_string("R code to execute"),
-    explanation = ellmer::type_string("Explanation of what the code does")
+    arguments = list(
+      code = ellmer::type_string("R code to execute"),
+      explanation = ellmer::type_string("Explanation of what the code does")
+    )
   )
 }
