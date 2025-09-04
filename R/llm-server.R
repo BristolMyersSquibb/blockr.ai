@@ -47,6 +47,10 @@ llm_block_server.llm_block_proxy <- function(x) {
         client <- chat_dispatch()
         task <- setup_chat_task(session)
 
+        task_ready <- reactive(
+          switch(task$status(), error = FALSE, success = TRUE, NULL)
+        )
+
         observeEvent(input$chat_user_input, {
 
           dat <- r_datasets()
@@ -85,47 +89,45 @@ llm_block_server.llm_block_proxy <- function(x) {
         })
 
         observeEvent(
-          identical(task$status(), "error"),
+          task_ready(),
           {
             res <- try(task$result(), silent = TRUE)
 
-            if (inherits(res, "try-error")) {
+            if (task_ready() && !inherits(res, "try-error")) {
 
-              msg <- extract_try_error(res)
-              log_error("Error encountered during chat: ", msg)
-              rv_cond$error <- msg
+              rv_cond$error <- character()
+
+              code <- style_code(res$code)
+
+              log_wrap(
+                "\n------------- response explanation ------------\n\n",
+                res$explanation,
+                "\n",
+                level = "debug"
+              )
+
+              log_asis(
+                "\n---------------- response code ----------------\n\n",
+                code,
+                "\n\n",
+                level = "debug"
+              )
+
+              rv_code(code)
+              rv_expl(res$explanation)
 
             } else {
-              rv_cond$error <- character()
+
+              if (inherits(res, "try-error")) {
+                msg <- extract_try_error(res)
+                log_error("Error encountered during chat: ", msg)
+                rv_cond$error <- msg
+
+              } else {
+
+                rv_cond$error <- character()
+              }
             }
-          }
-        )
-
-        observeEvent(
-          identical(task$status(), "success"),
-          {
-            res <- task$result()
-
-            rv_cond$error <- character()
-
-            code <- style_code(res$code)
-
-            log_wrap(
-              "\n------------- response explanation ------------\n\n",
-              res$explanation,
-              "\n",
-              level = "debug"
-            )
-
-            log_asis(
-              "\n---------------- response code ----------------\n\n",
-              code,
-              "\n\n",
-              level = "debug"
-            )
-
-            rv_code(code)
-            rv_expl(res$explanation)
           }
         )
 
