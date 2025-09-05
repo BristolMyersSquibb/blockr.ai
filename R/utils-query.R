@@ -50,11 +50,21 @@ type_response <- function() {
 }
 
 setup_chat_task <- function(session) {
+
   ExtendedTask$new(
     function(client, ui_id, user_input) {
-      res <- client$chat(user_input)
-      shinychat::chat_append(ui_id, res, session = session)
-      client$chat_structured(res, type = type_response())
+
+      stream <- client$stream_async(
+        user_input,
+        stream = "content"
+      )
+
+      promises::promise_resolve(stream) |>
+        promises::then(
+          function(stream) {
+            shinychat::chat_append(ui_id, stream)
+          }
+        )
     }
   )
 }

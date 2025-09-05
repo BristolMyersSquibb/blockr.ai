@@ -24,8 +24,8 @@ new_llm_transform_block(...)
 
 new_llm_block(
   class,
-  question = "",
-  code = "",
+  question = character(),
+  code = character(),
   explanation = character(),
   ctor = sys.parent(),
   ...

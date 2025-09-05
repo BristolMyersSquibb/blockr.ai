@@ -103,6 +103,9 @@ llm_block_server.llm_block_proxy <- function(x) {
 
               rv_cond$error <- character()
 
+              res <- client$last_turn()@text |>
+                client$chat_structured(type = type_response())
+
               code <- style_code(res$code)
 
               log_wrap(
@@ -162,16 +165,6 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         output$explanation <- renderUI(markdown(rv_expl()))
-
-        output$result_is_available <- reactive(
-          length(rv_code()) > 0 && any(nzchar(rv_code()))
-        )
-
-        outputOptions(
-          output,
-          "result_is_available",
-          suspendWhenHidden = FALSE
-        )
 
         list(
           expr = reactive(str2expression(rv_code())),

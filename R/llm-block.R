@@ -30,7 +30,7 @@ new_llm_block <- function(class, question = character(), code = character(),
     ui = llm_block_ui(llm_obj),
     class = cls,
     ctor = ctor,
-    allow_empty_state = "explanation",
+    allow_empty_state = c("question", "explanation"),
     ...
   )
 }
