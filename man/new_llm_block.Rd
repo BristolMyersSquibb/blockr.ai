@@ -7,7 +7,6 @@
 \alias{new_llm_plot_block}
 \alias{new_llm_transform_block}
 \alias{new_llm_block}
-\alias{result_ptype}
 \alias{llm_block_server}
 \alias{llm_block_server.llm_block_proxy}
 \alias{llm_block_ui}
@@ -24,15 +23,12 @@ new_llm_transform_block(...)
 
 new_llm_block(
   class,
-  question = "",
-  code = "",
+  question = character(),
+  code = character(),
   explanation = character(),
-  max_retries = blockr_option("max_retries", 3L),
   ctor = sys.parent(),
   ...
 )
-
-result_ptype(x)
 
 llm_block_server(x)
 
@@ -53,12 +49,10 @@ llm_block_ui(x)
 
 \item{explanation}{Explanation for the generated code}
 
-\item{max_retries}{Number of retries in case of erroneous code}
-
 \item{ctor}{String-valued constructor name or function/frame number (mostly
 for internal use or when defining constructors for virtual classes)}
 
-\item{x}{Proxy LLM block object}
+\item{x}{An object inheriting from \code{"block"}}
 }
 \value{
 All blocks constructed via \code{new_llm_block()} inherit from
