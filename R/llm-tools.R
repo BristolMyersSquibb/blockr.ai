@@ -49,8 +49,8 @@ llm_tools.llm_block_proxy <- function(x, ...) {
   blockr_option(
     "llm_tools",
     list(
-      new_eval_tool(...),
-      new_help_tool(...)
+      new_eval_tool(x, ...),
+      new_help_tool(x, ...)
     )
   )
 }

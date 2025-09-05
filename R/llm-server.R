@@ -8,9 +8,6 @@ llm_block_server <- function(x) {
 #' @export
 llm_block_server.llm_block_proxy <- function(x) {
 
-  result_ptype <- result_ptype(x)
-  result_base_class <- last(class(result_ptype))
-
   function(id, data = NULL, ...args = list()) {
     moduleServer(
       id,
@@ -152,7 +149,8 @@ llm_block_server.llm_block_proxy <- function(x) {
         observeEvent(
           input$code_editor,
           {
-            res <- try_eval_code(input$code_editor, r_datasets())
+            req(input$code_editor)
+            res <- try_eval_code(x, input$code_editor, r_datasets())
             if (inherits(res, "try-error")) {
               rv_cond$error <- paste0(
                 "Encountered an error evaluating code: ", res

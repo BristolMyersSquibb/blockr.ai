@@ -1,41 +1,4 @@
-eval_code <- function(code, data) {
-  eval(
-    parse(text = code),
-    envir = list2env(data, parent = baseenv())
-  )
-}
-
-try_eval_code <- function(...) {
-  tryCatch(
-    {
-      res <- eval_code(...)
-
-      # plots might not fail at definition time but only when printing.
-      # We trigger the failure early with ggplotGrob()
-      if (ggplot2::is.ggplot(res)) {
-        suppressMessages(ggplot2::ggplotGrob(res))
-      }
-
-      res
-    },
-    error = function(e) {
-      structure(conditionMessage(e), class = "try-error")
-    }
-  )
-}
-
-extract_try_error <- function(x) {
-
-  stopifnot(inherits(x, "try-error"))
-
-  if (is.null(attr(x, "condition"))) {
-    unclass(x)
-  } else {
-    conditionMessage(attr(x, "condition"))
-  }
-}
-
-new_eval_tool <- function(datasets,
+new_eval_tool <- function(x, datasets,
                           max_retries = blockr_option("max_retries", 3L),
                           ...) {
 
@@ -64,7 +27,7 @@ new_eval_tool <- function(datasets,
       )
     }
 
-    result <- try_eval_code(code, datasets)
+    result <- try_eval_code(x, code, datasets)
 
     if (inherits(result, "try-error")) {
 
