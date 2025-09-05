@@ -51,10 +51,13 @@ llm_block_server.llm_block_proxy <- function(x) {
           switch(task$status(), error = FALSE, success = TRUE, NULL)
         )
 
-        if (length(x[["question"]]) && nchar(x[["question"]])) {
+        expl <- x[["explanation"]]
+        qest <- x[["question"]]
+
+        if (length(qest) && nchar(qest) && !(length(expl) && nchar(expl))) {
           shinychat::update_chat_user_input(
             "chat",
-            value = x[["question"]]
+            value = qest
           )
         }
 

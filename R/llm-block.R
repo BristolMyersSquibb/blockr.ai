@@ -14,9 +14,8 @@
 #' `llm_block`.
 #'
 #' @export
-new_llm_block <- function(class, question = "", code = "",
-                          explanation = character(),
-                          ctor = sys.parent(),
+new_llm_block <- function(class, question = character(), code = character(),
+                          explanation = character(), ctor = sys.parent(),
                           ...) {
 
   cls <- c(class, "llm_block")
