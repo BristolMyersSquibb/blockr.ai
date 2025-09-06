@@ -33,7 +33,7 @@ system_prompt.default <- function(x, ...) {
 #' @export
 system_prompt.llm_block_proxy <- function(x, datasets, ...) {
 
-  meta_builder <- blockr_option("make_meta_data", build_metadata_default)
+  meta_builder <- blockr_option("make_meta_data", describe_inputs)
 
   if (!is.function(meta_builder)) {
     meta_builder <- get(meta_builder, mode = "function")
@@ -136,41 +136,43 @@ system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
   )
 }
 
-build_metadata_default <- function(x) {
+#' @rdname system_prompt
+#' @export
+describe_inputs <- function(x) {
 
-  res <- lapply(x, build_metadata)
+  if (length(x) == 1L) {
+
+    res <- paste0(
+      "This dataset can be described in the following way:\n\n",
+      paste0(describe_input(x[[1L]]), collapse = "\n"),
+      "\n\n"
+    )
+
+    return(res)
+  }
+
+  res <- lapply(x, describe_input)
 
   paste0(
-    "These can be summarize in the following way:\n\n",
-    paste0("* ", names(res), ": ", res),
+    "The input dataset are summarized in the following sections.\n\n",
+    paste0(
+      "### ", names(res), "\n\n",
+      chr_ply(res, paste0, collapse = "\n"),
+      collapse = "\n\n"
+    ),
     "\n\n"
   )
 }
 
 #' @rdname system_prompt
 #' @export
-build_metadata <- function(x, ...) {
-  UseMethod("build_metadata")
+describe_input <- function(x, ...) {
+  UseMethod("describe_input")
 }
 
 #' @rdname system_prompt
 #' @export
-build_metadata.data.frame <- function(x, ...) {
-  paste0(
-    "This data.frame contains columns with that can be created as:\n\n",
-    "    ```r\n",
-    paste0(
-      "    ",
-      format(constructive::construct_multi(lapply(x, vctrs::vec_ptype))$code),
-      collapse = "\n"
-    ),
-    "\n    ```\n\n"
-  )
-}
-
-#' @rdname system_prompt
-#' @export
-build_metadata.flextable <- function(x, ...) {
+describe_input.flextable <- function(x, ...) {
   paste0(
     "This object is a flextable with columns ",
     paste(shQuote(x$col_keys), collapse = ", ")
@@ -179,9 +181,6 @@ build_metadata.flextable <- function(x, ...) {
 
 #' @rdname system_prompt
 #' @export
-build_metadata.default <- function(x, ...) {
-  paste0(
-    "This object has class attributes ",
-    paste(shQuote(class(x)), collapse = ", ")
-  )
+describe_input.default <- function(x, ...) {
+  btw::btw_this(x, ...)
 }

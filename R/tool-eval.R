@@ -66,14 +66,16 @@ new_eval_tool <- function(x, datasets,
 
     log_debug("Code execution successful on attempt ", invocation_count)
 
-    invocation_count <<- 0
-
-    paste0(
+    res <- paste0(
       "Code executed successfully on attempt ", invocation_count, "/",
       max_retries, ". Your task has been completed successfully. Please ",
       "return the following code chunk to the user alongside an explanation ",
       "of what it does:\n\n```r\n", code, "\n```."
     )
+
+    invocation_count <<- 0
+
+    res
   }
 
   new_llm_tool(
