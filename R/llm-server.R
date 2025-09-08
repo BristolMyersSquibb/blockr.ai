@@ -8,9 +8,6 @@ llm_block_server <- function(x) {
 #' @export
 llm_block_server.llm_block_proxy <- function(x) {
 
-  result_ptype <- result_ptype(x)
-  result_base_class <- last(class(result_ptype))
-
   function(id, data = NULL, ...args = list()) {
     moduleServer(
       id,
@@ -44,41 +41,99 @@ llm_block_server.llm_block_proxy <- function(x) {
           message = character()
         )
 
-        observeEvent(
-          input$ask,
-          {
-            dat <- r_datasets()
+        client <- chat_dispatch()
+        task <- setup_chat_task(session)
 
-            req(
-              input$question,
-              dat,
-              length(dat) > 0,
-              all(lengths(dat) > 0)
-            )
+        task_ready <- reactive(
+          switch(task$status(), error = FALSE, success = TRUE, NULL)
+        )
 
-            result <- query_llm_with_tools(
-              user_prompt = input$question,
-              system_prompt = system_prompt(x, dat),
-              tools = llm_tools(x, dat),
-              progress = TRUE
-            )
+        expl <- x[["explanation"]]
+        qest <- x[["question"]]
 
-            if ("error" %in% names(result)) {
-              rv_cond$error <- result$error
-              rv_cond$warning <- character()
-            } else if (!inherits(result$value, result_base_class)) {
-              rv_cond$error <- character()
-              rv_cond$warning <- paste0(
-                "Expecting code to evaluate to an object inheriting from `",
-                result_base_class, "`."
+        if (length(qest) && nchar(qest) && !(length(expl) && nchar(expl))) {
+          shinychat::update_chat_user_input(
+            "chat",
+            value = qest
+          )
+        }
+
+        observeEvent(input$chat_user_input, {
+
+          dat <- r_datasets()
+
+          if (length(dat) == 0 || any(lengths(dat) == 0)) {
+
+            if (length(dat)) {
+              msg <- paste(
+                "Incomplete data:",
+                paste0(names(dat), " (", lengths(dat), ")", collapse = ", "),
+                "."
               )
             } else {
-              rv_cond$error <- character()
-              rv_cond$warning <- character()
+              msg <- "No data available."
             }
 
-            rv_code(result$code)
-            rv_expl(result$explanation)
+            log_warning(msg)
+            rv_cond$warning <- msg
+
+          } else {
+
+            rv_cond$warning <- character()
+
+            query_llm_with_tools(
+              client = client,
+              task = task,
+              user_prompt = input$chat_user_input,
+              system_prompt = system_prompt(x, dat),
+              tools = llm_tools(x, dat)
+            )
+          }
+        })
+
+        observeEvent(
+          task_ready(),
+          {
+            res <- try(task$result(), silent = TRUE)
+
+            if (task_ready() && !inherits(res, "try-error")) {
+
+              rv_cond$error <- character()
+
+              res <- client$last_turn()@text |>
+                client$chat_structured(type = type_response())
+
+              code <- style_code(res$code)
+
+              log_wrap(
+                "\n------------- response explanation ------------\n\n",
+                res$explanation,
+                "\n",
+                level = "debug"
+              )
+
+              log_asis(
+                "\n---------------- response code ----------------\n\n",
+                code,
+                "\n\n",
+                level = "debug"
+              )
+
+              rv_code(code)
+              rv_expl(res$explanation)
+
+            } else {
+
+              if (inherits(res, "try-error")) {
+                msg <- extract_try_error(res)
+                log_error("Error encountered during chat: ", msg)
+                rv_cond$error <- msg
+
+              } else {
+
+                rv_cond$error <- character()
+              }
+            }
           }
         )
 
@@ -87,20 +142,21 @@ llm_block_server.llm_block_proxy <- function(x) {
           shinyAce::updateAceEditor(
             session,
             "code_editor",
-            value = style_code(rv_code())
+            value = rv_code()
           )
         )
 
         observeEvent(
           input$code_editor,
           {
-            res <- try_eval_code(input$code_editor, r_datasets())
+            req(input$code_editor)
+            res <- try_eval_code(x, input$code_editor, r_datasets())
             if (inherits(res, "try-error")) {
               rv_cond$error <- paste0(
                 "Encountered an error evaluating code: ", res
               )
             } else {
-              rv_code(input$code_editor)
+              rv_code(style_code(input$code_editor))
               rv_cond$error <- character()
             }
           }
@@ -108,23 +164,12 @@ llm_block_server.llm_block_proxy <- function(x) {
 
         output$explanation <- renderUI(markdown(rv_expl()))
 
-        output$result_is_available <- reactive(
-          length(rv_code()) > 0 && any(nzchar(rv_code()))
-        )
-
-        outputOptions(
-          output,
-          "result_is_available",
-          suspendWhenHidden = FALSE
-        )
-
         list(
           expr = reactive(str2expression(rv_code())),
           state = list(
-            question = reactive(input$question),
+            question = reactive(input$chat_user_input),
             code = rv_code,
-            explanation = rv_expl,
-            max_retries = x[["max_retries"]]
+            explanation = rv_expl
           ),
           cond = rv_cond
         )

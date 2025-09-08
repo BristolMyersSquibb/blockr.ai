@@ -1,41 +1,4 @@
-eval_code <- function(code, data) {
-  eval(
-    parse(text = code),
-    envir = list2env(data, parent = baseenv())
-  )
-}
-
-try_eval_code <- function(...) {
-  tryCatch(
-    {
-      res <- eval_code(...)
-
-      # plots might not fail at definition time but only when printing.
-      # We trigger the failure early with ggplotGrob()
-      if (ggplot2::is.ggplot(res)) {
-        suppressMessages(ggplot2::ggplotGrob(res))
-      }
-
-      res
-    },
-    error = function(e) {
-      structure(conditionMessage(e), class = "try-error")
-    }
-  )
-}
-
-extract_try_error <- function(x) {
-
-  stopifnot(inherits(x, "try-error"))
-
-  if (is.null(attr(x, "condition"))) {
-    unclass(x)
-  } else {
-    conditionMessage(attr(x, "condition"))
-  }
-}
-
-new_eval_tool <- function(datasets,
+new_eval_tool <- function(x, datasets,
                           max_retries = blockr_option("max_retries", 3L),
                           ...) {
 
@@ -64,7 +27,7 @@ new_eval_tool <- function(datasets,
       )
     }
 
-    result <- try_eval_code(code, datasets)
+    result <- try_eval_code(x, code, datasets)
 
     if (inherits(result, "try-error")) {
 
@@ -115,19 +78,21 @@ new_eval_tool <- function(datasets,
 
   new_llm_tool(
     execute_r_code,
-    .description = paste0(
+    description = paste0(
       "Execute R code against the provided datasets. If code fails, you ",
       "can call this tool again with corrected code. Maximum ", max_retries,
       " attempts allowed before the tool rejects further calls."
     ),
-    .name = "eval_tool",
-    .prompt = paste(
+    name = "eval_tool",
+    prompt = paste(
       "Before returning any code and accompanying explanations to the user,",
       "you must check your code using the \"eval_tool\" to make sure the code",
       "runs without errors. This is not optional. It is critical that you",
       "verify your result using the \"eval_tool\"."
     ),
-    code = ellmer::type_string("R code to execute"),
-    explanation = ellmer::type_string("Explanation of what the code does")
+    arguments = list(
+      code = ellmer::type_string("R code to execute"),
+      explanation = ellmer::type_string("Explanation of what the code does")
+    )
   )
 }

@@ -28,7 +28,7 @@ Imports:
     constructive,
     rlang,
     dplyr,
-    ellmer (>= 0.2.0),
+    ellmer (>= 0.3.0),
     shinyjs,
     shinyAce,
     styler,
@@ -38,13 +38,15 @@ Imports:
     bslib,
     flextable,
     utils,
-    tools
+    tools,
+    shinychat (>= 0.2.0.9000)
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
 Remotes:
     BristolMyersSquibb/blockr.core,
-    BristolMyersSquibb/blockr.dplyr
+    BristolMyersSquibb/blockr.dplyr,
+    posit-dev/shinychat/pkg-r
 Config/testthat/edition: 3
 URL: https://github.com/BristolMyersSquibb/blockr.ai
 BugReports: https://github.com/BristolMyersSquibb/blockr.ai/issues

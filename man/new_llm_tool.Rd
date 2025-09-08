@@ -9,7 +9,7 @@
 \alias{llm_tools.llm_block_proxy}
 \title{LLM tools}
 \usage{
-new_llm_tool(..., .prompt = character())
+new_llm_tool(..., prompt = character())
 
 is_llm_tool(x)
 
@@ -24,10 +24,10 @@ llm_tools(x, ...)
 \arguments{
 \item{...}{Passed to \code{\link[ellmer:tool]{ellmer::tool()}}.}
 
-\item{x}{Object}
-
 \item{prompt}{A string with additional prompts that will be added to the
 system prompt.}
+
+\item{x}{Object}
 }
 \value{
 All blocks constructed via \code{new_llm_tool()} inherit from

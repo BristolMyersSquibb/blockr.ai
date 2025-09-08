@@ -14,9 +14,8 @@
 #' `llm_block`.
 #'
 #' @export
-new_llm_block <- function(class, question = "", code = "",
-                          explanation = character(),
-                          ctor = sys.parent(),
+new_llm_block <- function(class, question = character(), code = character(),
+                          explanation = character(), ctor = sys.parent(),
                           ...) {
 
   cls <- c(class, "llm_block")
@@ -31,14 +30,7 @@ new_llm_block <- function(class, question = "", code = "",
     ui = llm_block_ui(llm_obj),
     class = cls,
     ctor = ctor,
-    allow_empty_state = "explanation",
+    allow_empty_state = c("question", "explanation"),
     ...
   )
-}
-
-#' @param x Proxy LLM block object
-#' @rdname new_llm_block
-#' @export
-result_ptype <- function(x) {
-  UseMethod("result_ptype")
 }
