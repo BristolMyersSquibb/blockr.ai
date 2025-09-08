@@ -56,11 +56,10 @@ llm_block_server.llm_block_proxy <- function(x) {
               all(lengths(dat) > 0)
             )
 
-            result <- query_llm_with_retry(
-              datasets = dat,
+            result <- query_llm_with_tools(
               user_prompt = input$question,
               system_prompt = system_prompt(x, dat),
-              max_retries = x[["max_retries"]],
+              tools = llm_tools(x, dat),
               progress = TRUE
             )
 

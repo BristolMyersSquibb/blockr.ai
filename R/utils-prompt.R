@@ -46,9 +46,7 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
     "\n\n",
     "You have the following dataset at your disposal: ",
     paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    "These can be summarize in the following way:\n\n",
-    paste0("* ", names(metadata), ": ", metadata),
-    "\n\n",
+    metadata,
     "Be very careful to use only the provided names in your explanations ",
     "and code.\n",
     "This means you should not use generic names of undefined datasets ",
@@ -139,7 +137,14 @@ system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
 }
 
 build_metadata_default <- function(x) {
-  lapply(x, build_metadata)
+
+  res <- lapply(x, build_metadata)
+
+  paste0(
+    "These can be summarize in the following way:\n\n",
+    paste0("* ", names(res), ": ", res),
+    "\n\n"
+  )
 }
 
 #' @rdname system_prompt
