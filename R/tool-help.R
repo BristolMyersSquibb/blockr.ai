@@ -147,4 +147,3 @@ new_help_tool <- function(...) {
     )
   )
 }
-

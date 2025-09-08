@@ -15,7 +15,7 @@ test_that("eval_code uses isolated environment", {
   data <- list(x = 100)
   result <- eval_code("x", data)
   expect_equal(result, 100)
-  
+
   # Global x should not be accessible
   x <- 999
   result2 <- eval_code("x", data)  # Should still use data$x, not global x
@@ -39,23 +39,31 @@ test_that("try_eval_code returns try-error on failure", {
 
 test_that("try_eval_code handles ggplot objects", {
   skip_if_not_installed("ggplot2")
-  
+
   data <- list(df = data.frame(x = 1:3, y = 1:3))
-  
+
   # Valid ggplot should work
-  result <- try_eval_code("ggplot2::ggplot(df, ggplot2::aes(x, y)) + ggplot2::geom_point()", data)
+  result <- try_eval_code(
+    "ggplot2::ggplot(df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
+    data
+  )
+
   expect_true(ggplot2::is_ggplot(result))
   expect_false(inherits(result, "try-error"))
-  
+
   # Invalid ggplot should fail early
-  result2 <- try_eval_code("ggplot2::ggplot(nonexistent_df, ggplot2::aes(x, y)) + ggplot2::geom_point()", data)
+  result2 <- try_eval_code(
+    "ggplot2::ggplot(nonexist_df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
+    data
+  )
+
   expect_true(inherits(result2, "try-error"))
 })
 
 test_that("extract_try_error extracts error message", {
   # Create a try-error object
   error_obj <- structure("object 'x' not found", class = "try-error")
-  
+
   result <- extract_try_error(error_obj)
   expect_type(result, "character")
   expect_equal(result, "object 'x' not found")
@@ -71,24 +79,25 @@ test_that("extract_try_error fails on non-try-error objects", {
 test_that("new_eval_tool creates valid ellmer tool", {
   datasets <- list(data = data.frame(x = 1:3, y = 1:3))
   tool <- new_eval_tool(datasets, max_retries = 3)
-  
+
   # Should be an ellmer tool object
   expect_true(is_llm_tool(tool))
-  # Note: tool structure may vary with ellmer versions, just test basic functionality
+  # Note: tool structure may vary with ellmer versions, just test basic
+  # functionality
   expect_type(get_tool(tool), "closure")
 })
 
 test_that("eval tool invocation counting works", {
   datasets <- list(data = data.frame(x = 1:3))
   tool <- new_eval_tool(datasets, max_retries = 2)
-  
+
   # Get the actual tool function for testing
   tool_func <- get_tool(tool)
-  
+
   # Mock ellmer::tool_reject to capture rejections
   tool_reject_called <- FALSE
   tool_reject_message <- ""
-  
+
   local_mocked_bindings(
     .package = "ellmer",
     tool_reject = function(message) {
@@ -97,19 +106,19 @@ test_that("eval tool invocation counting works", {
       stop(paste("Tool rejected:", message))
     }
   )
-  
+
   # First failed attempt should return retry message
   result1 <- tool_func(code = "nonexistent_var", explanation = "test")
   expect_type(result1, "character")
   expect_match(result1, "Error on attempt 1/2")
   expect_match(result1, "Please analyze this error")
-  
+
   # Second failed attempt should trigger tool_reject
   expect_error(
     tool_func(code = "another_nonexistent_var", explanation = "test"),
     "Tool rejected"
   )
-  
+
   expect_true(tool_reject_called)
   expect_match(tool_reject_message, "Final error after 2 attempts")
 })
@@ -118,7 +127,7 @@ test_that("eval tool resets counter on success", {
   datasets <- list(data = data.frame(x = 1:3))
   tool <- new_eval_tool(datasets, max_retries = 3)
   tool_func <- get_tool(tool)
-  
+
   # Successful execution should work and reset counter
   result <- tool_func(code = "sum(data$x)", explanation = "sum the x values")
   expect_type(result, "character")
@@ -130,7 +139,7 @@ test_that("eval tool handles max retries exceeded", {
   datasets <- list(data = data.frame(x = 1:3))
   tool <- new_eval_tool(datasets, max_retries = 1)
   tool_func <- get_tool(tool)
-  
+
   # Mock ellmer::tool_reject
   tool_reject_called <- FALSE
   local_mocked_bindings(
@@ -140,12 +149,13 @@ test_that("eval tool handles max retries exceeded", {
       stop(paste("Tool rejected:", message))
     }
   )
-  
-  # First call should fail and trigger rejection immediately since max_retries = 1
+
+  # First call should fail and trigger rejection immediately since
+  # max_retries = 1
   expect_error(
     tool_func(code = "nonexistent_var", explanation = "test"),
     "Tool rejected"
   )
-  
+
   expect_true(tool_reject_called)
 })
