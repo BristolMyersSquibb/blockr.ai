@@ -74,7 +74,7 @@ llm_block_server.llm_block_proxy <- function(x) {
               msg <- "No data available."
             }
 
-            log_warning(msg)
+            log_warn(msg)
             rv_cond$warning <- msg
 
           } else {

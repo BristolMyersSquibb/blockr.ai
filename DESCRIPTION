@@ -28,10 +28,8 @@ Imports:
     rlang,
     dplyr,
     ellmer (>= 0.3.0),
-    shinyjs,
     shinyAce,
     styler,
-    vctrs,
     ggplot2,
     gt,
     bslib,
@@ -40,7 +38,8 @@ Imports:
     tools,
     shinychat (>= 0.2.0.9000),
     btw,
-    evaluate
+    evaluate,
+    promises
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

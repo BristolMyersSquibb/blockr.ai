@@ -23,15 +23,25 @@ test_that("eval_code uses isolated environment", {
 })
 
 test_that("try_eval_code returns result on success", {
-  data <- list(x = 1:3)
-  result <- try_eval_code("sum(x)", data)
-  expect_equal(result, 6)
+  # Use existing transform block proxy which expects data.frame result
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  data <- list(df = data.frame(x = 1:3, y = 4:6))
+
+  result <- try_eval_code(
+    transform_block,
+    "data.frame(sum_x = sum(df$x))",
+    data
+  )
+  expect_equal(result$sum_x, 6)
   expect_false(inherits(result, "try-error"))
 })
 
 test_that("try_eval_code returns try-error on failure", {
+  # Use existing transform block proxy
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
   data <- list(x = 1:3)
-  result <- try_eval_code("nonexistent_function(x)", data)
+
+  result <- try_eval_code(transform_block, "nonexistent_function(x)", data)
   expect_true(inherits(result, "try-error"))
   expect_type(result, "character")
   expect_match(result, "could not find function")
@@ -40,10 +50,13 @@ test_that("try_eval_code returns try-error on failure", {
 test_that("try_eval_code handles ggplot objects", {
   skip_if_not_installed("ggplot2")
 
+  # Use existing plot block proxy which expects ggplot result
+  plot_block <- structure(list(), class = "llm_plot_block_proxy")
   data <- list(df = data.frame(x = 1:3, y = 1:3))
 
   # Valid ggplot should work
   result <- try_eval_code(
+    plot_block,
     "ggplot2::ggplot(df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
     data
   )
@@ -53,6 +66,7 @@ test_that("try_eval_code handles ggplot objects", {
 
   # Invalid ggplot should fail early
   result2 <- try_eval_code(
+    plot_block,
     "ggplot2::ggplot(nonexist_df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
     data
   )
@@ -77,8 +91,9 @@ test_that("extract_try_error fails on non-try-error objects", {
 })
 
 test_that("new_eval_tool creates valid ellmer tool", {
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
   datasets <- list(data = data.frame(x = 1:3, y = 1:3))
-  tool <- new_eval_tool(datasets, max_retries = 3)
+  tool <- new_eval_tool(transform_block, datasets, max_retries = 3)
 
   # Should be an ellmer tool object
   expect_true(is_llm_tool(tool))
@@ -88,8 +103,9 @@ test_that("new_eval_tool creates valid ellmer tool", {
 })
 
 test_that("eval tool invocation counting works", {
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
   datasets <- list(data = data.frame(x = 1:3))
-  tool <- new_eval_tool(datasets, max_retries = 2)
+  tool <- new_eval_tool(transform_block, datasets, max_retries = 2)
 
   # Get the actual tool function for testing
   tool_func <- get_tool(tool)
@@ -124,20 +140,29 @@ test_that("eval tool invocation counting works", {
 })
 
 test_that("eval tool resets counter on success", {
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
   datasets <- list(data = data.frame(x = 1:3))
-  tool <- new_eval_tool(datasets, max_retries = 3)
+
+  tool <- new_eval_tool(transform_block, datasets, max_retries = 3)
   tool_func <- get_tool(tool)
 
   # Successful execution should work and reset counter
-  result <- tool_func(code = "sum(data$x)", explanation = "sum the x values")
+  result <- tool_func(
+    code = "data.frame(sum_x = sum(data$x))",
+    explanation = "sum the x values"
+  )
   expect_type(result, "character")
   expect_match(result, "Code executed successfully")
-  expect_match(result, "```r\\nsum\\(data\\$x\\)\\n```")
+  expect_match(
+    result,
+    "```r\\ndata\\.frame\\(sum_x = sum\\(data\\$x\\)\\)\\n```"
+  )
 })
 
 test_that("eval tool handles max retries exceeded", {
+  transform_block <- structure(list(), class = "llm_transform_block_proxy")
   datasets <- list(data = data.frame(x = 1:3))
-  tool <- new_eval_tool(datasets, max_retries = 1)
+  tool <- new_eval_tool(transform_block, datasets, max_retries = 1)
   tool_func <- get_tool(tool)
 
   # Mock ellmer::tool_reject

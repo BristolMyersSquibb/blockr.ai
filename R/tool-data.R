@@ -37,7 +37,7 @@ new_data_tool <- function(x, datasets,
     prompt <- options(prompt = "> ")
     on.exit(options(prompt))
 
-    capture.output(evaluate::replay(res))
+    utils::capture.output(evaluate::replay(res))
   }
 
   new_llm_tool(
