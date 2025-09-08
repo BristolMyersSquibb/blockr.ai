@@ -45,5 +45,7 @@ register_ai_blocks <- function() {
 
   register_ai_blocks()
 
+  styler::cache_clear(ask = FALSE)
+
   invisible(NULL)
 } # nocov end

@@ -10,14 +10,20 @@ query_llm_with_tools <- function(client, task, user_prompt, system_prompt,
     )
   )
 
-  log_wrap(
+  log_debug(
     "\n----------------- user prompt -----------------\n\n",
     user_prompt,
-    "\n",
+    "\n"
+  )
+
+  log_trace(
     "\n---------------- system prompt ----------------\n\n",
     system_prompt,
-    "\n",
-    level = "debug"
+    "\n"
+  )
+
+  log_debug(
+    "\n-----------------------------------------------\n\n"
   )
 
   client$set_system_prompt(system_prompt)

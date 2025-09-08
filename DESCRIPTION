@@ -25,28 +25,29 @@ RoxygenNote: 7.3.2
 Imports:
     shiny,
     blockr.core (>= 0.1.1),
-    constructive,
     rlang,
     dplyr,
     ellmer (>= 0.3.0),
-    shinyjs,
     shinyAce,
     styler,
-    vctrs,
     ggplot2,
     gt,
     bslib,
     flextable,
     utils,
     tools,
-    shinychat (>= 0.2.0.9000)
+    shinychat (>= 0.2.0.9000),
+    btw,
+    evaluate,
+    promises
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr
 Remotes:
     BristolMyersSquibb/blockr.core,
     BristolMyersSquibb/blockr.dplyr,
-    posit-dev/shinychat/pkg-r
+    posit-dev/shinychat/pkg-r,
+    posit-dev/btw
 Config/testthat/edition: 3
 URL: https://github.com/BristolMyersSquibb/blockr.ai
 BugReports: https://github.com/BristolMyersSquibb/blockr.ai/issues

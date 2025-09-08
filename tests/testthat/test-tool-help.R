@@ -34,12 +34,12 @@ test_that("get_help_topic handles nonexistent package", {
 
 test_that("get_package_help works with dplyr package", {
   skip_if_not_installed("dplyr")
-  
+
   result <- get_package_help("dplyr")
   expect_type(result, "character")
   expect_true(nchar(result) > 0)
   expect_true(grepl("dplyr", result, ignore.case = TRUE))
-  
+
   # Should contain package documentation content
   expect_false(grepl("Error", result))
   expect_false(grepl("not found", result))

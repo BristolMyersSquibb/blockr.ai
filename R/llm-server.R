@@ -74,7 +74,7 @@ llm_block_server.llm_block_proxy <- function(x) {
               msg <- "No data available."
             }
 
-            log_warning(msg)
+            log_warn(msg)
             rv_cond$warning <- msg
 
           } else {
@@ -105,18 +105,21 @@ llm_block_server.llm_block_proxy <- function(x) {
 
               code <- style_code(res$code)
 
-              log_wrap(
-                "\n------------- response explanation ------------\n\n",
-                res$explanation,
-                "\n",
-                level = "debug"
-              )
-
-              log_asis(
+              log_debug(
                 "\n---------------- response code ----------------\n\n",
                 code,
-                "\n\n",
-                level = "debug"
+                "\n",
+                asis = TRUE
+              )
+
+              log_trace(
+                "\n------------- response explanation ------------\n\n",
+                res$explanation,
+                "\n"
+              )
+
+              log_debug(
+                "\n-----------------------------------------------\n\n"
               )
 
               rv_code(code)
