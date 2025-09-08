@@ -74,3 +74,50 @@ setup_chat_task <- function(session) {
     }
   )
 }
+
+last_turn_structured <- function(client) {
+  client$chat_structured(
+    client$last_turn()@text,
+    type = type_response()
+  )
+}
+
+eval_tool_code <- function(client) {
+
+  tool <- client$get_tools()[["eval_tool"]]
+  code <- get0("current_code", envir = environment(tool), inherits = FALSE)
+
+  if (is.null(code)) {
+    stop(
+      "Code not validated successfully using the `eval_tool`. Please try ",
+      "again."
+    )
+  }
+
+  list(code = code, explanation = client$last_turn()@text)
+}
+
+extract_result <- function(client) {
+
+  extractor <- blockr_option(
+    "result_callback",
+    if ("eval_tool" %in% names(client$get_tools())) {
+      eval_tool_code
+    } else {
+      last_turn_structured
+    }
+  )
+
+  res <- extractor(client)
+
+  stopifnot(
+    is.list(res),
+    setequal(names(res), c("code", "explanation")),
+    is.character(res[["code"]]),
+    is.character(res[["explanation"]])
+  )
+
+  res[["code"]] <- style_code(res[["code"]])
+
+  res
+}

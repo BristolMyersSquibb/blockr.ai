@@ -153,10 +153,6 @@ test_that("eval tool resets counter on success", {
   )
   expect_type(result, "character")
   expect_match(result, "Code executed successfully")
-  expect_match(
-    result,
-    "```r\\ndata\\.frame\\(sum_x = sum\\(data\\$x\\)\\)\\n```"
-  )
 })
 
 test_that("eval tool handles max retries exceeded", {

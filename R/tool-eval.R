@@ -3,6 +3,7 @@ new_eval_tool <- function(x, datasets,
                           ...) {
 
   invocation_count <- 0
+  current_code <- NULL
 
   execute_r_code <- function(code, explanation = "") {
 
@@ -18,6 +19,7 @@ new_eval_tool <- function(x, datasets,
       log_warn("Maximum attempts (", max_retries, ") exceeded")
 
       invocation_count <<- 0
+      current_code <<- NULL
 
       ellmer::tool_reject(
         paste0(
@@ -30,6 +32,8 @@ new_eval_tool <- function(x, datasets,
     result <- try_eval_code(x, code, datasets)
 
     if (inherits(result, "try-error")) {
+
+      current_code <<- NULL
 
       error_msg <- extract_try_error(result)
 
@@ -68,12 +72,14 @@ new_eval_tool <- function(x, datasets,
 
     res <- paste0(
       "Code executed successfully on attempt ", invocation_count, "/",
-      max_retries, ". Your task has been completed successfully. Please ",
-      "return the following code chunk to the user alongside an explanation ",
-      "of what it does:\n\n```r\n", code, "\n```."
+      max_retries, ". Your task has been completed successfully. There's no ",
+      "reason for you to include any code in your response to the user. ",
+      "The code has been captured and an explanation is all the user needs ",
+      "from you."
     )
 
     invocation_count <<- 0
+    current_code <<- code
 
     res
   }

@@ -100,14 +100,11 @@ llm_block_server.llm_block_proxy <- function(x) {
 
               rv_cond$error <- character()
 
-              res <- client$last_turn()@text |>
-                client$chat_structured(type = type_response())
-
-              code <- style_code(res$code)
+              res <- extract_result(client)
 
               log_debug(
                 "\n---------------- response code ----------------\n\n",
-                code,
+                res$code,
                 "\n",
                 asis = TRUE
               )
@@ -122,7 +119,7 @@ llm_block_server.llm_block_proxy <- function(x) {
                 "\n-----------------------------------------------\n\n"
               )
 
-              rv_code(code)
+              rv_code(res$code)
               rv_expl(res$explanation)
 
             } else {

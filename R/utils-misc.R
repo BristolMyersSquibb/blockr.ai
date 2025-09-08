@@ -1,5 +1,11 @@
 style_code <- function(code) {
-  paste0(styler::style_text(code), collapse = "\n")
+
+  res <- tryCatch(
+    styler::style_text(code),
+    warning = function(w) code
+  )
+
+  paste0(res, collapse = "\n")
 }
 
 last <- function(x) x[[length(x)]]
