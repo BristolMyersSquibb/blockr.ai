@@ -1,5 +1,5 @@
 new_eval_tool <- function(x, datasets,
-                          max_retries = blockr_option("max_retries", 3L),
+                          max_retries = blockr_option("max_eval_tries", 5L),
                           ...) {
 
   invocation_count <- 0

@@ -67,4 +67,17 @@ serve(
     links = links("a", "b", "data")
   )
 )
+
+serve(
+  new_board(
+    c(
+      a = new_dataset_block("iris"),
+      b = new_llm_transform_block(
+        code = "data |>\n  dplyr::filter(Species != \"setosa\")",
+      )
+    ),
+    links = list(from = "a", to = "b", input = "data")
+  )
+)
+
 ```

@@ -39,7 +39,8 @@ Imports:
     utils,
     tools,
     shinychat (>= 0.2.0.9000),
-    btw
+    btw,
+    evaluate
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

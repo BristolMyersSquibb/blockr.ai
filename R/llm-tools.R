@@ -26,15 +26,25 @@ is_llm_tool <- function(x) inherits(x, "llm_tool")
 #' @rdname new_llm_tool
 #' @export
 get_tool <- function(x) {
-  stopifnot(is_llm_tool(x))
-  x[["tool"]]
+  if (is_llm_tool(x)) {
+    x[["tool"]]
+  } else if (inherits(x, "ellmer::ToolDef")) {
+    x
+  } else {
+    stop("Cannot extract a tool from ", paste_enum(class(x)))
+  }
 }
 
 #' @rdname new_llm_tool
 #' @export
 get_prompt <- function(x) {
-  stopifnot(is_llm_tool(x))
-  x[["prompt"]]
+  if (is_llm_tool(x)) {
+    x[["prompt"]]
+  } else if (inherits(x, "ellmer::ToolDef")) {
+    character()
+  } else {
+    stop("Cannot extract a tool from ", paste_enum(class(x)))
+  }
 }
 
 #' @rdname new_llm_tool
@@ -50,7 +60,8 @@ llm_tools.llm_block_proxy <- function(x, ...) {
     "llm_tools",
     list(
       new_eval_tool(x, ...),
-      new_help_tool(x, ...)
+      new_help_tool(x, ...),
+      new_data_tool(x, ...)
     )
   )
 }
