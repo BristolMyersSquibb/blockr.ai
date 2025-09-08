@@ -10,33 +10,17 @@ llm_block_ui.llm_block_proxy <- function(x) {
 
   function(id) {
 
-    messages <- NULL
+    msg <- x[["messages"]]
 
-    expl <- x[["explanation"]]
-    qest <- x[["question"]]
-
-    if (length(expl) && nchar(expl)) {
-
-      messages <- list(
-        list(content = expl, role = "assistant")
-      )
-
-      if (length(qest) && nchar(qest)) {
-
-        messages <- c(
-          list(
-            list(content = qest, role = "user")
-          ),
-          messages
-        )
-      }
+    if (is_question(msg)) {
+      msg <- NULL
     }
 
     chat <- shinychat::chat_ui(
       NS(id, "chat"),
       width = "100%",
       style = "max-height: 400px; overflow-y: auto;",
-      messages = messages
+      messages = msg
     )
 
     code <- shinyAce::aceEditor(
@@ -54,4 +38,20 @@ llm_block_ui.llm_block_proxy <- function(x) {
       bslib::accordion_panel(title = "Code output", code)
     )
   }
+}
+
+is_question <- function(x) {
+  is.character(x) ||
+    inherits(x, "shiny.tag.list") || inherits(x, "shiny.tag") ||
+    (
+      is.list(x) && (
+        (
+          setequal(names(x), c("content", "role")) &&
+            x[["role"]] == "user"
+        ) || (
+          length(x) == 1L && setequal(names(x[[1L]]), c("content", "role")) &&
+            x[[1L]][["role"]] == "user"
+        )
+      )
+    )
 }

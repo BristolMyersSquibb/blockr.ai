@@ -13,6 +13,13 @@ llm_block_server.llm_block_proxy <- function(x) {
       id,
       function(input, output, session) {
 
+        client <- chat_dispatch()
+        task <- setup_chat_task(session)
+
+        task_ready <- reactive(
+          switch(task$status(), error = FALSE, success = TRUE, NULL)
+        )
+
         observeEvent(
           get_board_option_or_default("dark_mode"),
           shinyAce::updateAceEditor(
@@ -34,33 +41,66 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         rv_code <- reactiveVal()
-        rv_expl <- reactiveVal(x[["explanation"]])
+        rv_msgs <- reactiveVal()
+
         rv_cond <- reactiveValues(
           error = character(),
           warning = character(),
           message = character()
         )
 
-        client <- chat_dispatch()
-        task <- setup_chat_task(session)
+        msg <- x[["messages"]]
 
-        task_ready <- reactive(
-          switch(task$status(), error = FALSE, success = TRUE, NULL)
+        observeEvent(
+          TRUE,
+          {
+            if (is_question(msg)) {
+              shinychat::update_chat_user_input(
+                "chat",
+                value = msg
+              )
+              rv_msgs(
+                list(
+                  list(role = "user", content = msg)
+                )
+              )
+            } else if (is.list(msg)) {
+              if (setequal(names(msg), c("content", "role"))) {
+                rv_msgs(list(msg))
+              } else {
+                rv_msgs(msg)
+              }
+            }
+
+            cur <- rv_msgs()
+
+            if (last(cur)[["role"]] == "user") {
+              cur <- cur[-length(cur)]
+            }
+
+            if (length(cur)) {
+              client$set_turns(
+                map(ellmer::Turn, lst_xtr(cur, "role"), lst_xtr(cur, "content"))
+              )
+            }
+          },
+          once = TRUE
         )
-
-        expl <- x[["explanation"]]
-        qest <- x[["question"]]
-
-        if (length(qest) && nchar(qest) && !(length(expl) && nchar(expl))) {
-          shinychat::update_chat_user_input(
-            "chat",
-            value = qest
-          )
-        }
 
         observeEvent(input$chat_user_input, {
 
           dat <- r_datasets()
+
+          cur <- rv_msgs()
+          new <- list(
+            list(role = "user", content = input$chat_user_input)
+          )
+
+          if (last(cur)[["role"]] == "user") {
+            rv_msgs(c(cur[-length(cur)], new))
+          } else {
+            rv_msgs(c(cur, new))
+          }
 
           if (length(dat) == 0 || any(lengths(dat) == 0)) {
 
@@ -100,31 +140,52 @@ llm_block_server.llm_block_proxy <- function(x) {
 
               rv_cond$error <- character()
 
-              res <- extract_result(client)
+              res <- try(extract_result(client), silent = TRUE)
 
-              log_debug(
-                "\n---------------- response code ----------------\n\n",
-                res$code,
-                "\n",
-                asis = TRUE
-              )
+              if (inherits(res, "try-error")) {
 
-              log_trace(
-                "\n------------- response explanation ------------\n\n",
-                res$explanation,
-                "\n"
-              )
+                msg <- extract_try_error(res)
+                log_error("Error encountered during result extraction: ", msg)
+                rv_cond$error <- msg
 
-              log_debug(
-                "\n-----------------------------------------------\n\n"
-              )
+              } else {
 
-              rv_code(res$code)
-              rv_expl(res$explanation)
+                log_debug(
+                  "\n---------------- response code ----------------\n\n",
+                  res$code,
+                  "\n",
+                  asis = TRUE
+                )
+
+                log_trace(
+                  "\n------------- response explanation ------------\n\n",
+                  res$explanation,
+                  "\n"
+                )
+
+                log_debug(
+                  "\n-----------------------------------------------\n\n"
+                )
+
+                rv_msgs(
+                  c(
+                    rv_msgs(),
+                    list(
+                      list(
+                        role = "assistant",
+                        content = res$explanation
+                      )
+                    )
+                  )
+                )
+
+                rv_code(res$code)
+              }
 
             } else {
 
               if (inherits(res, "try-error")) {
+
                 msg <- extract_try_error(res)
                 log_error("Error encountered during chat: ", msg)
                 rv_cond$error <- msg
@@ -162,14 +223,11 @@ llm_block_server.llm_block_proxy <- function(x) {
           }
         )
 
-        output$explanation <- renderUI(markdown(rv_expl()))
-
         list(
           expr = reactive(str2expression(rv_code())),
           state = list(
-            question = reactive(input$chat_user_input),
-            code = rv_code,
-            explanation = rv_expl
+            messages = rv_msgs,
+            code = rv_code
           ),
           cond = rv_cond
         )
