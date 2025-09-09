@@ -134,6 +134,7 @@ new_help_tool <- function(...) {
       "\"package\" for package-specific help, or both \"package\" and",
       "\"topic\" for specific function documentation."
     ),
+    name = "help_tool",
     arguments = list(
       topic = ellmer::type_string(
         "Optional: Search for a specific topic or function."

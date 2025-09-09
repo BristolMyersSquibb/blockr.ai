@@ -1,12 +1,101 @@
 #' @rdname new_llm_block
 #' @export
-llm_block_server <- function(x) {
-  UseMethod("llm_block_server", x)
+new_llm_insights_block <- function(...) {
+  new_llm_block("llm_insights_block", ..., code = "NULL")
+}
+
+#' @export
+result_ptype.llm_insights_block_proxy <- function(x) {
+  NULL
+}
+
+#' @export
+block_ui.llm_insights_block <- function(id, x, ...) {
+  tagList(
+    uiOutput(NS(id, "result"))
+  )
+}
+
+#' @export
+block_output.llm_insights_block <- function(x, result, session) {
+  renderUI(markdown(result))
+}
+
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_insights_block_proxy <- function(x, datasets, tools, ...) {
+
+  meta_builder <- blockr_option("make_meta_data", describe_inputs)
+
+  if (!is.function(meta_builder)) {
+    meta_builder <- get(meta_builder, mode = "function")
+  }
+
+  metadata <- meta_builder(datasets)
+
+  if (length(tools)) {
+    tool_prompt <- paste0(
+      "You have available the following tools ",
+      paste_enum(chr_ply(tools, function(x) x$tool@name)), ". ",
+      "Make use of these tools as you see fit.\n"
+    )
+  } else {
+    tool_prompt <- ""
+  }
+
+  tool_prompts <- filter(has_length, lapply(tools, get_prompt))
+
+  paste0(
+    "Your task is to examine datasets and create a report according ",
+    "to user instructions.\n",
+    tool_prompt,
+    "Important: If decide to use a tool that accepts R code as input, make ",
+    "sure to always use namespace prefixes whenever you call functions in ",
+    "packages. Do not use library calls for attaching package namespaces.",
+    "\n\n",
+    "You have the following dataset", if (length(datasets) > 1L) "s",
+    " at your disposal: ",
+    paste(shQuote(names(datasets)), collapse = ", "), ".\n",
+    metadata,
+    "Be very careful to use only the provided names in your explanations ",
+    "and code.\n",
+    "This means you should not use generic names of undefined datasets ",
+    "like `x` or `data` unless these are explicitly provided.\n",
+    "You should not produce code to rebuild the input objects.",
+    if (has_length(tool_prompts)) "\n\n",
+    paste0(
+      filter(has_length, lapply(tools, get_prompt)),
+      collapse = "\n"
+    ),
+    "\n\n",
+    "The user is most interested in a clear and concise description of input ",
+    "datasets and code you may produce is only relevant for you to better ",
+    "understand the data. Report back to the user a nicely written ",
+    "description explaining the data and don't forget to cover aspects the ",
+    "user specifically asked for.\n"
+  )
 }
 
 #' @rdname new_llm_block
 #' @export
-llm_block_server.llm_block_proxy <- function(x) {
+llm_block_ui.llm_insights_block_proxy <- function(x) {
+
+  function(id) {
+
+    msg <- split_messages(x[["messages"]])
+
+    shinychat::chat_ui(
+      NS(id, "chat"),
+      width = "100%",
+      style = "max-height: 400px; overflow-y: auto;",
+      messages = msg[["history"]]
+    )
+  }
+}
+
+#' @rdname new_llm_block
+#' @export
+llm_block_server.llm_insights_block_proxy <- function(x) {
 
   function(id, data = NULL, ...args = list()) {
     moduleServer(
@@ -20,19 +109,6 @@ llm_block_server.llm_block_proxy <- function(x) {
           switch(task$status(), error = FALSE, success = TRUE, NULL)
         )
 
-        observeEvent(
-          get_board_option_or_default("dark_mode"),
-          shinyAce::updateAceEditor(
-            session,
-            "code_editor",
-            theme = switch(
-              get_board_option_or_default("dark_mode"),
-              light = "katzenmilch",
-              dark = "dracula"
-            )
-          )
-        )
-
         r_datasets <- reactive(
           c(
             if (is.reactive(data) && !is.null(data())) list(data = data()),
@@ -40,7 +116,6 @@ llm_block_server.llm_block_proxy <- function(x) {
           )
         )
 
-        rv_code <- reactiveVal()
         rv_msgs <- reactiveVal(x[["messages"]])
 
         rv_cond <- reactiveValues(
@@ -48,6 +123,8 @@ llm_block_server.llm_block_proxy <- function(x) {
           warning = character(),
           message = character()
         )
+
+        rv_res <- reactiveVal()
 
         observeEvent(
           TRUE,
@@ -131,30 +208,21 @@ llm_block_server.llm_block_proxy <- function(x) {
 
               rv_cond$error <- character()
 
-              res <- try(extract_result(client), silent = TRUE)
+              res <- try(last_turn(client), silent = TRUE)
 
               if (inherits(res, "try-error")) {
 
                 msg <- extract_try_error(res)
                 log_error("Error encountered during result extraction: ", msg)
                 rv_cond$error <- msg
+                rv_res(NULL)
 
               } else {
 
                 log_debug(
-                  "\n---------------- response code ----------------\n\n",
-                  res$code,
-                  "\n",
-                  asis = TRUE
-                )
-
-                log_trace(
                   "\n------------- response explanation ------------\n\n",
-                  res$explanation,
-                  "\n"
-                )
-
-                log_debug(
+                  res,
+                  "\n",
                   "\n-----------------------------------------------\n\n"
                 )
 
@@ -164,13 +232,13 @@ llm_block_server.llm_block_proxy <- function(x) {
                     list(
                       list(
                         role = "assistant",
-                        content = res$explanation
+                        content = res
                       )
                     )
                   )
                 )
 
-                rv_code(res$code)
+                rv_res(res)
               }
 
             } else {
@@ -180,6 +248,7 @@ llm_block_server.llm_block_proxy <- function(x) {
                 msg <- extract_try_error(res)
                 log_error("Error encountered during chat: ", msg)
                 rv_cond$error <- msg
+                rv_res(NULL)
 
               } else {
 
@@ -189,40 +258,24 @@ llm_block_server.llm_block_proxy <- function(x) {
           }
         )
 
-        observeEvent(
-          rv_code(),
-          shinyAce::updateAceEditor(
-            session,
-            "code_editor",
-            value = rv_code()
-          )
-        )
-
-        observeEvent(
-          input$code_editor,
-          {
-            req(input$code_editor)
-            res <- try_eval_code(x, input$code_editor, r_datasets())
-            if (inherits(res, "try-error")) {
-              rv_cond$error <- paste0(
-                "Encountered an error evaluating code: ", res
-              )
-            } else {
-              rv_code(style_code(input$code_editor))
-              rv_cond$error <- character()
-            }
-          }
-        )
-
         list(
-          expr = reactive(str2expression(rv_code())),
-          state = list(
-            messages = rv_msgs,
-            code = rv_code
-          ),
+          expr = rv_res,
+          state = list(messages = rv_msgs),
           cond = rv_cond
         )
       }
     )
   }
+}
+
+#' @rdname new_llm_tool
+#' @export
+llm_tools.llm_insights_block_proxy <- function(x, ...) {
+  blockr_option(
+    "llm_tools",
+    list(
+      new_help_tool(x, ...),
+      new_data_tool(x, ...)
+    )
+  )
 }

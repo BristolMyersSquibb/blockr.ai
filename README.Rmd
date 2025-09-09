@@ -67,4 +67,14 @@ serve(
     links = links("a", "b", "data")
   )
 )
+
+serve(
+  new_board(
+    blocks = blocks(
+      a = new_dataset_block("mtcars"),
+      b = new_llm_insights_block("List the 5 most powerful cars.")
+    ),
+    links = links("a", "b", "data")
+  )
+)
 ```

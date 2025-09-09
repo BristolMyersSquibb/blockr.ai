@@ -17,21 +17,34 @@ system_prompt <- function(x, ...) {
 
 #' @rdname system_prompt
 #' @export
-system_prompt.default <- function(x, ...) {
+system_prompt.default <- function(x, datasets, tools, ...) {
+
+  if (length(tools)) {
+    tool_prompt <- paste0(
+      "You have available the following tools ",
+      paste_enum(chr_ply(tools, function(x) x$tool@name)), ". ",
+      "Make use of these tools as you see fit.\n"
+    )
+  } else {
+    tool_prompt <- ""
+  }
+
   paste0(
     "You are an R programming assistant.\n",
     "Your task is to produce working R code according to user instructions.\n",
     "In addition, you should provide clear explanations to accompany the ",
     "generated R code.\n",
     "Important: If you call functions in packages, always use namespace ",
-    "prefixes. Do not use library calls for attaching package namespaces.\n"
+    "prefixes. Do not use library calls for attaching package namespaces.\n",
+    tool_prompt
   )
 }
 
 #' @param datasets Data sets from which to extract metadata
+#' @param tools List of [ellmer::tool()] objects
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
 
   meta_builder <- blockr_option("make_meta_data", describe_inputs)
 
@@ -41,17 +54,26 @@ system_prompt.llm_block_proxy <- function(x, datasets, ...) {
 
   metadata <- meta_builder(datasets)
 
-  res <- paste0(
+  tool_prompts <- filter(has_length, lapply(tools, get_prompt))
+
+  paste0(
     NextMethod(),
     "\n\n",
-    "You have the following dataset at your disposal: ",
+    "You have the following dataset", if (length(datasets) > 1L) "s",
+    " at your disposal: ",
     paste(shQuote(names(datasets)), collapse = ", "), ".\n",
     metadata,
     "Be very careful to use only the provided names in your explanations ",
     "and code.\n",
     "This means you should not use generic names of undefined datasets ",
     "like `x` or `data` unless these are explicitly provided.\n",
-    "You should not produce code to rebuild the input objects.\n"
+    "You should not produce code to rebuild the input objects.",
+    if (has_length(tool_prompts)) "\n\n",
+    paste0(
+      filter(has_length, lapply(tools, get_prompt)),
+      collapse = "\n"
+    ),
+    "\n\n"
   )
 }
 

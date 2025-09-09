@@ -1,15 +1,6 @@
 query_llm_with_tools <- function(client, task, user_prompt, system_prompt,
                                  tools) {
 
-  system_prompt <- paste0(
-    system_prompt,
-    "\n\n",
-    paste0(
-      filter(has_length, lapply(tools, get_prompt)),
-      collapse = "\n"
-    )
-  )
-
   log_debug(
     "\n----------------- user prompt -----------------\n\n",
     user_prompt,
@@ -75,9 +66,13 @@ setup_chat_task <- function(session) {
   )
 }
 
+last_turn <- function(client) {
+  client$last_turn()@text
+}
+
 last_turn_structured <- function(client) {
   client$chat_structured(
-    client$last_turn()@text,
+    last_turn(client),
     type = type_response()
   )
 }
