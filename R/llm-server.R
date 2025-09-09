@@ -41,7 +41,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         rv_code <- reactiveVal()
-        rv_msgs <- reactiveVal()
+        rv_msgs <- reactiveVal(x[["messages"]])
 
         rv_cond <- reactiveValues(
           error = character(),
@@ -49,38 +49,27 @@ llm_block_server.llm_block_proxy <- function(x) {
           message = character()
         )
 
-        msg <- x[["messages"]]
-
         observeEvent(
           TRUE,
           {
-            if (is_question(msg)) {
+            msg <- split_messages(rv_msgs())
+
+            if (not_null(msg[["current"]])) {
               shinychat::update_chat_user_input(
                 "chat",
-                value = msg
+                value = msg[["current"]][["content"]]
               )
-              rv_msgs(
-                list(
-                  list(role = "user", content = msg)
-                )
-              )
-            } else if (is.list(msg)) {
-              if (setequal(names(msg), c("content", "role"))) {
-                rv_msgs(list(msg))
-              } else {
-                rv_msgs(msg)
-              }
             }
 
-            cur <- rv_msgs()
+            hist <- msg[["history"]]
 
-            if (last(cur)[["role"]] == "user") {
-              cur <- cur[-length(cur)]
-            }
-
-            if (length(cur)) {
+            if (not_null(msg[["history"]])) {
               client$set_turns(
-                map(ellmer::Turn, lst_xtr(cur, "role"), lst_xtr(cur, "content"))
+                map(
+                  ellmer::Turn,
+                  lst_xtr(hist, "role"),
+                  lst_xtr(hist, "content")
+                )
               )
             }
           },

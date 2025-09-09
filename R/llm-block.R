@@ -13,13 +13,26 @@
 #' `llm_block`.
 #'
 #' @export
-new_llm_block <- function(class, messages = character(), code = character(),
+new_llm_block <- function(class, messages = list(), code = character(),
                           ctor = sys.parent(), ...) {
+
+  if (is_single_user_turn(messages)) {
+    messages <- list(
+      list(role = "user", content = messages)
+    )
+  } else if (is_single_turn(messages)) {
+    messages <- list(messages)
+  } else if (is_empty(messages)) {
+    messages <- list()
+  }
 
   cls <- c(class, "llm_block")
 
   llm_obj <- structure(
-    list(messages = messages, code = code),
+    list(
+      messages = check_messages(messages),
+      code = code
+    ),
     class = paste0(cls, "_proxy")
   )
 
@@ -31,4 +44,44 @@ new_llm_block <- function(class, messages = character(), code = character(),
     allow_empty_state = "messages",
     ...
   )
+}
+
+is_single_user_turn <- function(x) {
+  (
+    is.character(x) && length(x) && nchar(x)
+  ) ||
+  (
+    inherits(x, "shiny.tag.list") || inherits(x, "shiny.tag")
+  )
+}
+
+is_single_turn <- function(x) {
+  is.list(x) && setequal(names(x), c("content", "role"))
+}
+
+is_empty <- function(x) {
+  !length(x) || (is.character(x) && !nchar(x)) || all(is.na(x))
+}
+
+check_messages <- function(x) {
+
+  stopifnot(
+    is.list(x), all(lgl_ply(x, is.list)),
+    all(lgl_ply(lapply(x, names), setequal, c("content", "role"))),
+    all(int_ply(chr_xtr(x, "role"), match, c("user", "assistant"), 0L) > 0L)
+  )
+
+  x
+}
+
+split_messages <- function(x) {
+  if (length(x) == 0L) {
+    list(history = NULL, current = NULL)
+  } else if (last(x)[["role"]] == "assistant") {
+    list(history = x, current = NULL)
+  } else if (length(x) == 1L) {
+    list(history = NULL, current = x[[1L]])
+  } else {
+    list(history = x[-length(x)], current = last(x))
+  }
 }
