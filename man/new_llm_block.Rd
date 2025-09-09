@@ -23,7 +23,7 @@ new_llm_transform_block(...)
 
 new_llm_block(
   class,
-  messages = character(),
+  messages = list(),
   code = character(),
   ctor = sys.parent(),
   ...
