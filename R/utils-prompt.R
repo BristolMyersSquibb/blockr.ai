@@ -46,10 +46,28 @@ system_prompt.default <- function(x, datasets, tools, ...) {
 #' @export
 system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
 
-  meta_builder <- blockr_option("make_meta_data", describe_inputs)
+  if (length(datasets)) {
+    meta_builder <- blockr_option("make_meta_data", describe_inputs)
 
-  if (!is.function(meta_builder)) {
-    meta_builder <- get(meta_builder, mode = "function")
+    if (!is.function(meta_builder)) {
+      meta_builder <- get(meta_builder, mode = "function")
+    }
+
+    meta <- paste0(
+      "\n\n",
+      "You have the following dataset", if (length(datasets) > 1L) "s",
+      " at your disposal: ",
+      paste(shQuote(names(datasets)), collapse = ", "), ".\n",
+      metadata, "\n",
+      "Be very careful to use only the provided names in your explanations ",
+      "and code.\n",
+      "This means you should not use generic names of undefined datasets ",
+      "like `x` or `data` unless these are explicitly provided.\n",
+      "You should not produce code to rebuild the input objects.",
+    )
+
+  } else {
+     meta <- ""
   }
 
   metadata <- meta_builder(datasets)
@@ -58,16 +76,7 @@ system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
 
   paste0(
     NextMethod(),
-    "\n\n",
-    "You have the following dataset", if (length(datasets) > 1L) "s",
-    " at your disposal: ",
-    paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    metadata,
-    "Be very careful to use only the provided names in your explanations ",
-    "and code.\n",
-    "This means you should not use generic names of undefined datasets ",
-    "like `x` or `data` unless these are explicitly provided.\n",
-    "You should not produce code to rebuild the input objects.",
+    meta,
     if (has_length(tool_prompts)) "\n\n",
     paste0(
       filter(has_length, lapply(tools, get_prompt)),

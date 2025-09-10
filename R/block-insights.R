@@ -5,11 +5,6 @@ new_llm_insights_block <- function(...) {
 }
 
 #' @export
-result_ptype.llm_insights_block_proxy <- function(x) {
-  NULL
-}
-
-#' @export
 block_ui.llm_insights_block <- function(id, x, ...) {
   tagList(
     uiOutput(NS(id, "result"))
