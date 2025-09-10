@@ -20,3 +20,27 @@ block_output.llm_flxtbl_block <- function(x, result, session) {
 result_ptype.llm_flxtbl_block_proxy <- function(x) {
   flextable::flextable(data.frame(a = 1))
 }
+
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to produce code to generate a table using the flextable ",
+    "package.\n",
+    "Example of good code you might write:\n",
+    "head(airquality) |>\n",
+    "  flextable::flextable() |>\n",
+    "  flextable::add_header_row(\n",
+    "    values = c(\"air quality\", \"time\"),\n",
+    "    colwidths = c(4, 2)\n",
+    "  ) |>\n",
+    "  flextable::add_footer_lines(\n",
+    "    \"Some footer note.\"\n",
+    "  )\n\n",
+    "Important: Your code must always return a flextable object as the last ",
+    "expression.\n"
+  )
+}

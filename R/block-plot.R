@@ -20,3 +20,21 @@ block_output.llm_plot_block <- function(x, result, session) {
 result_ptype.llm_plot_block_proxy <- function(x) {
   ggplot2::ggplot()
 }
+
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to produce code to generate a data visualization using ",
+    "the ggplot package.\n",
+    "Example of good code you might write:\n",
+    "ggplot2::ggplot(data) +\n",
+    "  ggplot2::geom_point(ggplot2::aes(x = displ, y = hwy)) +\n",
+    "  ggplot2::facet_wrap(~ class, nrow = 2)\n\n",
+    "Important: Your code must always return a ggplot2 plot object as the ",
+    "last expression.\n"
+  )
+}

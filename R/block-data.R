@@ -1,14 +1,41 @@
 #' @rdname new_llm_block
 #' @export
-llm_block_server <- function(x) {
-  UseMethod("llm_block_server", x)
+new_llm_data_block <- function(...) {
+  new_llm_block(c("llm_data_block", "data_block"), ...)
+}
+
+#' @export
+result_ptype.llm_data_block_proxy <- function(x) {
+  data.frame()
+}
+
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_data_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to create a dataset according to user instruction.\n",
+    "The dataset is to be created using R code. If you make use of",
+    "random number generation, make sure to set a seed beforehand in order",
+    "to make your results reproducible.\n\n",
+    "Example of good code you might write:\n",
+    "set.seed(11)\n",
+    "data.frame(\n",
+    "  a = sample(letters, 100, replace = TRUE),\n",
+    "  b = runif(100),\n",
+    "  c = seq.int(length.out = 100)\n",
+    ")\n\n",
+    "Important: make sure that your code always returns a data.frame.\n"
+  )
 }
 
 #' @rdname new_llm_block
 #' @export
-llm_block_server.llm_block_proxy <- function(x) {
+llm_block_server.llm_data_block_proxy <- function(x) {
 
-  function(id, data = NULL, ...args = list()) {
+  function(id) {
     moduleServer(
       id,
       function(input, output, session) {
@@ -33,13 +60,6 @@ llm_block_server.llm_block_proxy <- function(x) {
           )
         )
 
-        r_datasets <- reactive(
-          c(
-            if (is.reactive(data) && !is.null(data())) list(data = data()),
-            if (is.reactivevalues(...args)) reactiveValuesToList(...args)
-          )
-        )
-
         rv_code <- reactiveVal()
         rv_msgs <- reactiveVal(x[["messages"]])
 
@@ -50,8 +70,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         )
 
         setup_chat_observer(rv_msgs, client, session)
-        chat_input_observer(x, client, task, input, rv_msgs, rv_cond,
-                            r_datasets)
+        chat_input_observer(x, client, task, input, rv_msgs, rv_cond)
 
         observeEvent(
           task_ready(),
@@ -89,7 +108,7 @@ llm_block_server.llm_block_proxy <- function(x) {
           input$code_editor,
           {
             req(input$code_editor)
-            res <- try_eval_code(x, input$code_editor, r_datasets())
+            res <- try_eval_code(x, input$code_editor)
             if (inherits(res, "try-error")) {
               rv_cond$error <- paste0(
                 "Encountered an error evaluating code: ", res
@@ -112,4 +131,16 @@ llm_block_server.llm_block_proxy <- function(x) {
       }
     )
   }
+}
+
+#' @rdname new_llm_tool
+#' @export
+llm_tools.llm_block_proxy <- function(x, ...) {
+  blockr_option(
+    "llm_tools",
+    list(
+      new_eval_tool(x, ...),
+      new_help_tool(x, ...)
+    )
+  )
 }

@@ -15,124 +15,73 @@ system_prompt <- function(x, ...) {
   UseMethod("system_prompt")
 }
 
+#' @param datasets Data sets from which to extract metadata
+#' @param tools List of [ellmer::tool()] objects
 #' @rdname system_prompt
 #' @export
-system_prompt.default <- function(x, ...) {
+system_prompt.default <- function(x, datasets, tools, ...) {
+
+  if (length(tools)) {
+    tool_prompt <- paste0(
+      "You have available the following tools ",
+      paste_enum(chr_ply(tools, function(x) x$tool@name)), ". ",
+      "Make use of these tools as you see fit.\n"
+    )
+  } else {
+    tool_prompt <- ""
+  }
+
   paste0(
     "You are an R programming assistant.\n",
     "Your task is to produce working R code according to user instructions.\n",
     "In addition, you should provide clear explanations to accompany the ",
     "generated R code.\n",
     "Important: If you call functions in packages, always use namespace ",
-    "prefixes. Do not use library calls for attaching package namespaces.\n"
+    "prefixes. Do not use library calls for attaching package namespaces.\n",
+    tool_prompt
   )
 }
 
-#' @param datasets Data sets from which to extract metadata
 #' @rdname system_prompt
 #' @export
-system_prompt.llm_block_proxy <- function(x, datasets, ...) {
+system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
 
-  meta_builder <- blockr_option("make_meta_data", describe_inputs)
+  if (length(datasets)) {
 
-  if (!is.function(meta_builder)) {
-    meta_builder <- get(meta_builder, mode = "function")
+    meta_builder <- blockr_option("make_meta_data", describe_inputs)
+
+    if (!is.function(meta_builder)) {
+      meta_builder <- get(meta_builder, mode = "function")
+    }
+
+    meta <- paste0(
+      "\n\n",
+      "You have the following dataset", if (length(datasets) > 1L) "s",
+      " at your disposal: ",
+      paste(shQuote(names(datasets)), collapse = ", "), ".\n",
+      meta_builder(datasets), "\n",
+      "Be very careful to use only the provided names in your explanations ",
+      "and code.\n",
+      "This means you should not use generic names of undefined datasets ",
+      "like `x` or `data` unless these are explicitly provided.\n",
+      "You should not produce code to rebuild the input objects.",
+    )
+
+  } else {
+     meta <- ""
   }
 
-  metadata <- meta_builder(datasets)
-
-  res <- paste0(
-    NextMethod(),
-    "\n\n",
-    "You have the following dataset at your disposal: ",
-    paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-    metadata,
-    "Be very careful to use only the provided names in your explanations ",
-    "and code.\n",
-    "This means you should not use generic names of undefined datasets ",
-    "like `x` or `data` unless these are explicitly provided.\n",
-    "You should not produce code to rebuild the input objects.\n"
-  )
-}
-
-#' @rdname system_prompt
-#' @export
-system_prompt.llm_transform_block_proxy <- function(x, datasets, ...) {
+  tool_prompts <- filter(has_length, lapply(tools, get_prompt))
 
   paste0(
     NextMethod(),
-    "\n\n",
-    "Your task is to transform input datasets into a single output dataset.\n",
-    "If possible, use dplyr for data transformations.\n",
-    "Use the base R pipe and not the magrittr pipe to make nested function ",
-    "calls more readable.\n\n",
-    "Example of good code you might write:\n",
-    "data |>\n",
-    "  dplyr::group_by(category) |>\n",
-    "  dplyr::summarize(mean_value = mean(value))\n\n",
-    "Important: make sure that your code always returns a transformed ",
-    "data.frame.\n"
-  )
-}
-
-#' @rdname system_prompt
-#' @export
-system_prompt.llm_plot_block_proxy <- function(x, datasets, ...) {
-
-  paste0(
-    NextMethod(),
-    "\n\n",
-    "Your task is to produce code to generate a data visualization using ",
-    "the ggplot package.\n",
-    "Example of good code you might write:\n",
-    "ggplot2::ggplot(data) +\n",
-    "  ggplot2::geom_point(ggplot2::aes(x = displ, y = hwy)) +\n",
-    "  ggplot2::facet_wrap(~ class, nrow = 2)\n\n",
-    "Important: Your code must always return a ggplot2 plot object as the ",
-    "last expression.\n"
-  )
-}
-
-#' @rdname system_prompt
-#' @export
-system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
-
-  paste0(
-    NextMethod(),
-    "\n\n",
-    "Your task is to produce code to generate a table using the gt package.\n",
-    "Example of good code you might write:\n",
-    "gt::gt(data) |>\n",
-    "  gt::tab_header(\"",
-    "    title = \"Some title\",",
-    "    subtitle = \"Some subtitle\"",
-    "  )\n\n",
-    "Important: Your code must always return a gt object as the last ",
-    "expression.\n"
-  )
-}
-
-#' @rdname system_prompt
-#' @export
-system_prompt.llm_flxtbl_block_proxy <- function(x, datasets, ...) {
-
-  paste0(
-    NextMethod(),
-    "\n\n",
-    "Your task is to produce code to generate a table using the flextable ",
-    "package.\n",
-    "Example of good code you might write:\n",
-    "head(airquality) |>\n",
-    "  flextable::flextable() |>\n",
-    "  flextable::add_header_row(\n",
-    "    values = c(\"air quality\", \"time\"),\n",
-    "    colwidths = c(4, 2)\n",
-    "  ) |>\n",
-    "  flextable::add_footer_lines(\n",
-    "    \"Some footer note.\"\n",
-    "  )\n\n",
-    "Important: Your code must always return a flextable object as the last ",
-    "expression.\n"
+    meta,
+    if (has_length(tool_prompts)) "\n\n",
+    paste0(
+      filter(has_length, lapply(tools, get_prompt)),
+      collapse = "\n"
+    ),
+    "\n\n"
   )
 }
 

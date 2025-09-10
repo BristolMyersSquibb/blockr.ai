@@ -21,6 +21,25 @@ result_ptype.llm_gt_block_proxy <- function(x) {
   gt::gt(data.frame())
 }
 
+#' @rdname system_prompt
+#' @export
+system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
+
+  paste0(
+    NextMethod(),
+    "\n\n",
+    "Your task is to produce code to generate a table using the gt package.\n",
+    "Example of good code you might write:\n",
+    "gt::gt(data) |>\n",
+    "  gt::tab_header(\"",
+    "    title = \"Some title\",",
+    "    subtitle = \"Some subtitle\"",
+    "  )\n\n",
+    "Important: Your code must always return a gt object as the last ",
+    "expression.\n"
+  )
+}
+
 gt_theme <- function(obj, session) {
 
   if (isFALSE(get_board_option_value("thematic"))) {

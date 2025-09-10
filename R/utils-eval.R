@@ -5,7 +5,7 @@ eval_code <- function(code, data) {
   )
 }
 
-try_eval_code <- function(x, code, data) {
+try_eval_code <- function(x, code, data = list()) {
   try(
     check_result(
       eval_code(code, data),

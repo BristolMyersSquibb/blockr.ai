@@ -50,10 +50,14 @@ new_data_tool <- function(x, datasets,
       "open questions you might have and await further user instruction."
     ),
     name = "data_tool",
-    prompt = paste(
-      "You may optionally use the \"data_tool\" to investigate input datasets.",
-      "Please do not make excessive use of this tool but do use it in case you",
-      "believe your answer might benefit from better understanding input data."
+    prompt = paste0(
+      "You are encouraged to use the \"data_tool\" to investigate input ",
+      "datasets. In order to do so, you may write R code which is evaluated ",
+      "in the context of the input datasets. In code you produce, refer to ",
+      "the datasets by their names: ", paste_enum(names(datasets)), ".",
+      "Please do not make excessive use of this tool but do use it in case ",
+      "you believe your answer might benefit from better understanding input ",
+      "data."
     ),
     arguments = list(
       code = ellmer::type_string(
