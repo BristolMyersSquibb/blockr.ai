@@ -133,58 +133,19 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
         observeEvent(
           task_ready(),
           {
-            res <- try(task$result(), silent = TRUE)
+            res <- try_extract_result(x, client, task, task_ready())
 
-            if (task_ready() && !inherits(res, "try-error")) {
+            if (inherits(res, "try-error")) {
 
-              rv_cond$error <- character()
-
-              res <- try(last_turn(client), silent = TRUE)
-
-              if (inherits(res, "try-error")) {
-
-                msg <- extract_try_error(res)
-                log_error("Error encountered during result extraction: ", msg)
-                rv_cond$error <- msg
-                rv_res(NULL)
-
-              } else {
-
-                log_debug(
-                  "\n------------- response explanation ------------\n\n",
-                  res,
-                  "\n",
-                  "\n-----------------------------------------------\n\n"
-                )
-
-                rv_msgs(
-                  c(
-                    rv_msgs(),
-                    list(
-                      list(
-                        role = "assistant",
-                        content = res
-                      )
-                    )
-                  )
-                )
-
-                rv_res(res)
-              }
+              rv_cond$error <- extract_try_error(res)
 
             } else {
 
-              if (inherits(res, "try-error")) {
+              rv_cond$error <- character()
+              new_turn <- list(list(role = "assistant", content = res))
 
-                msg <- extract_try_error(res)
-                log_error("Error encountered during chat: ", msg)
-                rv_cond$error <- msg
-                rv_res(NULL)
-
-              } else {
-
-                rv_cond$error <- character()
-              }
+              rv_msgs(c(rv_msgs(), new_turn))
+              rv_res(res)
             }
           }
         )

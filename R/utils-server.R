@@ -1,3 +1,169 @@
+query_llm_with_tools <- function(client, task, user_prompt, system_prompt,
+                                 tools) {
+
+  log_debug(
+    "\n----------------- user prompt -----------------\n\n",
+    user_prompt,
+    "\n"
+  )
+
+  log_trace(
+    "\n---------------- system prompt ----------------\n\n",
+    system_prompt,
+    "\n"
+  )
+
+  log_debug(
+    "\n-----------------------------------------------\n\n"
+  )
+
+  client$set_system_prompt(system_prompt)
+  client$set_tools(lapply(tools, get_tool))
+
+  task$invoke(client, "chat", user_prompt)
+
+  invisible()
+}
+
+default_chat <- function(...) {
+  ellmer::chat_openai(..., model = "gpt-4o")
+}
+
+chat_dispatch <- function(...) {
+
+  fun <- blockr_option(
+    "chat_function",
+    default_chat
+  )
+
+  fun(...)
+}
+
+type_response <- function() {
+  type_object(
+    explanation = type_string("Explanation of the analysis approach"),
+    code = type_string("R code to perform the analysis")
+  )
+}
+
+setup_chat_task <- function(session) {
+
+  ExtendedTask$new(
+    function(client, ui_id, user_input) {
+
+      stream <- client$stream_async(
+        user_input,
+        stream = "content"
+      )
+
+      promises::promise_resolve(stream) |>
+        promises::then(
+          function(stream) {
+            shinychat::chat_append(ui_id, stream)
+          }
+        )
+    }
+  )
+}
+
+last_turn <- function(client) {
+  client$last_turn()@text
+}
+
+last_turn_structured <- function(client) {
+  client$chat_structured(
+    last_turn(client),
+    type = type_response()
+  )
+}
+
+eval_tool_code <- function(client) {
+
+  tool <- client$get_tools()[["eval_tool"]]
+  code <- get0("current_code", envir = environment(tool), inherits = FALSE)
+
+  if (is.null(code)) {
+    stop(
+      "Code not validated successfully using the `eval_tool`. Please try ",
+      "again."
+    )
+  }
+
+  list(code = code, explanation = client$last_turn()@text)
+}
+
+#' Retrieve result
+#'
+#' From the `ellmer::chat()` object, passed as `client`, retrieve what is
+#' considered the result of a conversation (given a block of type `x`).
+#'
+#' @param x An `llm_block_proxy` object used for dispatch
+#' @param client A `ellmer::chat()` object
+#'
+#' @keywords internal
+#' @export
+extract_result <- function(x, client) {
+  UseMethod("extract_result")
+}
+
+#' @export
+extract_result.llm_block_proxy <- function(x, client) {
+
+  extractor <- blockr_option(
+    "result_callback",
+    if ("eval_tool" %in% names(client$get_tools())) {
+      eval_tool_code
+    } else {
+      last_turn_structured
+    }
+  )
+
+  res <- extractor(client)
+
+  stopifnot(
+    is.list(res),
+    setequal(names(res), c("code", "explanation")),
+    is.character(res[["code"]]),
+    is.character(res[["explanation"]])
+  )
+
+  res[["code"]] <- style_code(res[["code"]])
+
+  log_debug(
+    "\n---------------- response code ----------------\n\n",
+    res[["code"]],
+    "\n",
+    asis = TRUE
+  )
+
+  log_trace(
+    "\n------------- response explanation ------------\n\n",
+    res[["explanation"]],
+    "\n"
+  )
+
+  log_debug(
+    "\n-----------------------------------------------\n\n"
+  )
+
+  res
+}
+
+#' @export
+extract_result.llm_insights_block_proxy <- function(x, client) {
+
+  res <- last_turn(client)
+
+  log_debug(
+    "\n------------- response explanation ------------\n\n",
+    res,
+    "\n",
+    "\n-----------------------------------------------\n\n"
+  )
+
+  res
+}
+
 setup_chat_observer <- function(rv_msgs, client, session) {
 
   observeEvent(
@@ -77,4 +243,38 @@ chat_input_observer <- function(x, client, task, input, r_datasets, rv_msgs,
       )
     }
   })
+}
+
+try_extract_result <- function(x, client, task, success) {
+
+  res <- try(task$result(), silent = TRUE)
+
+  if (success && !inherits(res, "try-error")) {
+
+    res <- try(extract_result(x, client), silent = TRUE)
+
+    if (inherits(res, "try-error")) {
+
+      msg <- extract_try_error(res)
+      log_error("Error encountered during result extraction: ", msg)
+
+      res <- structure(msg, class = "try-error")
+    }
+
+  } else if (inherits(res, "try-error")) {
+
+    msg <- extract_try_error(res)
+    log_error("Error encountered during chat: ", msg)
+
+    res <- structure(msg, class = "try-error")
+
+  } else {
+
+    res <- structure(
+      "Result extraction error (unknown reason).",
+      class = "try-error"
+    )
+  }
+
+  res
 }

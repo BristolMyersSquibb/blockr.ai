@@ -56,66 +56,22 @@ llm_block_server.llm_block_proxy <- function(x) {
         observeEvent(
           task_ready(),
           {
-            res <- try(task$result(), silent = TRUE)
+            res <- try_extract_result(x, client, task, task_ready())
 
-            if (task_ready() && !inherits(res, "try-error")) {
+            if (inherits(res, "try-error")) {
 
-              rv_cond$error <- character()
-
-              res <- try(extract_result(client), silent = TRUE)
-
-              if (inherits(res, "try-error")) {
-
-                msg <- extract_try_error(res)
-                log_error("Error encountered during result extraction: ", msg)
-                rv_cond$error <- msg
-
-              } else {
-
-                log_debug(
-                  "\n---------------- response code ----------------\n\n",
-                  res$code,
-                  "\n",
-                  asis = TRUE
-                )
-
-                log_trace(
-                  "\n------------- response explanation ------------\n\n",
-                  res$explanation,
-                  "\n"
-                )
-
-                log_debug(
-                  "\n-----------------------------------------------\n\n"
-                )
-
-                rv_msgs(
-                  c(
-                    rv_msgs(),
-                    list(
-                      list(
-                        role = "assistant",
-                        content = res$explanation
-                      )
-                    )
-                  )
-                )
-
-                rv_code(res$code)
-              }
+              rv_cond$error <- extract_try_error(res)
 
             } else {
 
-              if (inherits(res, "try-error")) {
+              rv_cond$error <- character()
 
-                msg <- extract_try_error(res)
-                log_error("Error encountered during chat: ", msg)
-                rv_cond$error <- msg
+              new_turn <- list(
+                list(role = "assistant", content = res$explanation)
+              )
 
-              } else {
-
-                rv_cond$error <- character()
-              }
+              rv_msgs(c(rv_msgs(), new_turn))
+              rv_code(res$code)
             }
           }
         )
