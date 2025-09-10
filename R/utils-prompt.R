@@ -64,7 +64,7 @@ system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
       "and code.\n",
       "This means you should not use generic names of undefined datasets ",
       "like `x` or `data` unless these are explicitly provided.\n",
-      "You should not produce code to rebuild the input objects.",
+      "You should not produce code to rebuild the input objects."
     )
 
   } else {
