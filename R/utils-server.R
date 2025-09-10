@@ -195,12 +195,16 @@ setup_chat_observer <- function(rv_msgs, client, session) {
   )
 }
 
-chat_input_observer <- function(x, client, task, input, r_datasets, rv_msgs,
-                                rv_cond) {
+chat_input_observer <- function(x, client, task, input, rv_msgs, rv_cond,
+                                r_datasets = NULL) {
 
   observeEvent(input$chat_user_input, {
 
-    dat <- r_datasets()
+    if (not_null(r_datasets)) {
+      dat <- r_datasets()
+    } else {
+      dat <- list()
+    }
 
     cur <- rv_msgs()
     new <- list(
@@ -213,7 +217,7 @@ chat_input_observer <- function(x, client, task, input, r_datasets, rv_msgs,
       rv_msgs(c(cur, new))
     }
 
-    if (length(dat) == 0 || any(lengths(dat) == 0)) {
+    if (not_null(r_datasets) && (length(dat) == 0 || any(lengths(dat) == 0))) {
 
       if (length(dat)) {
         msg <- paste(

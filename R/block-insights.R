@@ -122,8 +122,8 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
         rv_res <- reactiveVal()
 
         setup_chat_observer(rv_msgs, client, session)
-        chat_input_observer(x, client, task, input, r_datasets, rv_msgs,
-                            rv_cond)
+        chat_input_observer(x, client, task, input, rv_msgs, rv_cond,
+                            r_datasets)
 
         observeEvent(
           task_ready(),

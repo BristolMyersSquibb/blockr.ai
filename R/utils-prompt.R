@@ -15,6 +15,8 @@ system_prompt <- function(x, ...) {
   UseMethod("system_prompt")
 }
 
+#' @param datasets Data sets from which to extract metadata
+#' @param tools List of [ellmer::tool()] objects
 #' @rdname system_prompt
 #' @export
 system_prompt.default <- function(x, datasets, tools, ...) {
@@ -40,13 +42,12 @@ system_prompt.default <- function(x, datasets, tools, ...) {
   )
 }
 
-#' @param datasets Data sets from which to extract metadata
-#' @param tools List of [ellmer::tool()] objects
 #' @rdname system_prompt
 #' @export
 system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
 
   if (length(datasets)) {
+
     meta_builder <- blockr_option("make_meta_data", describe_inputs)
 
     if (!is.function(meta_builder)) {
@@ -58,7 +59,7 @@ system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
       "You have the following dataset", if (length(datasets) > 1L) "s",
       " at your disposal: ",
       paste(shQuote(names(datasets)), collapse = ", "), ".\n",
-      metadata, "\n",
+      meta_builder(datasets), "\n",
       "Be very careful to use only the provided names in your explanations ",
       "and code.\n",
       "This means you should not use generic names of undefined datasets ",
@@ -69,8 +70,6 @@ system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
   } else {
      meta <- ""
   }
-
-  metadata <- meta_builder(datasets)
 
   tool_prompts <- filter(has_length, lapply(tools, get_prompt))
 

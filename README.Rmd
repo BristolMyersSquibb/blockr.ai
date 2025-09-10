@@ -77,4 +77,14 @@ serve(
     links = links("a", "b", "data")
   )
 )
+
+serve(
+  new_board(
+    blocks = blocks(
+      a = new_llm_data_block(
+        "Create a dataset with 5 columns and a selection of data types."
+      )
+    )
+  )
+)
 ```

@@ -87,9 +87,11 @@ new_eval_tool <- function(x, datasets,
   new_llm_tool(
     execute_r_code,
     description = paste0(
-      "Execute R code against the provided datasets. If code fails, you ",
-      "can call this tool again with corrected code. Maximum ", max_retries,
-      " attempts allowed before the tool rejects further calls."
+      "Execute R code",
+      if (length(datasets)) " against the provided datasets",
+      ". If code fails, you can call this tool again with corrected code. ",
+      "Maximum ", max_retries, " attempts allowed before the tool rejects ",
+      "further calls."
     ),
     name = "eval_tool",
     prompt = paste(
