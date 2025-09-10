@@ -1,7 +1,7 @@
 #' @rdname new_llm_block
 #' @export
 new_llm_insights_block <- function(...) {
-  new_llm_block("llm_insights_block", ..., code = "NULL")
+  new_llm_block("llm_insights_block", ..., code = character())
 }
 
 #' @export
@@ -92,6 +92,8 @@ llm_block_ui.llm_insights_block_proxy <- function(x) {
 #' @export
 llm_block_server.llm_insights_block_proxy <- function(x) {
 
+  messages <- x[["messages"]]
+
   function(id, data = NULL, ...args = list()) {
     moduleServer(
       id,
@@ -111,7 +113,7 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
           )
         )
 
-        rv_msgs <- reactiveVal(x[["messages"]])
+        rv_msgs <- reactiveVal(messages)
 
         rv_cond <- reactiveValues(
           error = character(),
@@ -119,7 +121,11 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
           message = character()
         )
 
-        rv_res <- reactiveVal()
+        if (length(messages) && last(messages)$role == "assistant") {
+          rv_res <- reactiveVal(md_text(last(messages)$content))
+        } else {
+          rv_res <- reactiveVal(md_text(""))
+        }
 
         setup_chat_observer(rv_msgs, client, session)
         chat_input_observer(x, client, task, input, rv_msgs, rv_cond,
@@ -140,7 +146,7 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
               new_turn <- list(list(role = "assistant", content = res))
 
               rv_msgs(c(rv_msgs(), new_turn))
-              rv_res(res)
+              rv_res(md_text(res))
             }
           }
         )

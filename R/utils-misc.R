@@ -11,3 +11,7 @@ style_code <- function(code) {
 last <- function(x) x[[length(x)]]
 
 has_length <- function(x) length(x) > 0
+
+md_text <- function(x) {
+  structure(paste0(x, collapse = ""), class = "md_text")
+}
