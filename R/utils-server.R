@@ -211,7 +211,7 @@ chat_input_observer <- function(x, client, task, input, rv_msgs, rv_cond,
       list(role = "user", content = input$chat_user_input)
     )
 
-    if (last(cur)[["role"]] == "user") {
+    if (length(cur) && last(cur)[["role"]] == "user") {
       rv_msgs(c(cur[-length(cur)], new))
     } else {
       rv_msgs(c(cur, new))
