@@ -44,6 +44,7 @@ register_ai_blocks <- function() {
 .onLoad <- function(libname, pkgname) { # nocov start
 
   register_ai_blocks()
+  need_llm_cfg_opts(TRUE)
 
   styler::cache_clear(ask = FALSE)
 

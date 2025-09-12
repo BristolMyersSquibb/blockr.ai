@@ -25,20 +25,6 @@ query_llm_with_tools <- function(client, task, user_prompt, system_prompt,
   invisible()
 }
 
-default_chat <- function(...) {
-  ellmer::chat_openai(..., model = "gpt-4o")
-}
-
-chat_dispatch <- function(...) {
-
-  fun <- blockr_option(
-    "chat_function",
-    default_chat
-  )
-
-  fun(...)
-}
-
 type_response <- function() {
   type_object(
     explanation = type_string("Explanation of the analysis approach"),
@@ -164,6 +150,17 @@ extract_result.llm_insights_block_proxy <- function(x, client) {
   res
 }
 
+setup_client_observer <- function(client, session) {
+  observeEvent(
+    get_board_option_or_null("llm_model", session),
+    {
+      chat <- get_board_option_value("llm_model", session)
+      shinychat::chat_clear("chat", session)
+      client(chat())
+    }
+  )
+}
+
 setup_chat_observer <- function(rv_msgs, client, session) {
 
   observeEvent(
@@ -182,7 +179,7 @@ setup_chat_observer <- function(rv_msgs, client, session) {
       hist <- msg[["history"]]
 
       if (not_null(msg[["history"]])) {
-        client$set_turns(
+        client()$set_turns(
           map(
             ellmer::Turn,
             lst_xtr(hist, "role"),
@@ -239,7 +236,7 @@ chat_input_observer <- function(x, client, task, input, rv_msgs, rv_cond,
       tools <- llm_tools(x, dat)
 
       query_llm_with_tools(
-        client = client,
+        client = client(),
         task = task,
         user_prompt = input$chat_user_input,
         system_prompt = system_prompt(x, dat, tools),

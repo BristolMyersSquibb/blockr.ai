@@ -99,12 +99,15 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
       id,
       function(input, output, session) {
 
-        client <- chat_dispatch()
         task <- setup_chat_task(session)
 
         task_ready <- reactive(
           switch(task$status(), error = FALSE, success = TRUE, NULL)
         )
+
+        client <- reactiveVal()
+
+        setup_client_observer(client, session)
 
         r_datasets <- reactive(
           c(
@@ -134,7 +137,7 @@ llm_block_server.llm_insights_block_proxy <- function(x) {
         observeEvent(
           task_ready(),
           {
-            res <- try_extract_result(x, client, task, task_ready())
+            res <- try_extract_result(x, client(), task, task_ready())
 
             if (inherits(res, "try-error")) {
 

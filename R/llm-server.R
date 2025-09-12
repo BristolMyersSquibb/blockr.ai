@@ -13,12 +13,15 @@ llm_block_server.llm_block_proxy <- function(x) {
       id,
       function(input, output, session) {
 
-        client <- chat_dispatch()
         task <- setup_chat_task(session)
 
         task_ready <- reactive(
           switch(task$status(), error = FALSE, success = TRUE, NULL)
         )
+
+        client <- reactiveVal()
+
+        setup_client_observer(client, session)
 
         observeEvent(
           get_board_option_or_default("dark_mode"),
@@ -56,7 +59,7 @@ llm_block_server.llm_block_proxy <- function(x) {
         observeEvent(
           task_ready(),
           {
-            res <- try_extract_result(x, client, task, task_ready())
+            res <- try_extract_result(x, client(), task, task_ready())
 
             if (inherits(res, "try-error")) {
 
