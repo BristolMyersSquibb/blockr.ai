@@ -71,14 +71,14 @@ system_prompt.llm_block_proxy <- function(x, datasets, tools, ...) {
      meta <- ""
   }
 
-  tool_prompts <- filter(has_length, lapply(tools, get_prompt))
+  tool_prompts <- Filter(has_length, lapply(tools, get_prompt))
 
   paste0(
     NextMethod(),
     meta,
     if (has_length(tool_prompts)) "\n\n",
     paste0(
-      filter(has_length, lapply(tools, get_prompt)),
+      Filter(has_length, lapply(tools, get_prompt)),
       collapse = "\n"
     ),
     "\n\n"

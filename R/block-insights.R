@@ -38,7 +38,7 @@ system_prompt.llm_insights_block_proxy <- function(x, datasets, tools, ...) {
     tool_prompt <- ""
   }
 
-  tool_prompts <- filter(has_length, lapply(tools, get_prompt))
+  tool_prompts <- Filter(has_length, lapply(tools, get_prompt))
 
   paste0(
     "Your task is to examine datasets and create a report according ",
@@ -59,7 +59,7 @@ system_prompt.llm_insights_block_proxy <- function(x, datasets, tools, ...) {
     "You should not produce code to rebuild the input objects.",
     if (has_length(tool_prompts)) "\n\n",
     paste0(
-      filter(has_length, lapply(tools, get_prompt)),
+      Filter(has_length, lapply(tools, get_prompt)),
       collapse = "\n"
     ),
     "\n\n",
