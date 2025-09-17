@@ -4,13 +4,17 @@ register_ai_blocks <- function() {
       "new_llm_transform_block",
       "new_llm_plot_block",
       "new_llm_gt_block",
-      "new_llm_flxtbl_block"
+      "new_llm_flxtbl_block",
+      "new_llm_insights_block",
+      "new_llm_data_block"
     ),
     name = c(
       "LLM transform block",
       "LLM plot block",
       "LLM gt block",
-      "LLM flextable block"
+      "LLM flextable block",
+      "LLM insights block",
+      "LLM data block"
     ),
     description = c(
       paste(
@@ -28,13 +32,23 @@ register_ai_blocks <- function() {
       paste(
         "Create flextables using LLM-generated R code based on natural",
         "language questions"
+      ),
+      paste(
+        "Generate markdown insights about data using LLM based on natural",
+        "language questions"
+      ),
+      paste(
+        "Generate data using LLM-generated R code based on natural language",
+        "questions"
       )
     ),
     category = c(
       "transform",
       "plot",
       "table",
-      "table"
+      "table",
+      "transform",
+      "data"
     ),
     package = utils::packageName(),
     overwrite = TRUE
