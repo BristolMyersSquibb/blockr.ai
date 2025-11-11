@@ -48,7 +48,7 @@ register_ai_blocks <- function() {
       "table",
       "table",
       "transform",
-      "data"
+      "input"
     ),
     package = utils::packageName(),
     overwrite = TRUE
