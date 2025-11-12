@@ -85,3 +85,13 @@ split_messages <- function(x) {
     list(history = x[-length(x)], current = last(x))
   }
 }
+
+#' @export
+blockr_deser.llm_block <- function(x, data, ...) {
+
+  if (!need_llm_cfg_opts()) {
+    need_llm_cfg_opts(TRUE)
+  }
+
+  NextMethod()
+}

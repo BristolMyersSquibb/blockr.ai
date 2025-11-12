@@ -42,12 +42,12 @@ setup_chat_task <- function(session) {
         stream = "content"
       )
 
-      promises::promise_resolve(stream) |>
-        promises::then(
-          function(stream) {
-            shinychat::chat_append(ui_id, stream)
-          }
-        )
+      promises::then(
+        promises::promise_resolve(stream),
+        onFulfilled = function(stream) {
+          shinychat::chat_append(ui_id, stream)
+        }
+      )
     }
   )
 }
