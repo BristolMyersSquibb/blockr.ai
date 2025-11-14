@@ -87,11 +87,9 @@ split_messages <- function(x) {
 }
 
 #' @export
-blockr_deser.llm_block <- function(x, data, ...) {
-
-  if (!need_llm_cfg_opts()) {
-    need_llm_cfg_opts(TRUE)
-  }
-
-  NextMethod()
+board_options.llm_block <- function(x, ...) {
+  combine_board_options(
+    new_llm_model_option(...),
+    NextMethod()
+  )
 }
