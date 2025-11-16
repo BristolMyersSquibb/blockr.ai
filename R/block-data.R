@@ -124,7 +124,7 @@ llm_block_server.llm_data_block_proxy <- function(x) {
         )
 
         list(
-          expr = reactive(str2expression(rv_code())),
+          expr = reactive(code_expr(rv_code())),
           state = list(
             messages = rv_msgs,
             code = rv_code

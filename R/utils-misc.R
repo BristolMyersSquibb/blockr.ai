@@ -13,3 +13,7 @@ last <- function(x) x[[length(x)]]
 md_text <- function(x) {
   structure(paste0(x, collapse = ""), class = "md_text")
 }
+
+code_expr <- function(code) {
+  str2expression(coal(code, ""))
+}
