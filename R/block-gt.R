@@ -42,7 +42,7 @@ system_prompt.llm_gt_block_proxy <- function(x, datasets, ...) {
 
 gt_theme <- function(obj, session) {
 
-  if (isFALSE(get_board_option_value("thematic"))) {
+  if (isFALSE(coal(get_board_option_or_null("thematic"), FALSE))) {
     return(obj)
   }
 
@@ -52,6 +52,11 @@ gt_theme <- function(obj, session) {
     return(obj)
   }
 
+  is_dm <- identical(
+    coal(get_board_option_or_null("dark_mode"), "light"),
+    "dark"
+  )
+
   if ("3" %in% bslib::theme_version(theme)) {
 
     vars <- c(
@@ -59,7 +64,7 @@ gt_theme <- function(obj, session) {
       table.font.color = "text-color"
     )
 
-  } else if (identical(get_board_option_value("dark_mode"), "dark")) {
+  } else if (is_dm) {
 
     vars <- c(
       table.background.color = "body-bg-dark",
