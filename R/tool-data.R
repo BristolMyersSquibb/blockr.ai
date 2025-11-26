@@ -31,7 +31,7 @@ new_data_tool <- function(x, datasets,
 
     res <- evaluate::evaluate(
       code,
-      envir = list2env(datasets, parent = baseenv())
+      envir = list2env(datasets, parent = as.environment("package:stats"))
     )
 
     prompt <- options(prompt = "> ")

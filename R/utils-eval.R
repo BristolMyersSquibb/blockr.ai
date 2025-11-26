@@ -1,7 +1,7 @@
 eval_code <- function(code, data) {
   eval(
     parse(text = code),
-    envir = list2env(data, parent = baseenv())
+    envir = list2env(data, parent = as.environment("package:stats"))
   )
 }
 
