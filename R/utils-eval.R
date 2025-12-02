@@ -1,8 +1,5 @@
 eval_code <- function(code, data) {
-  eval(
-    parse(text = code),
-    envir = list2env(data, parent = baseenv())
-  )
+  eval(parse(text = code), envir = eval_env(data))
 }
 
 try_eval_code <- function(x, code, data = list()) {
