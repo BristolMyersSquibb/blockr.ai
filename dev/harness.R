@@ -1097,3 +1097,434 @@ run_llm_ellmer_with_validation <- function(prompt, data, config,
     variant = "with_validation"
   )
 }
+
+
+# --- Variant D: preview + validation loop ---
+#
+# Combines B (preview) and C (validation):
+# - eval_tool shows result preview so LLM can verify
+# - Retry loop if no valid data.frame result
+#
+run_llm_ellmer_with_preview_and_validation <- function(prompt, data, config,
+                                                        max_validation_retries = 3) {
+
+  cat("\n")
+  cat(strrep("=", 60), "\n")
+  cat("RUN: ellmer direct (preview + validation)\n")
+  cat(strrep("=", 60), "\n\n")
+
+  start <- Sys.time()
+
+  if (is.data.frame(data)) {
+    datasets <- list(data = data)
+  } else {
+    datasets <- data
+  }
+
+  cat("Creating proxy...\n")
+  proxy <- structure(
+    list(messages = list(), code = character()),
+    class = c("llm_transform_block_proxy", "llm_block_proxy")
+  )
+
+  # Use preview eval_tool (from variant B)
+  cat("Creating tools (with result preview)...\n")
+  tools <- list(
+    new_eval_tool_with_result(proxy, datasets),
+    new_data_tool(proxy, datasets)
+  )
+  cat("  Tools:", paste(sapply(tools, function(t) t$tool@name), collapse = ", "), "\n")
+
+  cat("Building system prompt...\n")
+  sys_prompt <- system_prompt(proxy, datasets, tools)
+  cat("  Length:", nchar(sys_prompt), "chars\n")
+
+  cat("Creating LLM client...\n")
+  client <- config$chat_fn()
+
+  client$set_system_prompt(sys_prompt)
+  client$set_tools(lapply(tools, get_tool))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Calling LLM (synchronous)...\n")
+  cat(strrep("-", 60), "\n\n")
+
+  error <- NULL
+  response <- tryCatch(
+    client$chat(prompt),
+    error = function(e) {
+      error <<- conditionMessage(e)
+      NULL
+    }
+  )
+
+  # Helper to extract code and result
+  extract_result <- function() {
+    eval_tool_obj <- tools[[1]]
+    tool_fn <- get_tool(eval_tool_obj)
+    tool_env <- environment(tool_fn)
+    code <- get0("current_code", envir = tool_env, inherits = FALSE)
+
+    result <- NULL
+    if (!is.null(code) && nchar(code) > 0) {
+      result <- tryCatch(
+        eval(parse(text = code), envir = eval_env(datasets)),
+        error = function(e) NULL
+      )
+    }
+    list(code = code, result = result)
+  }
+
+  # Check initial result
+  extracted <- extract_result()
+  code <- extracted$code
+  result <- extracted$result
+
+  # Validation loop (from variant C)
+  validation_attempt <- 0
+  while (!is.data.frame(result) && validation_attempt < max_validation_retries) {
+    validation_attempt <- validation_attempt + 1
+
+    cat("\n")
+    cat(strrep("-", 60), "\n")
+    cat("VALIDATION RETRY ", validation_attempt, "/", max_validation_retries, "\n", sep = "")
+    cat("Result is not a valid data.frame. Asking LLM to fix...\n")
+    cat(strrep("-", 60), "\n\n")
+
+    # Send follow-up message
+    retry_msg <- if (is.null(code) || nchar(code) == 0) {
+      "You haven't validated your code with eval_tool yet. Please call eval_tool with your R code to complete the task. The code must produce a data.frame as output."
+    } else {
+      "The code did not produce a valid data.frame result. Please check the result preview and fix the code, then call eval_tool again."
+    }
+
+    response <- tryCatch(
+      client$chat(retry_msg),
+      error = function(e) {
+        error <<- conditionMessage(e)
+        NULL
+      }
+    )
+
+    extracted <- extract_result()
+    code <- extracted$code
+    result <- extracted$result
+  }
+
+  duration <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("LLM finished in", round(duration, 1), "seconds\n")
+  if (validation_attempt > 0) {
+    cat("  (", validation_attempt, " validation retries)\n", sep = "")
+  }
+  cat(strrep("-", 60), "\n")
+
+  if (is.data.frame(result)) {
+    cat("  Final result: data.frame with", nrow(result), "rows\n")
+  } else {
+    cat("  Final result: NOT a valid data.frame\n")
+  }
+
+  list(
+    code = code,
+    result = result,
+    response = response,
+    turns = client$get_turns(),
+    duration_secs = duration,
+    error = error,
+    config = config,
+    prompt = prompt,
+    validation_retries = validation_attempt,
+    variant = "preview_and_validation"
+  )
+}
+
+
+# ==============================================================================
+# MODULAR EXPERIMENT API
+# ==============================================================================
+#
+# New modular API for running experiments:
+#   - run_experiment(): run 1+ times, produce 1 YAML per run
+#   - judge_runs(): evaluate YAMLs, add evaluation section
+#   - compare_trials(): compare across trials in an experiment
+#
+
+# --- run_experiment ---
+#
+# Run an experiment and save results as YAML files.
+#
+# Arguments:
+#   run_fn      - The run function to use (e.g., run_llm_ellmer, run_llm_ellmer_with_validation)
+#   prompt      - The prompt to send to the LLM
+#   data        - The data to use (data.frame or named list)
+#   output_dir  - Directory to save YAML files (will be created if needed)
+#   model       - Model name (default: "gpt-4o-mini")
+#   times       - Number of runs (default: 1)
+#   ...         - Additional arguments passed to run_fn
+#
+# Returns:
+#   Character vector of paths to saved YAML files
+#
+run_experiment <- function(run_fn, prompt, data, output_dir,
+                            model = "gpt-4o-mini",
+                            times = 1,
+                            ...) {
+
+  # Create output directory
+  if (!dir.exists(output_dir)) {
+    dir.create(output_dir, recursive = TRUE)
+    cat("Created directory:", output_dir, "\n")
+  }
+
+  # Find existing run files to determine next number
+  existing <- list.files(output_dir, pattern = "^run_\\d{3}\\.yaml$")
+  if (length(existing) == 0) {
+    next_num <- 1
+  } else {
+    nums <- as.integer(gsub("run_(\\d{3})\\.yaml", "\\1", existing))
+    next_num <- max(nums) + 1
+  }
+
+  # Create config
+  config <- list(
+    model = model,
+    chat_fn = function() ellmer::chat_openai(model = model)
+  )
+
+  saved_files <- character()
+
+  for (i in seq_len(times)) {
+    run_num <- next_num + i - 1
+
+    cat("\n")
+    cat(strrep("#", 70), "\n")
+    cat("# RUN ", run_num, " of ", next_num + times - 1, "\n", sep = "")
+    cat(strrep("#", 70), "\n")
+
+    # Execute run
+    result <- run_fn(prompt = prompt, data = data, config = config, ...)
+
+    # Convert to YAML
+    yaml_content <- run_to_yaml_v2(result, run_num, deparse(substitute(run_fn)))
+
+    # Save
+    filename <- sprintf("run_%03d.yaml", run_num)
+    filepath <- file.path(output_dir, filename)
+    writeLines(yaml_content, filepath)
+
+    cat("\nSaved:", filepath, "\n")
+    saved_files <- c(saved_files, filepath)
+  }
+
+  cat("\n")
+  cat(strrep("=", 70), "\n")
+  cat("Completed ", times, " run(s). Files saved to: ", output_dir, "\n", sep = "")
+  cat(strrep("=", 70), "\n")
+
+  invisible(saved_files)
+}
+
+
+# --- run_to_yaml_v2 ---
+#
+# Convert a run result to YAML format (v2 - for modular API)
+#
+run_to_yaml_v2 <- function(run, run_number, run_fn_name = "unknown") {
+
+  # Extract tool sequence with full details
+  tool_seq <- extract_tool_sequence(run$turns, verbose = TRUE)
+
+  # Result preview
+  result_preview <- if (is.data.frame(run$result)) {
+    paste(utils::capture.output(print(run$result)), collapse = "\n")
+  } else if (is.null(run$result)) {
+    "NULL"
+  } else {
+    paste(class(run$result), collapse = ", ")
+  }
+
+  # Data summary
+  if (is.data.frame(run$config$data_used %||% NULL)) {
+    data_info <- run$config$data_used
+  } else {
+    data_info <- NULL
+  }
+
+  # Build YAML content
+  lines <- c(
+    "# Experiment Run",
+    "#",
+    "# This file contains a complete record of one LLM run.",
+    "# Generated by run_experiment()",
+    "",
+    "meta:",
+    paste0("  timestamp: \"", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\""),
+    paste0("  run_number: ", run_number),
+    paste0("  run_fn: \"", run_fn_name, "\""),
+    paste0("  model: \"", run$config$model %||% "unknown", "\""),
+    "",
+    "metrics:",
+    paste0("  has_result: ", tolower(as.character(is.data.frame(run$result)))),
+    paste0("  duration_secs: ", round(run$duration_secs, 1)),
+    paste0("  tool_calls: ", count_tool_calls(run$turns)$total),
+    if (!is.null(run$validation_retries)) paste0("  validation_retries: ", run$validation_retries) else NULL,
+    "",
+    "prompt: |",
+    paste0("  ", strsplit(run$prompt, "\n")[[1]]),
+    "",
+    "# Tool call sequence",
+    "steps:",
+    tool_seq,
+    "",
+    "# Final validated code",
+    "final_code: |",
+    if (!is.null(run$code) && nchar(run$code) > 0) paste0("  ", strsplit(run$code, "\n")[[1]]) else "  # no code captured",
+    "",
+    "# Final result",
+    "result: |",
+    paste0("  ", strsplit(result_preview, "\n")[[1]]),
+    "",
+    paste0("error: ", if (is.null(run$error)) "null" else paste0("\"", run$error, "\"")),
+    "",
+    "# Evaluation (added by judge_runs())",
+    "# evaluation:",
+    "#   correct: null",
+    "#   reason: \"\""
+  )
+
+  # Remove NULLs
+  lines <- lines[!sapply(lines, is.null)]
+
+  paste(lines, collapse = "\n")
+}
+
+
+# --- judge_runs ---
+#
+# Placeholder for evaluation function.
+# In practice, this would be called by Claude to evaluate each run.
+#
+# Arguments:
+#   trial_dir - Directory containing run_*.yaml files
+#
+# Returns:
+#   Data frame with evaluation summary
+#
+judge_runs <- function(trial_dir) {
+
+  if (!dir.exists(trial_dir)) {
+    stop("Directory does not exist: ", trial_dir)
+  }
+
+  yaml_files <- list.files(trial_dir, pattern = "^run_\\d{3}\\.yaml$", full.names = TRUE)
+
+  if (length(yaml_files) == 0) {
+    stop("No run_*.yaml files found in: ", trial_dir)
+  }
+
+  cat("Found", length(yaml_files), "run files in:", trial_dir, "\n\n")
+
+  for (f in yaml_files) {
+    cat("  -", basename(f), "\n")
+  }
+
+  cat("\n")
+  cat("To evaluate these runs, ask Claude:\n")
+  cat("  \"Evaluate the runs in", trial_dir, "\"\n")
+  cat("\n")
+  cat("Claude will:\n")
+  cat("  1. Read each YAML file\n")
+  cat("  2. Check if the result meets the prompt requirements\n")
+  cat("  3. Add an 'evaluation' section to each YAML\n")
+
+  invisible(yaml_files)
+}
+
+
+# --- compare_trials ---
+#
+# Compare results across trials in an experiment.
+#
+# Arguments:
+#   experiment_dir - Directory containing trial_* subdirectories
+#
+# Returns:
+#   Data frame with comparison summary
+#
+compare_trials <- function(experiment_dir) {
+
+  if (!dir.exists(experiment_dir)) {
+    stop("Directory does not exist: ", experiment_dir)
+  }
+
+  # Find trial directories
+  trial_dirs <- list.dirs(experiment_dir, recursive = FALSE)
+  trial_dirs <- trial_dirs[grepl("^trial_", basename(trial_dirs))]
+
+  if (length(trial_dirs) == 0) {
+    stop("No trial_* directories found in: ", experiment_dir)
+  }
+
+  cat("Found", length(trial_dirs), "trials in:", experiment_dir, "\n\n")
+
+  results <- list()
+
+  for (trial_dir in trial_dirs) {
+    trial_name <- basename(trial_dir)
+    yaml_files <- list.files(trial_dir, pattern = "^run_\\d{3}\\.yaml$", full.names = TRUE)
+
+    n_runs <- length(yaml_files)
+    n_with_result <- 0
+    n_correct <- 0
+    total_duration <- 0
+    total_tool_calls <- 0
+
+    for (f in yaml_files) {
+      content <- readLines(f, warn = FALSE)
+      text <- paste(content, collapse = "\n")
+
+      # Parse basic metrics
+      has_result <- grepl("has_result: true", text)
+      if (has_result) n_with_result <- n_with_result + 1
+
+      # Check for evaluation
+      if (grepl("correct: true", text)) {
+        n_correct <- n_correct + 1
+      }
+
+      # Extract duration
+      dur_match <- regmatches(text, regexpr("duration_secs: [0-9.]+", text))
+      if (length(dur_match) > 0) {
+        total_duration <- total_duration + as.numeric(gsub("duration_secs: ", "", dur_match))
+      }
+
+      # Extract tool calls
+      tc_match <- regmatches(text, regexpr("tool_calls: [0-9]+", text))
+      if (length(tc_match) > 0) {
+        total_tool_calls <- total_tool_calls + as.integer(gsub("tool_calls: ", "", tc_match))
+      }
+    }
+
+    results[[trial_name]] <- data.frame(
+      trial = trial_name,
+      n_runs = n_runs,
+      has_result = paste0(n_with_result, "/", n_runs),
+      correct = paste0(n_correct, "/", n_runs),
+      avg_duration = round(total_duration / max(n_runs, 1), 1),
+      avg_tool_calls = round(total_tool_calls / max(n_runs, 1), 1),
+      stringsAsFactors = FALSE
+    )
+
+    cat(trial_name, ": ", n_runs, " runs, ",
+        n_with_result, "/", n_runs, " with result, ",
+        n_correct, "/", n_runs, " correct\n", sep = "")
+  }
+
+  cat("\n")
+
+  do.call(rbind, results)
+}
