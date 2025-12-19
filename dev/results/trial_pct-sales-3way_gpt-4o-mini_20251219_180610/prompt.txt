@@ -1,0 +1,6 @@
+
+Analyze sales by region. Handle NA as Unknown.
+Calculate total_revenue and pct_of_total (must sum to 1.0).
+Round to 2 decimals. Sort by total_revenue desc.
+Output: region, total_revenue, pct_of_total
+

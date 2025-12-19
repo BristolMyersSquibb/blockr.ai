@@ -580,6 +580,89 @@ save_experiment <- function(results_a, results_b, config, prompt,
   invisible(folder_path)
 }
 
+
+# --- Save experiment with 3 variants ---
+
+save_experiment_3way <- function(results_a, results_b, results_c, config, prompt,
+                                  name = "experiment") {
+
+  # Create folder
+  timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+  model_clean <- gsub("[^a-zA-Z0-9]", "-", config$model %||% "unknown")
+  folder_name <- paste0("trial_", name, "_", model_clean, "_", timestamp)
+  folder_path <- file.path(RESULTS_DIR, folder_name)
+
+  dir.create(folder_path, recursive = TRUE, showWarnings = FALSE)
+
+  cat("Saving to:", folder_path, "\n")
+
+  # Save prompt
+  writeLines(prompt, file.path(folder_path, "prompt.txt"))
+
+  # Save each run as YAML
+  for (i in seq_along(results_a)) {
+    yaml_content <- run_to_yaml(results_a[[i]], "a", i)
+    writeLines(yaml_content, file.path(folder_path, sprintf("run_%02d_a.yaml", i)))
+  }
+  for (i in seq_along(results_b)) {
+    yaml_content <- run_to_yaml(results_b[[i]], "b", i)
+    writeLines(yaml_content, file.path(folder_path, sprintf("run_%02d_b.yaml", i)))
+  }
+  for (i in seq_along(results_c)) {
+    yaml_content <- run_to_yaml(results_c[[i]], "c", i)
+    writeLines(yaml_content, file.path(folder_path, sprintf("run_%02d_c.yaml", i)))
+  }
+
+  # Save metadata
+  meta <- c(
+    paste0("name: ", name),
+    paste0("model: ", config$model %||% "unknown"),
+    paste0("timestamp: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
+    paste0("n_runs: ", length(results_a)),
+    "",
+    "# Variant A: no preview (baseline)",
+    "# Variant B: with preview (LLM sees result)",
+    "# Variant C: with validation (retry if no valid result)",
+    "",
+    "durations_a: [",
+    paste0("  ", paste(round(sapply(results_a, `[[`, "duration_secs"), 1), collapse = ", ")),
+    "]",
+    "durations_b: [",
+    paste0("  ", paste(round(sapply(results_b, `[[`, "duration_secs"), 1), collapse = ", ")),
+    "]",
+    "durations_c: [",
+    paste0("  ", paste(round(sapply(results_c, `[[`, "duration_secs"), 1), collapse = ", ")),
+    "]",
+    "",
+    "tool_calls_a: [",
+    paste0("  ", paste(sapply(results_a, function(r) count_tool_calls(r$turns)$total), collapse = ", ")),
+    "]",
+    "tool_calls_b: [",
+    paste0("  ", paste(sapply(results_b, function(r) count_tool_calls(r$turns)$total), collapse = ", ")),
+    "]",
+    "tool_calls_c: [",
+    paste0("  ", paste(sapply(results_c, function(r) count_tool_calls(r$turns)$total), collapse = ", ")),
+    "]",
+    "",
+    "validation_retries_c: [",
+    paste0("  ", paste(sapply(results_c, function(r) r$validation_retries %||% 0), collapse = ", ")),
+    "]",
+    "",
+    "# Quick summary: how many produced a valid data.frame?",
+    paste0("has_result_a: ", sum(sapply(results_a, function(r) is.data.frame(r$result))), "/", length(results_a)),
+    paste0("has_result_b: ", sum(sapply(results_b, function(r) is.data.frame(r$result))), "/", length(results_b)),
+    paste0("has_result_c: ", sum(sapply(results_c, function(r) is.data.frame(r$result))), "/", length(results_c))
+  )
+  writeLines(meta, file.path(folder_path, "meta.yaml"))
+
+  total_runs <- length(results_a) + length(results_b) + length(results_c)
+  cat("Saved", total_runs, "runs\n")
+  cat("\nTo evaluate: 'evaluate results in", folder_path, "'\n")
+
+  invisible(folder_path)
+}
+
+
 create_summary_yaml <- function(results_a, results_b, config, name) {
 
   summarize_variant <- function(results) {
@@ -869,5 +952,148 @@ run_llm_ellmer_with_preview <- function(prompt, data, config) {
     config = config,
     prompt = prompt,
     variant = "with_preview"  # tag to identify this variant
+  )
+}
+
+
+# --- Variant C: with final validation loop ---
+#
+# Runs the LLM, then checks if we got a valid result.
+# If not, sends a follow-up message asking the LLM to validate with eval_tool.
+# Repeats up to max_validation_retries times.
+#
+run_llm_ellmer_with_validation <- function(prompt, data, config,
+                                            max_validation_retries = 3) {
+
+  cat("\n")
+  cat(strrep("=", 60), "\n")
+  cat("RUN: ellmer direct (with validation loop)\n")
+  cat(strrep("=", 60), "\n\n")
+
+  start <- Sys.time()
+
+  if (is.data.frame(data)) {
+    datasets <- list(data = data)
+  } else {
+    datasets <- data
+  }
+
+  cat("Creating proxy...\n")
+  proxy <- structure(
+    list(messages = list(), code = character()),
+    class = c("llm_transform_block_proxy", "llm_block_proxy")
+  )
+
+  cat("Creating tools...\n")
+  tools <- list(
+    new_eval_tool(proxy, datasets),
+    new_data_tool(proxy, datasets)
+  )
+  cat("  Tools:", paste(sapply(tools, function(t) t$tool@name), collapse = ", "), "\n")
+
+  cat("Building system prompt...\n")
+  sys_prompt <- system_prompt(proxy, datasets, tools)
+  cat("  Length:", nchar(sys_prompt), "chars\n")
+
+  cat("Creating LLM client...\n")
+  client <- config$chat_fn()
+
+  client$set_system_prompt(sys_prompt)
+  client$set_tools(lapply(tools, get_tool))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Calling LLM (synchronous)...\n")
+  cat(strrep("-", 60), "\n\n")
+
+  error <- NULL
+  response <- tryCatch(
+    client$chat(prompt),
+    error = function(e) {
+      error <<- conditionMessage(e)
+      NULL
+    }
+  )
+
+  # Helper to extract code and result
+  extract_result <- function() {
+    eval_tool_obj <- tools[[1]]
+    tool_fn <- get_tool(eval_tool_obj)
+    tool_env <- environment(tool_fn)
+    code <- get0("current_code", envir = tool_env, inherits = FALSE)
+
+    result <- NULL
+    if (!is.null(code) && nchar(code) > 0) {
+      result <- tryCatch(
+        eval(parse(text = code), envir = eval_env(datasets)),
+        error = function(e) NULL
+      )
+    }
+    list(code = code, result = result)
+  }
+
+  # Check initial result
+  extracted <- extract_result()
+  code <- extracted$code
+  result <- extracted$result
+
+  # Validation loop
+  validation_attempt <- 0
+  while (!is.data.frame(result) && validation_attempt < max_validation_retries) {
+    validation_attempt <- validation_attempt + 1
+
+    cat("\n")
+    cat(strrep("-", 60), "\n")
+    cat("VALIDATION RETRY ", validation_attempt, "/", max_validation_retries, "\n", sep = "")
+    cat("Result is not a valid data.frame. Asking LLM to fix...\n")
+    cat(strrep("-", 60), "\n\n")
+
+    # Send follow-up message
+    retry_msg <- if (is.null(code) || nchar(code) == 0) {
+      "You haven't validated your code with eval_tool yet. Please call eval_tool with your R code to complete the task. The code must produce a data.frame as output."
+    } else {
+      "The code did not produce a valid data.frame result. Please fix the code and call eval_tool again to validate it."
+    }
+
+    response <- tryCatch(
+      client$chat(retry_msg),
+      error = function(e) {
+        error <<- conditionMessage(e)
+        NULL
+      }
+    )
+
+    extracted <- extract_result()
+    code <- extracted$code
+    result <- extracted$result
+  }
+
+  duration <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("LLM finished in", round(duration, 1), "seconds\n")
+  if (validation_attempt > 0) {
+    cat("  (", validation_attempt, " validation retries)\n", sep = "")
+  }
+  cat(strrep("-", 60), "\n")
+
+  if (is.data.frame(result)) {
+    cat("  Final result: data.frame with", nrow(result), "rows\n")
+  } else {
+    cat("  Final result: NOT a valid data.frame\n")
+  }
+
+  list(
+    code = code,
+    result = result,
+    response = response,
+    turns = client$get_turns(),
+    duration_secs = duration,
+    error = error,
+    config = config,
+    prompt = prompt,
+    validation_retries = validation_attempt,
+    variant = "with_validation"
   )
 }

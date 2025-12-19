@@ -1,0 +1,37 @@
+name: pct-sales-3way
+model: gpt-4o-mini
+timestamp: 2025-12-19 18:06:10
+n_runs: 3
+
+# Variant A: no preview (baseline)
+# Variant B: with preview (LLM sees result)
+# Variant C: with validation (retry if no valid result)
+
+durations_a: [
+  15.8, 27.1, 23.6
+]
+durations_b: [
+  19.6, 19.2, 36.7
+]
+durations_c: [
+  50.8, 61, 84.1
+]
+
+tool_calls_a: [
+  1, 3, 1
+]
+tool_calls_b: [
+  2, 1, 3
+]
+tool_calls_c: [
+  4, 4, 7
+]
+
+validation_retries_c: [
+  3, 3, 3
+]
+
+# Quick summary: how many produced a valid data.frame?
+has_result_a: 2/3
+has_result_b: 2/3
+has_result_c: 0/3

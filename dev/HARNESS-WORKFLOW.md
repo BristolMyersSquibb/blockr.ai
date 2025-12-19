@@ -107,9 +107,40 @@ summary:
 
 - `dev/trial-multi-run.R` - Example trial script
 
+## Variants
+
+- **Variant A (baseline)**: No preview, LLM uses tools blind
+- **Variant B (preview)**: LLM sees result preview from data_tool
+- **Variant C (validation)**: Retry loop if no valid data.frame result
+
 ## Why This Approach Works
 
 - **No hardcoded scoring**: The harness just saves results, Claude evaluates
 - **Semantic evaluation**: Claude understands natural language requirements
 - **Explainable**: Reasons are recorded in yaml for later review
 - **Flexible**: Works with any prompt, any validation criteria
+
+## Future Experiments
+
+### Larger Sample Size
+Current trials use n=3 runs per variant, which is too small for statistical
+confidence. Future experiments should use n=20-30 to confirm patterns.
+
+### Model Comparison
+Compare models to see if correctness improves with better reasoning:
+- gpt-4o-mini (cheap, more errors)
+- gpt-4o (better reasoning)
+- claude-3.5-sonnet (strong at code)
+
+Hypothesis: *Variant C (validation loop) guarantees results, but model quality
+determines correctness.*
+
+### Combine Preview + Validation (Variant D?)
+Try combining B and C: preview lets LLM see results, validation ensures
+submission. May get best of both worlds.
+
+### Different Task Types
+Current tests focus on data transformation. Test other block types:
+- Plot generation (ggplot2)
+- Table formatting (gt, flextable)
+- More complex multi-step transformations
