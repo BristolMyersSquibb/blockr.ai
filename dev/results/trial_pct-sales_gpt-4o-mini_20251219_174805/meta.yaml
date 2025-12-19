@@ -1,0 +1,65 @@
+name: pct-sales
+model: gpt-4o-mini
+timestamp: 2025-12-19 17:48:05
+n_runs: 3
+
+# Variant A: no preview
+# Variant B: with preview
+
+durations_a: [
+  13.3, 10.9, 10.7
+]
+durations_b: [
+  40.5, 32.4, 47.6
+]
+
+tool_calls_a: [
+  0, 1, 1
+]
+tool_calls_b: [
+  3, 4, 1
+]
+
+# ============================================================
+# EVALUATION BY CLAUDE
+# ============================================================
+
+evaluation:
+  run_01_a:
+    correct: false
+    reason: "API connection error - no tool calls made, no result"
+
+  run_01_b:
+    correct: true
+    pct_sum: 1.00
+    reason: "All requirements met. Fixed syntax error on retry, pct sums to 1.0"
+
+  run_02_a:
+    correct: true
+    pct_sum: 1.00
+    reason: "All requirements met. Single tool call, efficient."
+
+  run_02_b:
+    correct: true
+    pct_sum: 1.00
+    reason: "All requirements met. Struggled with head()/str() not available, but succeeded."
+
+  run_03_a:
+    correct: true
+    pct_sum: 1.00
+    reason: "All requirements met."
+
+  run_03_b:
+    correct: false
+    reason: "Only used data_tool, never called eval_tool. No validated result."
+
+summary:
+  variant_a: "2/3 correct"
+  variant_b: "2/3 correct"
+
+  observations: |
+    - Run 1A failed due to API error (not model issue)
+    - Run 3B failed because LLM was satisfied with data_tool preview
+    - Variant B takes 3-4x longer (32-48s vs 10-13s)
+    - Variant B uses more tool calls (3-4 vs 1)
+    - When both succeed, results are correct
