@@ -1381,6 +1381,7 @@ run_to_yaml_v2 <- function(run, run_number, run_fn_name = "unknown") {
     paste0("  duration_secs: ", round(run$duration_secs, 1)),
     paste0("  tool_calls: ", count_tool_calls(run$turns)$total),
     if (!is.null(run$validation_retries)) paste0("  validation_retries: ", run$validation_retries) else NULL,
+    if (!is.null(run$iterations)) paste0("  iterations: ", run$iterations) else NULL,
     "",
     "prompt: |",
     paste0("  ", strsplit(run$prompt, "\n")[[1]]),
@@ -2007,6 +2008,233 @@ new_skill_tool <- function(skills) {
 #
 # LLM sees skill catalog in prompt, can call skill_tool to get full content
 #
+# =============================================================================
+# DETERMINISTIC LOOP (Variant E)
+# =============================================================================
+#
+# System-controlled flow without tool calling:
+# 1. Show data preview upfront
+# 2. LLM writes code as plain text
+# 3. System runs code deterministically
+# 4. On error: show error, iterate
+# 5. On success: show result, LLM reviews
+# 6. LLM says DONE or provides fixed code
+#
+
+run_llm_deterministic_loop <- function(prompt, data, config,
+                                        max_iterations = 5) {
+
+  cat("\n")
+  cat(strrep("=", 60), "\n")
+  cat("RUN: deterministic loop (no tools)\n")
+  cat(strrep("=", 60), "\n\n")
+
+  start <- Sys.time()
+
+  if (is.data.frame(data)) {
+    datasets <- list(data = data)
+  } else {
+    datasets <- data
+  }
+
+  # Create data preview
+  data_preview <- paste(
+    sapply(names(datasets), function(nm) {
+      d <- datasets[[nm]]
+      preview_lines <- utils::capture.output(print(utils::head(d, 5)))
+      paste0(
+        "## Dataset: ", nm, "\n",
+        "Dimensions: ", nrow(d), " rows x ", ncol(d), " cols\n",
+        "Columns: ", paste(names(d), collapse = ", "), "\n\n",
+        "```\n",
+        paste(preview_lines, collapse = "\n"),
+        "\n```"
+      )
+    }),
+    collapse = "\n\n"
+  )
+
+  # System prompt for deterministic loop
+  sys_prompt <- paste0(
+    "You are an R code assistant. You write dplyr code to transform data.\n\n",
+    "IMPORTANT RULES:\n",
+    "1. Always prefix dplyr functions: dplyr::filter(), dplyr::mutate(), etc.\n",
+    "2. Always prefix tidyr functions: tidyr::pivot_wider(), etc.\n",
+    "3. Use the native pipe |> (not %>%)\n",
+    "4. Your code must start with a dataset name and produce a data.frame\n",
+    "5. Wrap your R code in ```r ... ``` markdown blocks\n\n",
+    "When you see the result of your code:\n",
+    "- If it's correct, respond with just: DONE\n",
+    "- If it needs fixing, provide corrected code in ```r ... ``` blocks\n"
+  )
+
+  cat("Creating LLM client...\n")
+  client <- config$chat_fn()
+  client$set_system_prompt(sys_prompt)
+
+  # Build initial message with data preview
+  initial_msg <- paste0(
+    "# Data Available\n\n",
+    data_preview,
+    "\n\n# Task\n\n",
+    prompt,
+    "\n\nWrite R code to complete this task. Wrap your code in ```r ... ``` blocks."
+  )
+
+  cat("Data preview length:", nchar(data_preview), "chars\n")
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Starting deterministic loop...\n")
+  cat(strrep("-", 60), "\n\n")
+
+  # Track state
+  final_code <- NULL
+  final_result <- NULL
+  iteration <- 0
+  error <- NULL
+  all_messages <- list()
+
+  # Helper to extract code from markdown
+  extract_code_from_markdown <- function(text) {
+    # Match ```r ... ``` or ```R ... ``` blocks
+    pattern <- "```[rR]\\s*\\n([\\s\\S]*?)\\n```"
+    matches <- regmatches(text, gregexpr(pattern, text, perl = TRUE))[[1]]
+
+    if (length(matches) == 0) {
+      # Try without language specifier
+      pattern <- "```\\s*\\n([\\s\\S]*?)\\n```"
+      matches <- regmatches(text, gregexpr(pattern, text, perl = TRUE))[[1]]
+    }
+
+    if (length(matches) == 0) {
+      return(NULL)
+    }
+
+    # Extract content from last code block
+    last_block <- matches[length(matches)]
+    code <- sub("```[rR]?\\s*\\n", "", last_block)
+    code <- sub("\\n```$", "", code)
+    trimws(code)
+  }
+
+  # Main loop
+  current_msg <- initial_msg
+
+  while (iteration < max_iterations) {
+    iteration <- iteration + 1
+
+    cat("Iteration ", iteration, "/", max_iterations, "\n", sep = "")
+
+    # Get LLM response
+    response <- tryCatch(
+      client$chat(current_msg),
+      error = function(e) {
+        error <<- conditionMessage(e)
+        NULL
+      }
+    )
+
+    if (is.null(response)) {
+      cat("  LLM error:", error, "\n")
+      break
+    }
+
+    all_messages <- c(all_messages, list(list(role = "user", content = current_msg)))
+    all_messages <- c(all_messages, list(list(role = "assistant", content = response)))
+
+    # Check for DONE
+    if (grepl("^\\s*DONE\\s*$", response, ignore.case = TRUE) ||
+        grepl("\\bDONE\\b", response) && !grepl("```", response)) {
+      cat("  LLM said DONE\n")
+      break
+    }
+
+    # Extract code
+    code <- extract_code_from_markdown(response)
+
+    if (is.null(code) || nchar(trimws(code)) == 0) {
+      cat("  No code found in response\n")
+      current_msg <- "I couldn't find any R code in your response. Please provide the code wrapped in ```r ... ``` blocks."
+      next
+    }
+
+    cat("  Code extracted (", nchar(code), " chars)\n", sep = "")
+
+    # Run code
+    env <- list2env(datasets, parent = baseenv())
+    result <- tryCatch(
+      eval(parse(text = code), envir = env),
+      error = function(e) {
+        structure(conditionMessage(e), class = "eval_error")
+      }
+    )
+
+    if (inherits(result, "eval_error")) {
+      # Error - ask LLM to fix
+      cat("  Error:", substr(result, 1, 60), "...\n")
+      current_msg <- paste0(
+        "Your code produced an error:\n\n",
+        "```\n", result, "\n```\n\n",
+        "Please fix the code and try again."
+      )
+    } else if (is.data.frame(result)) {
+      # Success - show result and ask for confirmation
+      final_code <- code
+      final_result <- result
+
+      result_preview <- paste(
+        utils::capture.output(print(result)),
+        collapse = "\n"
+      )
+
+      cat("  Success: data.frame with ", nrow(result), " rows\n", sep = "")
+
+      current_msg <- paste0(
+        "Your code executed successfully. Here is the result:\n\n",
+        "```\n", result_preview, "\n```\n\n",
+        "Does this look correct? If yes, respond with just: DONE\n",
+        "If not, provide corrected code in ```r ... ``` blocks."
+      )
+    } else {
+      # Not a data.frame
+      cat("  Result is not a data.frame\n")
+      current_msg <- paste0(
+        "Your code ran but did not produce a data.frame. ",
+        "The result was of class: ", class(result)[1], "\n\n",
+        "Please fix the code to produce a data.frame as output."
+      )
+    }
+  }
+
+  duration <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Deterministic loop finished in", round(duration, 1), "seconds\n")
+  cat("  Iterations:", iteration, "\n")
+  cat(strrep("-", 60), "\n")
+
+  if (is.data.frame(final_result)) {
+    cat("  Final result: data.frame with", nrow(final_result), "rows\n")
+  } else {
+    cat("  Final result: NOT a valid data.frame\n")
+  }
+
+  list(
+    code = final_code,
+    result = final_result,
+    response = response,
+    turns = client$get_turns(),
+    duration_secs = duration,
+    error = error,
+    config = config,
+    prompt = prompt,
+    iterations = iteration,
+    variant = "deterministic_loop"
+  )
+}
+
+
 run_llm_ellmer_with_skill_tool <- function(prompt, data, config,
                                             skills_dir = ".blockr/skills",
                                             max_validation_retries = 3) {

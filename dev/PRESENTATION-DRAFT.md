@@ -185,7 +185,56 @@ The cost is ~50% more time, but guarantees correct results.
 
 ---
 
-# Slide 10: Tuning Variable 4 - Skills
+# Slide 10: Deterministic Loop (No Tools)
+
+## The Insight
+Tool-based validation works, but adds overhead. What if we skip tools entirely?
+
+## Deterministic Loop Flow
+```
+┌─────────────────────────────────────┐
+│ 1. Show data preview (automatic)    │  ← Not a tool call
+└─────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────┐
+│ 2. LLM writes code (plain text)     │  ← No tool schema
+└─────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────┐
+│ 3. System runs code (automatic)     │  ← Guaranteed validation
+└─────────────────────────────────────┘
+                 ↓
+        [Error] → show error, iterate
+        [Success] → show result, LLM confirms "DONE"
+```
+
+## Experiment Results (mtcars-complex, gpt-4o-mini)
+
+| Trial | Approach | Correct | Avg Time | Speedup |
+|-------|----------|---------|----------|---------|
+| A | Tool-based baseline | 40% | 24.5s | - |
+| D | Tool-based + validation | 100% | 39.0s | 1x |
+| **E** | **Deterministic loop** | **100%** | **9.1s** | **4.3x** |
+
+## Why E is Faster
+- No tool call overhead (no JSON parsing)
+- No tool schemas in every message
+- System controls flow directly
+- Simpler message structure
+
+## Trade-offs
+
+| Aspect | Deterministic (E) | Tool-based (D) |
+|--------|-------------------|----------------|
+| Speed | ✓ 4.3x faster | Slower |
+| Reliability | ✓ 100% | ✓ 100% |
+| Exploration | ✗ Fixed preview only | ✓ Can query data |
+| Complexity | ✓ Simpler | More complex |
+| Best for | Well-defined transforms | Exploratory analysis |
+
+---
+
+# Slide 11: Skills (Progressive Disclosure)
 
 ## What are Skills?
 Markdown files that teach specific coding patterns to avoid LLM traps.
@@ -222,39 +271,41 @@ Common errors that LLMs make consistently:
 
 ---
 
-# Slide 11: Key Insights from Experiments
+# Slide 12: Key Insights from Experiments
 
-## Two Complementary Strategies
+## Three Optimization Strategies
 
 | Strategy | Purpose | Effect |
 |----------|---------|--------|
-| **Validation Loop** | Ensure valid output | 100% success rate |
-| **Progressive Skills** | Teach correct patterns on demand | 2.3x faster, minimal tokens |
+| **Deterministic Loop** | System-controlled flow | 4.3x faster, 100% reliable |
+| **Validation** | Ensure valid output | 100% success rate |
+| **Progressive Skills** | Teach patterns on demand | 2.3x faster, minimal tokens |
 
-## Why Progressive Disclosure Works
-Like Claude Code's skill system:
-1. LLM sees only skill **metadata** upfront (~200 tokens)
-2. LLM has a `skill_tool` to request full content when needed
-3. LLM decides which skills are relevant for the task
+## The Deterministic Advantage
+Skip tool overhead entirely:
+- Data preview → LLM writes code → System validates → Iterate or DONE
+- 4.3x faster than tool-based validation
+- Same 100% reliability
 
-**Result**: Token-efficient and scalable to many skills.
+## When to Use Each Approach
+
+| Use Case | Best Approach |
+|----------|---------------|
+| Well-defined transforms (filter, group, summarize) | Deterministic loop |
+| Exploratory analysis ("find patterns") | Tool-based with exploration |
+| Known LLM traps (rowSums, pivot) | Add skills |
 
 ## Why Skills Break Error Loops
 LLMs get stuck trying the same broken pattern:
 ```
 Attempt 1: rowSums(dplyr::select(., -store)) → Error: '.' not found
 Attempt 2: rowSums(dplyr::select(., -store)) → Error: '.' not found
-...
 ```
 Skills teach the correct pattern (`dplyr::across()`) before the LLM writes code.
 
-## Why Validation Works
-Without validation, LLM may stop after `data_tool` (preview only).
-With validation, LLM must call `eval_tool` and get confirmed success.
-
 ---
 
-# Slide 12: How We Evaluate (Claude-as-Judge)
+# Slide 13: How We Evaluate (Claude-as-Judge)
 
 ## Traditional Approach
 - Unit tests: `assert sum(pct) == 1.0`
@@ -277,7 +328,7 @@ run_02_a:
 
 ---
 
-# Slide 13: Full Logging for Debugging
+# Slide 14: Full Logging for Debugging
 
 Every run saves complete conversation:
 
@@ -299,7 +350,7 @@ steps:
 
 ---
 
-# Slide 14: Comparison with Standard Benchmarks
+# Slide 15: Comparison with Standard Benchmarks
 
 ## Berkeley Function Calling Leaderboard (BFCL)
 
@@ -317,7 +368,7 @@ steps:
 
 ---
 
-# Slide 15: Experiments Completed & Future Work
+# Slide 16: Experiments Completed & Future Work
 
 ## Completed ✅
 
@@ -345,7 +396,7 @@ steps:
 
 ---
 
-# Slide 16: Summary
+# Slide 17: Summary
 
 ## What We Built
 - **Test harness** for LLM tool-calling experiments
