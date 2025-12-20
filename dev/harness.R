@@ -1271,6 +1271,7 @@ run_llm_ellmer_with_preview_and_validation <- function(prompt, data, config,
 #
 run_experiment <- function(run_fn, prompt, data, output_dir,
                             model = "gpt-4o-mini",
+                            provider = "openai",
                             times = 1,
                             ...) {
 
@@ -1289,10 +1290,17 @@ run_experiment <- function(run_fn, prompt, data, output_dir,
     next_num <- max(nums) + 1
   }
 
-  # Create config
+  # Create config based on provider
+  chat_fn <- switch(provider,
+    "openai" = function() ellmer::chat_openai(model = model),
+    "ollama" = function() ellmer::chat_ollama(model = model),
+    stop("Unknown provider: ", provider, ". Use 'openai' or 'ollama'.")
+  )
+
   config <- list(
     model = model,
-    chat_fn = function() ellmer::chat_openai(model = model)
+    provider = provider,
+    chat_fn = chat_fn
   )
 
   saved_files <- character()
@@ -1366,6 +1374,7 @@ run_to_yaml_v2 <- function(run, run_number, run_fn_name = "unknown") {
     paste0("  run_number: ", run_number),
     paste0("  run_fn: \"", run_fn_name, "\""),
     paste0("  model: \"", run$config$model %||% "unknown", "\""),
+    if (!is.null(run$config$provider)) paste0("  provider: \"", run$config$provider, "\"") else NULL,
     "",
     "metrics:",
     paste0("  has_result: ", tolower(as.character(is.data.frame(run$result)))),
@@ -1375,7 +1384,41 @@ run_to_yaml_v2 <- function(run, run_number, run_fn_name = "unknown") {
     "",
     "prompt: |",
     paste0("  ", strsplit(run$prompt, "\n")[[1]]),
-    "",
+    ""
+  )
+
+  # Add skills tracking if present
+  if (!is.null(run$skills_injected) && length(run$skills_injected) > 0) {
+    lines <- c(lines,
+      "# Skills injected into system prompt",
+      "skills:",
+      "  injected:",
+      paste0("    - ", run$skills_injected)
+    )
+
+    # Add skill usage detection results
+    if (!is.null(run$skill_usage)) {
+      lines <- c(lines, "  usage:")
+
+      for (skill_name in names(run$skill_usage)) {
+        usage <- run$skill_usage[[skill_name]]
+        lines <- c(lines,
+          paste0("    ", skill_name, ":"),
+          paste0("      usage_score: ", usage$usage_score),
+          paste0("      matched: ", usage$matched, "/", usage$total),
+          "      patterns:"
+        )
+        for (pattern_name in names(usage$patterns)) {
+          lines <- c(lines,
+            paste0("        ", pattern_name, ": ", tolower(as.character(usage$patterns[[pattern_name]])))
+          )
+        }
+      }
+    }
+    lines <- c(lines, "")
+  }
+
+  lines <- c(lines,
     "# Tool call sequence",
     "steps:",
     tool_seq,
@@ -1527,4 +1570,607 @@ compare_trials <- function(experiment_dir) {
   cat("\n")
 
   do.call(rbind, results)
+}
+
+
+# ==============================================================================
+# SKILLS SYSTEM
+# ==============================================================================
+#
+# Load and inject skills into system prompts.
+# Skills are markdown files in .blockr/skills/{name}/SKILL.md
+#
+
+# --- Load skills from directory ---
+#
+# Reads all SKILL.md files and extracts content (without YAML frontmatter)
+#
+load_skills <- function(skills_dir = ".blockr/skills") {
+
+  if (!dir.exists(skills_dir)) {
+    return(list())
+  }
+
+  skill_dirs <- list.dirs(skills_dir, recursive = FALSE, full.names = TRUE)
+
+  skills <- list()
+  for (dir in skill_dirs) {
+    skill_file <- file.path(dir, "SKILL.md")
+    if (file.exists(skill_file)) {
+      content <- paste(readLines(skill_file, warn = FALSE), collapse = "\n")
+
+      # Extract name from frontmatter
+      name_match <- regmatches(content, regexpr("name:\\s*([a-z0-9-]+)", content))
+      name <- if (length(name_match) > 0) {
+        gsub("name:\\s*", "", name_match)
+      } else {
+        basename(dir)
+      }
+
+      # Remove YAML frontmatter for injection
+      content_clean <- sub("^---.*?---\\s*", "", content, perl = TRUE)
+
+      skills[[name]] <- list(
+        name = name,
+        path = skill_file,
+        content = content_clean
+      )
+
+      cat("  Loaded skill:", name, "\n")
+    }
+  }
+
+  skills
+}
+
+
+# --- Inject skills into system prompt ---
+#
+inject_skills <- function(base_prompt, skills) {
+
+  if (length(skills) == 0) {
+    return(base_prompt)
+  }
+
+  skill_content <- paste(
+    sapply(skills, function(s) {
+      paste0("## Skill: ", s$name, "\n\n", s$content)
+    }),
+    collapse = "\n\n---\n\n"
+  )
+
+  skill_section <- paste0(
+    "\n\n",
+    "# Reference Skills\n\n",
+    "Follow these patterns carefully when they apply to the task:\n\n",
+    skill_content
+  )
+
+  paste0(base_prompt, skill_section)
+}
+
+
+# --- Detect skill usage in generated code ---
+#
+# Checks if generated code follows skill patterns
+#
+detect_skill_usage <- function(code, skill_name = NULL) {
+
+  if (is.null(code) || nchar(code) == 0) {
+    return(NULL)
+  }
+
+  # Define patterns for each skill
+  patterns <- list(
+    "time-series-lag" = list(
+      "group_before_lag" = "group_by\\s*\\([^)]+\\).*lag\\s*\\(",
+      "arrange_first" = "arrange\\s*\\([^)]+\\).*group_by|arrange\\s*\\([^)]+\\).*lag",
+      "ungroup_after" = "ungroup\\s*\\(\\)",
+      "na_handling" = "coalesce|if_else.*is\\.na|replace_na|is\\.na.*0",
+      "case_when_growth" = "case_when"
+    ),
+    "pivot-table" = list(
+      "tidyr_pivot" = "tidyr::pivot_wider",
+      "values_fill" = "values_fill",
+      "backtick_cols" = "`[0-9]+`"
+    ),
+    "percentage-calc" = list(
+      "round_pct" = "round\\s*\\([^,]+,\\s*[0-9]+\\)",
+      "division_safe" = "if_else.*==\\s*0|coalesce"
+    )
+  )
+
+  # If specific skill requested, only check that one
+  if (!is.null(skill_name)) {
+    skill_patterns <- patterns[[skill_name]]
+    if (is.null(skill_patterns)) return(NULL)
+    patterns <- list()
+    patterns[[skill_name]] <- skill_patterns
+  }
+
+  # Check all patterns
+  results <- list()
+  for (skill in names(patterns)) {
+    skill_patterns <- patterns[[skill]]
+
+    matches <- sapply(skill_patterns, function(pattern) {
+      grepl(pattern, code, perl = TRUE, ignore.case = TRUE)
+    })
+
+    results[[skill]] <- list(
+      patterns = as.list(matches),
+      matched = sum(matches),
+      total = length(matches),
+      usage_score = round(sum(matches) / length(matches), 2)
+    )
+  }
+
+  results
+}
+
+
+# --- Run with skills variant ---
+#
+# Same as run_llm_ellmer_with_preview_and_validation but with skills injected
+#
+run_llm_ellmer_with_skills <- function(prompt, data, config,
+                                        skills_dir = ".blockr/skills",
+                                        max_validation_retries = 3) {
+
+  cat("\n")
+  cat(strrep("=", 60), "\n")
+  cat("RUN: ellmer direct (preview + validation + SKILLS)\n")
+  cat(strrep("=", 60), "\n\n")
+
+  start <- Sys.time()
+
+  if (is.data.frame(data)) {
+    datasets <- list(data = data)
+  } else {
+    datasets <- data
+  }
+
+  # Load skills
+  cat("Loading skills from:", skills_dir, "\n")
+  skills <- load_skills(skills_dir)
+  skills_injected <- names(skills)
+  cat("  Skills loaded:", length(skills), "\n\n")
+
+  cat("Creating proxy...\n")
+  proxy <- structure(
+    list(messages = list(), code = character()),
+    class = c("llm_transform_block_proxy", "llm_block_proxy")
+  )
+
+  # Use preview eval_tool
+  cat("Creating tools (with result preview)...\n")
+  tools <- list(
+    new_eval_tool_with_result(proxy, datasets),
+    new_data_tool(proxy, datasets)
+  )
+  cat("  Tools:", paste(sapply(tools, function(t) t$tool@name), collapse = ", "), "\n")
+
+  cat("Building system prompt...\n")
+  sys_prompt <- system_prompt(proxy, datasets, tools)
+  cat("  Base length:", nchar(sys_prompt), "chars\n")
+
+  # Inject skills into system prompt
+  sys_prompt <- inject_skills(sys_prompt, skills)
+  cat("  With skills:", nchar(sys_prompt), "chars\n")
+
+  cat("Creating LLM client...\n")
+  client <- config$chat_fn()
+
+  client$set_system_prompt(sys_prompt)
+  client$set_tools(lapply(tools, get_tool))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Calling LLM (synchronous)...\n")
+  cat(strrep("-", 60), "\n\n")
+
+  error <- NULL
+  response <- tryCatch(
+    client$chat(prompt),
+    error = function(e) {
+      error <<- conditionMessage(e)
+      NULL
+    }
+  )
+
+  # Helper to extract code and result
+  extract_result <- function() {
+    eval_tool_obj <- tools[[1]]
+    tool_fn <- get_tool(eval_tool_obj)
+    tool_env <- environment(tool_fn)
+    code <- get0("current_code", envir = tool_env, inherits = FALSE)
+
+    result <- NULL
+    if (!is.null(code) && nchar(code) > 0) {
+      result <- tryCatch(
+        eval(parse(text = code), envir = eval_env(datasets)),
+        error = function(e) NULL
+      )
+    }
+    list(code = code, result = result)
+  }
+
+  # Check initial result
+  extracted <- extract_result()
+  code <- extracted$code
+  result <- extracted$result
+
+  # Validation loop
+  validation_attempt <- 0
+  while (!is.data.frame(result) && validation_attempt < max_validation_retries) {
+    validation_attempt <- validation_attempt + 1
+
+    cat("\n")
+    cat(strrep("-", 60), "\n")
+    cat("VALIDATION RETRY ", validation_attempt, "/", max_validation_retries, "\n", sep = "")
+    cat("Result is not a valid data.frame. Asking LLM to fix...\n")
+    cat(strrep("-", 60), "\n\n")
+
+    retry_msg <- if (is.null(code) || nchar(code) == 0) {
+      "You haven't validated your code with eval_tool yet. Please call eval_tool with your R code to complete the task. The code must produce a data.frame as output."
+    } else {
+      "The code did not produce a valid data.frame result. Please check the result preview and fix the code, then call eval_tool again."
+    }
+
+    response <- tryCatch(
+      client$chat(retry_msg),
+      error = function(e) {
+        error <<- conditionMessage(e)
+        NULL
+      }
+    )
+
+    extracted <- extract_result()
+    code <- extracted$code
+    result <- extracted$result
+  }
+
+  duration <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("LLM finished in", round(duration, 1), "seconds\n")
+  if (validation_attempt > 0) {
+    cat("  (", validation_attempt, " validation retries)\n", sep = "")
+  }
+  cat(strrep("-", 60), "\n")
+
+  if (is.data.frame(result)) {
+    cat("  Final result: data.frame with", nrow(result), "rows\n")
+  } else {
+    cat("  Final result: NOT a valid data.frame\n")
+  }
+
+  # Detect skill usage in generated code
+  skill_usage <- detect_skill_usage(code)
+
+  list(
+    code = code,
+    result = result,
+    response = response,
+    turns = client$get_turns(),
+    duration_secs = duration,
+    error = error,
+    config = config,
+    prompt = prompt,
+    validation_retries = validation_attempt,
+    variant = "with_skills",
+    skills_injected = skills_injected,
+    skill_usage = skill_usage
+  )
+}
+
+
+# =============================================================================
+# PROGRESSIVE DISCLOSURE SKILLS (Claude Code style)
+# =============================================================================
+#
+# Instead of injecting all skill content into the system prompt,
+# we provide a catalog (names + descriptions) and a skill_tool
+# that the LLM can call to retrieve full skill content on demand.
+#
+
+
+# --- Load skill catalog (names + descriptions only) ---
+#
+# Returns a lightweight catalog for the system prompt
+#
+load_skill_catalog <- function(skills_dir = ".blockr/skills") {
+
+  if (!dir.exists(skills_dir)) {
+    return(list())
+  }
+
+  skill_dirs <- list.dirs(skills_dir, recursive = FALSE, full.names = TRUE)
+
+  catalog <- list()
+  for (dir in skill_dirs) {
+    skill_file <- file.path(dir, "SKILL.md")
+    if (file.exists(skill_file)) {
+      content <- paste(readLines(skill_file, warn = FALSE), collapse = "\n")
+
+      # Extract name from frontmatter
+      name_match <- regmatches(content, regexpr("name:\\s*([a-z0-9-]+)", content))
+      name <- if (length(name_match) > 0) {
+        gsub("name:\\s*", "", name_match)
+      } else {
+        basename(dir)
+      }
+
+      # Extract description from frontmatter
+      desc_match <- regmatches(content, regexpr("description:\\s*[^\n]+", content))
+      description <- if (length(desc_match) > 0) {
+        gsub("description:\\s*", "", desc_match)
+      } else {
+        paste("Skill for", name)
+      }
+
+      catalog[[name]] <- list(
+        name = name,
+        description = description
+      )
+    }
+  }
+
+  catalog
+}
+
+
+# --- Inject skill catalog into system prompt ---
+#
+# Adds just the skill names and descriptions (not full content)
+#
+inject_skill_catalog <- function(base_prompt, catalog) {
+
+  if (length(catalog) == 0) {
+    return(base_prompt)
+  }
+
+  catalog_text <- paste(
+    sapply(catalog, function(s) {
+      paste0("- **", s$name, "**: ", s$description)
+    }),
+    collapse = "\n"
+  )
+
+  catalog_section <- paste0(
+    "\n\n",
+    "# Available Skills\n\n",
+    "You have access to coding pattern skills. ",
+    "When you encounter a task that matches a skill, call `skill_tool(name)` ",
+    "to get detailed instructions BEFORE writing code.\n\n",
+    catalog_text, "\n\n",
+    "Call skill_tool with the skill name to get full instructions."
+  )
+
+  paste0(base_prompt, catalog_section)
+}
+
+
+# --- Create skill_tool for on-demand retrieval ---
+#
+# Returns an ellmer tool that retrieves full skill content
+#
+new_skill_tool <- function(skills) {
+
+  # Track which skills were called
+  skills_called <- character()
+
+  tool_fn <- function(skill_name) {
+    # Record that this skill was requested
+    skills_called <<- c(skills_called, skill_name)
+
+    if (!skill_name %in% names(skills)) {
+      return(paste0(
+        "Unknown skill: '", skill_name, "'\n",
+        "Available skills: ", paste(names(skills), collapse = ", ")
+      ))
+    }
+
+    skill <- skills[[skill_name]]
+    paste0(
+      "# Skill: ", skill$name, "\n\n",
+      skill$content, "\n\n",
+      "---\n",
+      "Apply this pattern to complete your task. ",
+      "Remember to use eval_tool to validate your code."
+    )
+  }
+
+  # Create the tool
+  tool_obj <- list(
+    tool = ellmer::tool(
+      tool_fn,
+      name = "skill_tool",
+      description = paste0(
+        "Get detailed instructions for a coding pattern skill. ",
+        "Call this BEFORE writing code when the task matches a skill description. ",
+        "Returns markdown instructions with correct patterns and common mistakes to avoid."
+      ),
+      skill_name = ellmer::type_string(
+        "The name of the skill to retrieve (e.g., 'rowwise-sum', 'pivot-table')"
+      )
+    ),
+    get_skills_called = function() skills_called
+  )
+
+  tool_obj
+}
+
+
+# --- Run with skill_tool (progressive disclosure) ---
+#
+# LLM sees skill catalog in prompt, can call skill_tool to get full content
+#
+run_llm_ellmer_with_skill_tool <- function(prompt, data, config,
+                                            skills_dir = ".blockr/skills",
+                                            max_validation_retries = 3) {
+
+  cat("\n")
+  cat(strrep("=", 60), "\n")
+  cat("RUN: ellmer direct (preview + validation + SKILL TOOL)\n")
+  cat(strrep("=", 60), "\n\n")
+
+  start <- Sys.time()
+
+  if (is.data.frame(data)) {
+    datasets <- list(data = data)
+  } else {
+    datasets <- data
+  }
+
+  # Load full skills (for skill_tool to return)
+  cat("Loading skills from:", skills_dir, "\n")
+  skills <- load_skills(skills_dir)
+  cat("  Skills available:", length(skills), "\n")
+
+  # Load catalog (just names + descriptions)
+  catalog <- load_skill_catalog(skills_dir)
+  cat("  Catalog entries:", length(catalog), "\n\n")
+
+  cat("Creating proxy...\n")
+  proxy <- structure(
+    list(messages = list(), code = character()),
+    class = c("llm_transform_block_proxy", "llm_block_proxy")
+  )
+
+  # Create skill_tool
+  skill_tool_obj <- new_skill_tool(skills)
+
+  # Use preview eval_tool
+  cat("Creating tools (with skill_tool)...\n")
+  tools <- list(
+    new_eval_tool_with_result(proxy, datasets),
+    new_data_tool(proxy, datasets),
+    skill_tool_obj
+  )
+  cat("  Tools:", paste(c("eval_tool", "data_tool", "skill_tool"), collapse = ", "), "\n")
+
+  cat("Building system prompt...\n")
+  sys_prompt <- system_prompt(proxy, datasets, tools[1:2])  # Don't include skill_tool in base
+  cat("  Base length:", nchar(sys_prompt), "chars\n")
+
+  # Inject skill CATALOG (not full content)
+  sys_prompt <- inject_skill_catalog(sys_prompt, catalog)
+  cat("  With catalog:", nchar(sys_prompt), "chars\n")
+
+  cat("Creating LLM client...\n")
+  client <- config$chat_fn()
+
+  client$set_system_prompt(sys_prompt)
+  client$set_tools(list(
+    get_tool(tools[[1]]),
+    get_tool(tools[[2]]),
+    skill_tool_obj$tool
+  ))
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("Calling LLM (synchronous)...\n")
+  cat(strrep("-", 60), "\n\n")
+
+  error <- NULL
+  response <- tryCatch(
+    client$chat(prompt),
+    error = function(e) {
+      error <<- conditionMessage(e)
+      NULL
+    }
+  )
+
+  # Helper to extract code and result
+  extract_result <- function() {
+    eval_tool_obj <- tools[[1]]
+    tool_fn <- get_tool(eval_tool_obj)
+    tool_env <- environment(tool_fn)
+    code <- get0("current_code", envir = tool_env, inherits = FALSE)
+
+    result <- NULL
+    if (!is.null(code) && nchar(code) > 0) {
+      result <- tryCatch(
+        eval(parse(text = code), envir = eval_env(datasets)),
+        error = function(e) NULL
+      )
+    }
+    list(code = code, result = result)
+  }
+
+  # Check initial result
+  extracted <- extract_result()
+  code <- extracted$code
+  result <- extracted$result
+
+  # Validation loop
+  validation_attempt <- 0
+  while (!is.data.frame(result) && validation_attempt < max_validation_retries) {
+    validation_attempt <- validation_attempt + 1
+
+    cat("\n")
+    cat(strrep("-", 60), "\n")
+    cat("VALIDATION RETRY ", validation_attempt, "/", max_validation_retries, "\n", sep = "")
+    cat("Result is not a valid data.frame. Asking LLM to fix...\n")
+    cat(strrep("-", 60), "\n\n")
+
+    retry_msg <- if (is.null(code) || nchar(code) == 0) {
+      "You haven't validated your code with eval_tool yet. Please call eval_tool with your R code to complete the task. The code must produce a data.frame as output."
+    } else {
+      "The code did not produce a valid data.frame result. Please check the result preview and fix the code, then call eval_tool again."
+    }
+
+    response <- tryCatch(
+      client$chat(retry_msg),
+      error = function(e) {
+        error <<- conditionMessage(e)
+        NULL
+      }
+    )
+
+    extracted <- extract_result()
+    code <- extracted$code
+    result <- extracted$result
+  }
+
+  duration <- as.numeric(difftime(Sys.time(), start, units = "secs"))
+
+  # Get which skills were called
+  skills_called <- skill_tool_obj$get_skills_called()
+
+  cat("\n")
+  cat(strrep("-", 60), "\n")
+  cat("LLM finished in", round(duration, 1), "seconds\n")
+  if (validation_attempt > 0) {
+    cat("  (", validation_attempt, " validation retries)\n", sep = "")
+  }
+  cat("Skills called:", if (length(skills_called) > 0) paste(skills_called, collapse = ", ") else "(none)", "\n")
+  cat(strrep("-", 60), "\n")
+
+  if (is.data.frame(result)) {
+    cat("  Final result: data.frame with", nrow(result), "rows\n")
+  } else {
+    cat("  Final result: NOT a valid data.frame\n")
+  }
+
+  # Detect skill usage in generated code
+  skill_usage <- detect_skill_usage(code)
+
+  list(
+    code = code,
+    result = result,
+    response = response,
+    turns = client$get_turns(),
+    duration_secs = duration,
+    error = error,
+    config = config,
+    prompt = prompt,
+    validation_retries = validation_attempt,
+    variant = "with_skill_tool",
+    skills_available = names(skills),
+    skills_called = skills_called,
+    skill_usage = skill_usage
+  )
 }
