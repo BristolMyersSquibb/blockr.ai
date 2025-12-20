@@ -374,24 +374,24 @@ steps:
 
 | Experiment | Trials | Finding |
 |------------|--------|---------|
-| **mtcars-complex** | A, B, C, D | Validation achieves 100% correctness |
+| **mtcars-complex** | A, B, C, D, E | Deterministic loop 4.3x faster |
 | **rowsum-test** | R1, R2, R3 | Progressive disclosure 2.3x faster |
 
 ## Key Comparisons
 
 | Intervention | Baseline | Optimized | Improvement |
 |--------------|----------|-----------|-------------|
+| Deterministic loop | 39.0s (tools) | 9.1s (no tools) | **4.3x faster** |
 | Validation loop | 40% correct | 100% correct | +60% |
 | Progressive skills | 26.7s | 11.7s | 2.3x faster |
-| Token efficiency | 10,000 tokens | 200 tokens | 50x smaller |
 
 ## Future Work
 
 | Priority | Experiment | Question |
 |----------|------------|----------|
-| 1 | Model comparison | Does gpt-4o need fewer skills/retries? |
-| 2 | Skills + Validation | Do they combine synergistically? |
-| 3 | Larger n | n=20-30 for statistical confidence |
+| 1 | Deterministic + Skills | Can we combine E with skills? |
+| 2 | Complex tasks | Does deterministic work for multi-step? |
+| 3 | Model comparison | Does gpt-4o need fewer iterations? |
 | 4 | Different tasks | Generalize beyond R/dplyr |
 
 ---
@@ -399,24 +399,28 @@ steps:
 # Slide 17: Summary
 
 ## What We Built
-- **Test harness** for LLM tool-calling experiments
-- **Validation loop** ensuring correct output
+- **Test harness** for LLM experiments
+- **Deterministic loop** - system-controlled flow without tools
 - **Progressive skills** (Claude Code-style) for on-demand pattern teaching
 - **Claude-as-judge** for semantic evaluation
-- **Full logging** for debugging
 
 ## Key Findings
 
 | Intervention | Effect |
 |--------------|--------|
-| **Validation loop** | 40% → 100% correctness |
+| **Deterministic loop** | 4.3x faster than tool-based, 100% reliable |
+| **Validation** | 40% → 100% correctness |
 | **Progressive skills** | 2.3x faster, 50x fewer tokens |
 
 ## Recommendations
-1. **Always use validation** - guarantees valid output
-2. **Use progressive disclosure for skills** - scalable, token-efficient
+1. **Use deterministic loop for well-defined tasks** - fastest, simplest
+2. **Use tools only when exploration needed** - adds overhead
 3. **Add skills for known LLM traps** - prevents error loops
 4. **Log everything** - enables debugging and iteration
+
+## The Big Insight
+Tools are not always necessary. For well-defined transformations, a simple
+system-controlled loop is 4x faster and equally reliable.
 
 ---
 
@@ -428,6 +432,7 @@ steps:
 | **Tool calling** | LLM invoking external functions via structured output |
 | **Skill** | Markdown file teaching a specific code pattern |
 | **Progressive disclosure** | Pattern where LLM sees only skill metadata upfront, requests full content on demand |
+| **Deterministic loop** | System-controlled flow: show data → LLM writes code → system runs → iterate until DONE |
 | **skill_tool** | Tool that LLM calls to retrieve full skill content when needed |
 | **Validation loop** | Retry mechanism that ensures LLM produces valid output |
 | **Pass@k** | Probability that at least 1 of k attempts succeeds |
