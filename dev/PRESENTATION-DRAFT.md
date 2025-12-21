@@ -522,6 +522,71 @@ Needs testing to confirm.
 
 ---
 
+# Slide 19: Universal AI Assistant Architecture
+
+## The Shift: From Specialized Blocks to Universal Assistant
+
+**Current**: AI embedded in specific block types (LLM Transform Block)
+**Proposed**: Universal AI assistant that works with ANY block
+
+## Two Entry Points, One Capability
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AI Assistant                             │
+│              (universal, context-aware)                     │
+└─────────────────────────────────────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        ▼                       ▼
+┌───────────────┐       ┌───────────────┐
+│   DAG View    │       │  Block View   │
+│ "Filter and   │       │ "Keep only    │
+│  summarize    │       │  setosa"      │
+│  the data"    │       │      ↓        │
+│      ↓        │       │ Fills this    │
+│ Creates whole │       │ block         │
+│ workflow      │       │               │
+└───────────────┘       └───────────────┘
+```
+
+## What Each Level Does
+
+| Level | Input | Output | Implementation |
+|-------|-------|--------|----------------|
+| **DAG AI** | Problem description | Complete block chain | `discover_block_chain()` |
+| **Block AI** | Task for this block | Filled arguments | `discover_block_args()` |
+
+## The Code Block = Block + AI
+
+The current LLM Transform Block is really:
+
+```
+┌─────────────────┐   ┌─────────────────┐
+│   Code Block    │ + │  AI Assistant   │  =  LLM Transform Block
+│ (executes R)    │   │ (helps write)   │
+└─────────────────┘   └─────────────────┘
+```
+
+This pattern applies to ALL blocks - AI assistant is composable, not built-in.
+
+## Iteration Needs by Block Type
+
+| Block Type | Degrees of Freedom | AI Iterations |
+|------------|-------------------|---------------|
+| filter_block | Low (pick column, values) | 1-2 |
+| summarize_block | Medium (func, cols, grouping) | 2-3 |
+| code_block | Very High (arbitrary R) | 3-5+ |
+
+## Benefits
+
+1. **Reusable**: Same AI works with filter, summarize, code, any block
+2. **Composable**: Blocks don't need AI built-in, it's layered on top
+3. **Two scopes**: DAG-level for big picture, block-level for details
+4. **Simple mental model**: "AI helps me configure things"
+
+---
+
 # Appendix: Glossary
 
 | Term | Definition |
