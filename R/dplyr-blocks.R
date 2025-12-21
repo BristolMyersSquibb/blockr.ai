@@ -29,11 +29,11 @@ get_dplyr_block_info <- function() {
       description = "Keep or drop columns. Use for: selecting specific columns or removing unwanted ones",
       params = "columns: character vector, exclude: TRUE to drop instead of keep"
     ),
-    mutate_block = list(
-      name = "mutate_block",
-      ctor = "new_mutate_block",
-      description = "Add or modify columns. Use for: creating new columns from existing ones (e.g., 'add column hp_per_cyl = hp/cyl')",
-      params = "exprs: named list of R expressions"
+    mutate_expr_block = list(
+      name = "mutate_expr_block",
+      ctor = "new_mutate_expr_block",
+      description = "Add or modify columns using R expressions. Use for: creating new columns from existing ones (e.g., 'add column hp_per_cyl = hp/cyl')",
+      params = "expression: R code as string (e.g., 'hp_per_cyl = hp / cyl')"
     ),
     summarize_block = list(
       name = "summarize_block",

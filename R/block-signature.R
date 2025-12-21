@@ -135,7 +135,7 @@ get_block_example <- function(block_name) {
     new_filter_block = 'list(conditions = list(list(column = "Species", values = "setosa", mode = "include")))',
     new_filter_expr_block = 'list(exprs = "mpg > 20 & cyl == 4")',
     new_select_block = 'list(columns = c("mpg", "cyl", "hp"), exclude = FALSE)',
-    new_mutate_block = 'list(exprs = list(hp_per_cyl = "hp / cyl", is_efficient = "mpg > 25"))',
+    new_mutate_expr_block = 'list(expression = "hp_per_cyl = hp / cyl")',
     new_arrange_block = 'list(columns = list(list(column = "mpg", direction = "desc")))'
   )
   examples[[block_name]]
