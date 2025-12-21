@@ -630,6 +630,119 @@ See Figma for UI explorations. Key patterns to consider:
 
 ---
 
+# Slide 21: Outlook - AI in Workflows
+
+## Two AI Roles in blockr
+
+| Role | What it does | Status |
+|------|--------------|--------|
+| **AI Assistant** | Helps configure blocks/workflows | Prototype built |
+| **AI Decision Block** | Processes data with LLM in the flow | Future work |
+
+## AI Decision Block Concept
+
+A block that uses LLM to enrich/classify data:
+
+```
+[data] → [AI Decision Block] → [enriched data]
+              │
+        "Classify urgency"
+        "Flag anomalies"
+        "Extract entities"
+```
+
+## Example Use Case
+
+**Input:**
+| id | description |
+|----|-------------|
+| 1 | Server is down |
+| 2 | Typo in footer |
+
+**After AI Decision Block** ("classify urgency"):
+| id | description | urgency |
+|----|-------------|---------|
+| 1 | Server is down | high |
+| 2 | Typo in footer | low |
+
+## What's NOT AI (Workflow Automation)
+
+These belong to blockr.workflow, not blockr.ai:
+
+- Scheduling (run daily at 9am)
+- File watchers (run on data update)
+- n8n/Zapier integration
+- Headless execution
+
+The AI Decision Block can be **used in** automated workflows, but automation itself is not an AI feature.
+
+## Summary: blockr.ai Scope
+
+| In Scope | Out of Scope |
+|----------|--------------|
+| AI Assistant (configure) | Scheduling |
+| AI Decision Block (process) | Triggers |
+| Deterministic transform | n8n integration |
+
+---
+
+# Slide 22: Terminology - Assistant vs Agent
+
+## Two Levels of AI Help
+
+| Term | Level | What it does |
+|------|-------|--------------|
+| **AI Assistant** | Block | Helps fill one block's fields |
+| **AI Agent** | Workflow | Plans and builds entire workflows |
+
+## AI Assistant (Block-Level)
+
+```
+User: "Keep only rows where mpg > 20"
+        ↓
+AI fills in filter_block fields
+        ↓
+Done (single block configured)
+```
+
+- Reactive: responds to specific request
+- Bounded: one block at a time
+- User decides which block to use
+
+## AI Agent (Workflow-Level)
+
+```
+User: "Explore this dataset"
+        ↓
+AI plans: summary → distributions → correlations → plots
+        ↓
+AI builds each block, validates, iterates
+        ↓
+Done (complete workflow created)
+```
+
+- Autonomous: decides what blocks to use
+- Multi-step: plans → executes → validates
+- Open-ended: can handle exploratory prompts
+
+## Same Technology, Different Scope
+
+Both use the same underlying capabilities:
+- LLM for understanding intent
+- Block signatures for configuration
+- Headless runner for validation
+
+The difference is **scope and autonomy**:
+
+| Aspect | Assistant | Agent |
+|--------|-----------|-------|
+| Scope | Single block | Entire workflow |
+| Autonomy | User-directed | Self-directed |
+| Planning | None | Multi-step |
+| Prompt style | "Fill this" | "Build me..." |
+
+---
+
 # Appendix: Glossary
 
 | Term | Definition |
