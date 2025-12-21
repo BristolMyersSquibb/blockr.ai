@@ -1317,7 +1317,12 @@ run_experiment <- function(run_fn, prompt, data, output_dir,
     "openai" = function() ellmer::chat_openai(model = model),
     "google" = function() ellmer::chat_google_gemini(model = model),
     "ollama" = function() ellmer::chat_ollama(model = model),
-    stop("Unknown provider: ", provider, ". Use 'openai', 'google', or 'ollama'.")
+    "openwebui" = function() ellmer::chat_openai_compatible(
+      base_url = "https://ai.cynkra.com/api/v1",
+      credentials = function() Sys.getenv("OPENWEBUI_API_KEY"),
+      model = model
+    ),
+    stop("Unknown provider: ", provider, ". Use 'openai', 'google', 'ollama', or 'openwebui'.")
   )
 
   config <- list(
