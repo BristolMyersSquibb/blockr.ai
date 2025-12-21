@@ -116,7 +116,44 @@ Tool-based validation works, but adds overhead. What if we skip tools entirely?
 
 ---
 
-# Slide 6: Deterministic Loop - Model Compatibility
+# Slide 6: Why Deterministic Makes Sense
+
+## Tools Are for Choices
+
+Tools make sense when the LLM needs to **decide** what to do.
+But in code generation, there's no real choice:
+
+| Step | Is there a choice? |
+|------|-------------------|
+| See data first | No - always needed |
+| Run code after writing | No - always validate |
+
+## Tool-Based = False Choice
+
+```
+LLM "decides" to call data_tool    →  Should ALWAYS happen
+LLM "decides" to call eval_tool    →  Should ALWAYS happen
+```
+
+Adds overhead and failure modes for no benefit.
+
+## Better UX When Hitting Limits (Perhaps)
+
+With deterministic flow, we control the conversation:
+
+```
+"I tried 5 times but couldn't get it right.
+Here's what's failing: [specific error]
+
+Options:
+- Try 5 more iterations
+- Help me: did you mean X or Y?
+- Show what I have so far"
+```
+
+---
+
+# Slide 7: Deterministic Loop - Model Compatibility
 
 ## Key Finding: Works with Models that Fail at Tool Calling
 
@@ -141,7 +178,7 @@ Tool-based validation works, but adds overhead. What if we skip tools entirely?
 
 ---
 
-# Slide 7: Skills (Progressive Disclosure)
+# Slide 8: Skills (Progressive Disclosure)
 
 ## What are Skills?
 Markdown files that teach specific coding patterns to avoid LLM traps.
@@ -178,7 +215,7 @@ Common errors that LLMs make consistently:
 
 ---
 
-# Slide 8: Evaluation (Claude-as-Judge)
+# Slide 9: Evaluation (Claude-as-Judge)
 
 ## Traditional Approach
 - Unit tests: `assert sum(pct) == 1.0`
@@ -201,7 +238,7 @@ run_02_a:
 
 ---
 
-# Slide 9: Full Logging
+# Slide 10: Full Logging
 
 Every run saves complete conversation:
 
@@ -223,7 +260,7 @@ steps:
 
 ---
 
-# Slide 10: Local & Open-Source Models
+# Slide 11: Local & Open-Source Models
 
 ## The Promise
 Can we run blockr.ai with local models for privacy/cost savings?
@@ -282,7 +319,7 @@ Needs testing to confirm.
 
 ---
 
-# Slide 11: Universal AI Assistant Architecture
+# Slide 12: Universal AI Assistant Architecture
 
 ## The Shift: From Specialized Blocks to Universal Assistant
 
@@ -347,7 +384,7 @@ This pattern applies to ALL blocks - AI assistant is composable, not built-in.
 
 ---
 
-# Slide 12: Headless Block Execution
+# Slide 13: Headless Block Execution
 
 ## The Key Insight
 
@@ -403,7 +440,7 @@ Same headless execution for all blocks - complexity handled by iteration count.
 
 ---
 
-# Slide 13: AI Assistant UI (Figma Draft)
+# Slide 14: AI Assistant UI (Figma Draft)
 
 ## The Problem
 
@@ -446,7 +483,7 @@ See Figma for UI explorations. Key patterns to consider:
 
 ---
 
-# Slide 14: Outlook - AI in Workflows
+# Slide 15: Outlook - AI in Workflows
 
 ## Two AI Roles in blockr
 
@@ -502,7 +539,7 @@ The AI Decision Block can be **used in** automated workflows, but automation its
 
 ---
 
-# Slide 15: Terminology - Assistant vs Agent
+# Slide 16: Terminology - Assistant vs Agent
 
 ## Two Levels of AI Help
 
