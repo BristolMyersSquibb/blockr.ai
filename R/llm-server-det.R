@@ -188,7 +188,7 @@ llm_block_server_det.default <- function(x) {
             rv_msgs(c(rv_msgs(), list(list(role = "user", content = next_msg))))
 
             rv_iteration(rv_iteration() + 1L)
-            if (rv_iteration() > 5L) {
+            if (rv_iteration() > 10L) {
               rv_cond$error <- "Maximum iterations exceeded without valid code."
               rv_status("error")
               return()
@@ -222,7 +222,7 @@ llm_block_server_det.default <- function(x) {
             rv_msgs(c(rv_msgs(), list(list(role = "user", content = error_msg))))
 
             rv_iteration(rv_iteration() + 1L)
-            if (rv_iteration() > 5L) {
+            if (rv_iteration() > 10L) {
               rv_cond$error <- "Maximum iterations exceeded."
               rv_status("error")
               return()
@@ -256,7 +256,7 @@ llm_block_server_det.default <- function(x) {
             rv_msgs(c(rv_msgs(), list(list(role = "user", content = confirm_msg))))
 
             rv_iteration(rv_iteration() + 1L)
-            if (rv_iteration() > 5L) {
+            if (rv_iteration() > 10L) {
               # Accept the result even if LLM doesn't say DONE
               rv_status("done")
               return()
@@ -281,7 +281,7 @@ llm_block_server_det.default <- function(x) {
             rv_msgs(c(rv_msgs(), list(list(role = "user", content = type_msg))))
 
             rv_iteration(rv_iteration() + 1L)
-            if (rv_iteration() > 5L) {
+            if (rv_iteration() > 10L) {
               rv_cond$error <- "Maximum iterations exceeded."
               rv_status("error")
               return()

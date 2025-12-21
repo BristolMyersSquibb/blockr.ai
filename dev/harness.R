@@ -925,10 +925,27 @@ run_llm_ellmer_with_preview <- function(prompt, data, config) {
   code <- get0("current_code", envir = tool_env, inherits = FALSE)
 
   if (!is.null(code) && nchar(code) > 0) {
-    cat("  Code captured successfully\n")
+    cat("  Code captured from eval_tool\n")
   } else {
-    cat("  No code captured\n")
-    code <- NULL
+    # Fallback: try to extract code from response markdown
+    cat("  No code in eval_tool, checking response markdown...\n")
+    if (!is.null(response)) {
+      # Extract code from ```r ... ``` blocks
+      pattern <- "```[rR]\\s*\\n([\\s\\S]*?)\\n```"
+      matches <- regmatches(response, gregexpr(pattern, response, perl = TRUE))[[1]]
+      if (length(matches) > 0) {
+        # Get last code block
+        last_match <- matches[length(matches)]
+        code <- sub("```[rR]\\s*\\n", "", last_match)
+        code <- sub("\\n```$", "", code)
+        cat("  Code extracted from markdown response\n")
+      } else {
+        cat("  No code found in response\n")
+        code <- NULL
+      }
+    } else {
+      code <- NULL
+    }
   }
 
   result <- NULL
@@ -940,6 +957,11 @@ run_llm_ellmer_with_preview <- function(prompt, data, config) {
         structure(conditionMessage(e), class = "eval_error")
       }
     )
+    if (is.data.frame(result)) {
+      cat("  Final result: data.frame with", nrow(result), "rows\n")
+    } else {
+      cat("  Final result: not a data.frame\n")
+    }
   }
 
   list(
@@ -1293,8 +1315,9 @@ run_experiment <- function(run_fn, prompt, data, output_dir,
   # Create config based on provider
   chat_fn <- switch(provider,
     "openai" = function() ellmer::chat_openai(model = model),
+    "google" = function() ellmer::chat_google_gemini(model = model),
     "ollama" = function() ellmer::chat_ollama(model = model),
-    stop("Unknown provider: ", provider, ". Use 'openai' or 'ollama'.")
+    stop("Unknown provider: ", provider, ". Use 'openai', 'google', or 'ollama'.")
   )
 
   config <- list(
@@ -2057,15 +2080,16 @@ run_llm_deterministic_loop <- function(prompt, data, config,
   # System prompt for deterministic loop
   sys_prompt <- paste0(
     "You are an R code assistant. You write dplyr code to transform data.\n\n",
-    "IMPORTANT RULES:\n",
-    "1. Always prefix dplyr functions: dplyr::filter(), dplyr::mutate(), etc.\n",
-    "2. Always prefix tidyr functions: tidyr::pivot_wider(), etc.\n",
-    "3. Use the native pipe |> (not %>%)\n",
-    "4. Your code must start with a dataset name and produce a data.frame\n",
-    "5. Wrap your R code in ```r ... ``` markdown blocks\n\n",
-    "When you see the result of your code:\n",
-    "- If it's correct, respond with just: DONE\n",
-    "- If it needs fixing, provide corrected code in ```r ... ``` blocks\n"
+    "CRITICAL RULES:\n",
+    "1. NEVER use library()\n",
+    "2. ALWAYS prefix: dplyr::filter(), dplyr::mutate(), dplyr::n(), dplyr::case_when(), dplyr::dense_rank(), dplyr::lag(), etc.\n",
+    "3. ALWAYS prefix: tidyr::pivot_wider(), tidyr::pivot_longer(), etc.\n",
+    "4. Use |> not %>%\n",
+    "5. Code must END with the data expression (no print(), no extra text)\n",
+    "6. Wrap code in ```r ... ``` blocks\n\n",
+    "After seeing results:\n",
+    "- If correct: reply with ONLY the word DONE (outside code block, no code)\n",
+    "- If wrong: provide fixed code in ```r ... ``` block\n"
   )
 
   cat("Creating LLM client...\n")

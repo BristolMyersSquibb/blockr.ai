@@ -222,14 +222,55 @@ Tool-based validation works, but adds overhead. What if we skip tools entirely?
 - System controls flow directly
 - Simpler message structure
 
-## Trade-offs
+## Deterministic Advantages by Task Complexity
+
+| Task Type | Deterministic | Tool-based |
+|-----------|---------------|------------|
+| **Simple** | Faster (no tool overhead) | Overhead from tool calls |
+| **Medium** | Iterates to fix errors | May fail without retry |
+| **Hard** | Fails fast with clear feedback | Fails with less clarity |
+
+## Speed Comparison
+
+| Model | Baseline | Deterministic | Speedup |
+|-------|----------|---------------|---------|
+| **GPT-4o-mini** | 18.5s | 5.2s | **3.6x faster** |
+| **Gemini** | 2s (FAIL) | 2.9s (SUCCESS) | N/A |
+
+## Correctness Comparison (Tricky Calculation)
+
+Prompt: Calculate relative_mpg using OVERALL mean, then rank within GROUPS.
+
+| Approach | Correctness | Why |
+|----------|-------------|-----|
+| **Baseline** | 60% (6/10) | Can't verify if it used correct mean |
+| **Deterministic** | 100% (10/10) | Sees output, can verify and iterate |
+
+The baseline sometimes uses group mean instead of overall mean.
+Since it can't see its output, it doesn't know to correct the mistake.
+
+## Model Compatibility (Key Finding!)
+
+| Model | Tool-based Baseline | Deterministic |
+|-------|---------------------|---------------|
+| **GPT-4o-mini** | ~90% success | ~100% success |
+| **Gemini** | **0% (ignores tools!)** | **100% success** |
+
+**Why Gemini fails with tools**: Gemini doesn't properly invoke the tools.
+It returns text without calling `eval_tool`, so no code is captured.
+
+**Why Deterministic works everywhere**: No tools required.
+Just asks for code directly, extracts from markdown, runs it.
+
+## Trade-offs Summary
 
 | Aspect | Deterministic (E) | Tool-based (D) |
 |--------|-------------------|----------------|
-| Speed | ✓ 4.3x faster | Slower |
-| Reliability | ✓ 100% | ✓ 100% |
+| Speed | ✓ 3-4x faster | Slower (tool overhead) |
+| Reliability | ✓ 100% | ✓ 100% (with validation) |
+| Model support | ✓ Works with all models | ✗ Requires good tool support |
 | Exploration | ✗ Fixed preview only | ✓ Can query data |
-| Complexity | ✓ Simpler | More complex |
+| Failure mode | ✓ Clear error feedback | Less clear |
 | Best for | Well-defined transforms | Exploratory analysis |
 
 ---
@@ -408,19 +449,21 @@ steps:
 
 | Intervention | Effect |
 |--------------|--------|
-| **Deterministic loop** | 4.3x faster than tool-based, 100% reliable |
+| **Deterministic loop** | 3-4x faster than tool-based, 100% reliable |
+| **Model compatibility** | Works with Gemini (0% → 100% success) |
 | **Validation** | 40% → 100% correctness |
 | **Progressive skills** | 2.3x faster, 50x fewer tokens |
 
 ## Recommendations
-1. **Use deterministic loop for well-defined tasks** - fastest, simplest
-2. **Use tools only when exploration needed** - adds overhead
+1. **Use deterministic loop for well-defined tasks** - fastest, simplest, works with all models
+2. **Use tools only when exploration needed** - adds overhead, requires tool-capable models
 3. **Add skills for known LLM traps** - prevents error loops
 4. **Log everything** - enables debugging and iteration
 
 ## The Big Insight
 Tools are not always necessary. For well-defined transformations, a simple
-system-controlled loop is 4x faster and equally reliable.
+system-controlled loop is 3-4x faster, equally reliable, and works with
+models that don't support tool calling (like Gemini).
 
 ---
 

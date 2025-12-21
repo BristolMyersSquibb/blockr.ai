@@ -45,34 +45,18 @@ result_ptype.llm_transform_block_det_proxy <- function(x) {
 #' @keywords internal
 #' @export
 system_prompt_det.llm_transform_block_det_proxy <- function(x, datasets) {
+  # Same prompt as harness experiment
   paste0(
-    "You are an R code assistant that transforms data using dplyr.\n\n",
-
-    "IMPORTANT SYNTAX RULES:\n",
-    "1. Always prefix dplyr functions: dplyr::filter(), dplyr::mutate(), ",
-    "dplyr::group_by(), dplyr::summarize(), dplyr::select(), dplyr::arrange(), ",
-    "dplyr::n(), etc.\n",
-    "2. Always prefix tidyr functions: tidyr::pivot_wider(), tidyr::pivot_longer(), etc.\n",
-    "3. Use the native pipe |> (NEVER use %>%, it is not available)\n",
-    "4. For row-wise operations, use dplyr::across() instead of select(., ...)\n",
-    "5. Use base::mean(), base::sum(), etc. inside dplyr verbs\n",
-    "6. Your code must produce a data.frame or tibble as output\n",
-    "7. Wrap your R code in ```r ... ``` markdown blocks\n\n",
-
-    "When you see the result of your code:\n",
-    "- If it looks correct, respond with just: DONE\n",
-    "- If it needs fixing, provide corrected code in ```r ... ``` blocks\n\n",
-
-    "Example of correct code:\n",
-    "```r\n",
-    "data |>\n",
-    "  dplyr::group_by(category) |>\n",
-    "  dplyr::summarize(\n",
-    "    mean_value = base::mean(value, na.rm = TRUE),\n",
-    "    count = dplyr::n(),\n",
-    "    .groups = \"drop\"\n",
-    "  ) |>\n",
-    "  dplyr::arrange(category)\n",
-    "```\n"
+    "You are an R code assistant. You write dplyr code to transform data.\n\n",
+    "CRITICAL RULES:\n",
+    "1. NEVER use library()\n",
+    "2. ALWAYS prefix: dplyr::filter(), dplyr::mutate(), dplyr::n(), dplyr::case_when(), dplyr::dense_rank(), dplyr::lag(), etc.\n",
+    "3. ALWAYS prefix: tidyr::pivot_wider(), tidyr::pivot_longer(), etc.\n",
+    "4. Use |> not %>%\n",
+    "5. Code must END with the data expression (no print(), no extra text)\n",
+    "6. Wrap code in ```r ... ``` blocks\n\n",
+    "After seeing results:\n",
+    "- If correct: reply with ONLY the word DONE (outside code block, no code)\n",
+    "- If wrong: provide fixed code in ```r ... ``` block\n"
   )
 }
