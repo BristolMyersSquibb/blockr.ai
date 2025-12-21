@@ -467,6 +467,61 @@ models that don't support tool calling (like Gemini).
 
 ---
 
+# Slide 18: Local & Open-Source Models
+
+## The Promise
+Can we run blockr.ai with local models for privacy/cost savings?
+
+## Tested Models (Deterministic Approach)
+
+| Model | Size | Success | Avg Speed | Notes |
+|-------|------|---------|-----------|-------|
+| **GPT-4o-mini** | ~8B (closed) | 100% | 9s | Reference |
+| **gpt-oss:20b** | 20B | 100% | 65s | Works well |
+| **gemma3:12b** | 12B | 100% | 50s | Needs all 5 iterations |
+| gemma3:4b | 4B | 0% | — | Infinite loops |
+| mistral:7b | 7B | 0% | — | Ignores instructions |
+
+## Key Finding: Need 12B+ Parameters
+- **Sub-10B models failed** (0% success on our task)
+- 4B models: Infinite loops, incoherent code structure
+- 7B models: Can't follow namespace rules (`dplyr::`, `|>` not `%>%`)
+- **12B+**: Reliable success (100%)
+
+## Why Deterministic Enables Local Models
+
+| Approach | gpt-oss:20b | Gemini |
+|----------|-------------|--------|
+| Tool-based | **0% (broken)** | **0% (ignores tools)** |
+| Deterministic | **100%** | **100%** |
+
+Many open-source models don't implement tool calling correctly.
+The deterministic approach removes this barrier entirely.
+
+## Models to Evaluate (Future Work)
+
+Code-specialized models *might* work at smaller sizes. Worth testing:
+
+| Model | Size | Why Test |
+|-------|------|----------|
+| **Qwen2.5-Coder** | 7B, 14B, 32B | Best-in-class code model |
+| **DeepSeek-Coder** | 6.7B, 33B | Matches CodeLlama-34B on benchmarks |
+| **StarCoder2** | 15B | Specialized for code |
+
+**Hypothesis**: Code-specialized 7B models may succeed where general-purpose 7B models fail.
+Needs testing to confirm.
+
+## Deployment Trade-offs
+
+| Factor | API (GPT-4o-mini) | Local (gpt-oss:20b) |
+|--------|-------------------|---------------------|
+| **Speed** | 9s | 65s |
+| **Cost** | Per-token pricing | Fixed infrastructure |
+| **Privacy** | Data leaves your network | Data stays local |
+| **Reliability** | Dependent on API | Dependent on hardware |
+
+---
+
 # Appendix: Glossary
 
 | Term | Definition |
