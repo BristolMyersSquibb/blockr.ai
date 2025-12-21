@@ -183,22 +183,45 @@ ai_assist <- function(
 - Call `ai_assist(context = "block", block_ctor = current_block)`
 - Fill block fields with returned args
 
+## UI Design (Figma Draft)
+
+See Figma for UI explorations.
+
+**Figma Prompt Used:**
+
+> **AI Assistant for Data Block Editor**
+>
+> **What we're building:**
+> A data analysis tool where users configure "blocks" (Filter, Summarize, etc.) through form inputs. We want to add an AI assistant that helps users fill these forms using natural language.
+>
+> **The problem:**
+> Users sometimes struggle to configure blocks correctly. We want them to be able to describe what they want in plain English ("keep only rows where Time is greater than 3") and have AI fill the form for them.
+>
+> **What the AI assistant needs to do:**
+> - Be discoverable but not intrusive
+> - Let users type a natural language request
+> - Show when AI is working
+> - Show what changed after AI fills the fields
+> - Allow easy undo
+>
+> **Context:**
+> - This sits inside a block card that already has form fields
+> - Users should ideally see both the AI input and the form
+> - Clean, minimal existing aesthetic
+>
+> **Ask:** Explore UI patterns for integrating this AI assistant into the block. Show a few different approaches.
+
 ## Open Questions
 
-1. **UI Design**: How should the AI input appear in block/DAG views?
-   - Floating chat panel?
-   - Inline text input?
-   - Separate AI mode?
-
-2. **Iteration Control**: Should users see AI iterations or just final result?
+1. **Iteration Control**: Should users see AI iterations or just final result?
    - Show progress for transparency?
    - Hide for simplicity?
 
-3. **Error Handling**: What if AI can't solve the problem?
+2. **Error Handling**: What if AI can't solve the problem?
    - Show best attempt?
    - Ask for clarification?
 
-4. **Model Selection**: Should users be able to choose models?
+3. **Model Selection**: Should users be able to choose models?
    - Power users might want gpt-4o for complex tasks
    - Default to gpt-4o-mini for speed/cost
 

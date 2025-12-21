@@ -587,6 +587,49 @@ This pattern applies to ALL blocks - AI assistant is composable, not built-in.
 
 ---
 
+# Slide 20: Block-Level AI Assistant UI
+
+## The Problem
+
+How do users access the AI assistant within a block?
+
+## UI Requirements
+
+- **Discoverable** but not intrusive
+- Let users type natural language requests
+- Show when AI is working
+- Show what changed after AI fills fields
+- Allow easy undo
+- User should see both AI input and form fields
+
+## Design Exploration (Figma Draft)
+
+See Figma for UI explorations. Key patterns to consider:
+
+| Pattern | Description |
+|---------|-------------|
+| **Header icon** | Sparkle icon next to Input/Output buttons |
+| **Sidebar panel** | Slides in from right, form stays visible |
+| **Top inline input** | Collapsible text field above form |
+| **Floating bubble** | Chat-style popup in corner |
+| **Mode switch** | Toggle between Manual and AI mode |
+
+## Interaction States
+
+1. **Closed** - Just an icon, minimal footprint
+2. **Open** - Text input ready for request
+3. **Loading** - AI is processing
+4. **Success** - Fields filled, highlight changes
+5. **Error** - Show message, allow retry
+
+## Next Steps
+
+- Review Figma explorations
+- User testing on preferred pattern
+- Implement chosen design
+
+---
+
 # Appendix: Glossary
 
 | Term | Definition |
