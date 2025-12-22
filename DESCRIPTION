@@ -27,19 +27,22 @@ Imports:
     blockr.core (>= 0.1.1),
     rlang,
     dplyr,
+    tidyr,
     ellmer (>= 0.3.0),
     shinyAce,
     styler,
     ggplot2,
     gt,
     bslib,
+    bsicons,
     flextable,
     utils,
     tools,
     shinychat (>= 0.2.0.9000),
     btw,
     evaluate,
-    promises
+    promises,
+    jsonlite
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr

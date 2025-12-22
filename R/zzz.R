@@ -7,7 +7,11 @@ register_ai_blocks <- function() {
       "new_llm_flxtbl_block",
       "new_llm_insights_block",
       "new_llm_data_block",
-      "new_filter_block"
+      "new_filter_block",
+      "new_summarize_block",
+      "new_mutate_block",
+      "new_pivot_wider_block",
+      "new_pivot_longer_block"
     ),
     name = c(
       "LLM transform block",
@@ -16,7 +20,11 @@ register_ai_blocks <- function() {
       "LLM flextable block",
       "LLM insights block",
       "LLM data block",
-      "Filter block (AI)"
+      "Filter block (AI)",
+      "Summarize block (AI)",
+      "Mutate block (AI)",
+      "Pivot wider block (AI)",
+      "Pivot longer block (AI)"
     ),
     description = c(
       paste(
@@ -46,6 +54,22 @@ register_ai_blocks <- function() {
       paste(
         "Filter rows by selecting values from columns with AI assistance",
         "for natural language configuration"
+      ),
+      paste(
+        "Summarize data with aggregation functions and grouping with AI",
+        "assistance for natural language configuration"
+      ),
+      paste(
+        "Create or modify columns using R expressions with AI assistance",
+        "for natural language configuration"
+      ),
+      paste(
+        "Reshape data from long to wide format with AI assistance",
+        "for natural language configuration"
+      ),
+      paste(
+        "Reshape data from wide to long format with AI assistance",
+        "for natural language configuration"
       )
     ),
     category = c(
@@ -55,6 +79,10 @@ register_ai_blocks <- function() {
       "table",
       "transform",
       "input",
+      "transform",
+      "transform",
+      "transform",
+      "transform",
       "transform"
     ),
     package = utils::packageName(),

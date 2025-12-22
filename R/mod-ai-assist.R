@@ -54,7 +54,7 @@ mod_ai_assist_ui <- function(
           class = if (collapsed) "ai-chevron" else "ai-chevron rotated",
           "\u203A"
         ),
-        icon("wand-magic-sparkles", class = "ai-icon"),
+        bsicons::bs_icon("stars", class = "ai-icon"),
         span("Ask AI to configure this block")
       ),
 
@@ -70,7 +70,7 @@ mod_ai_assist_ui <- function(
           shinychat::chat_ui(
             ns("chat"),
             width = "100%",
-            height = "200px",
+            height = "auto",
             placeholder = placeholder
           )
         )
@@ -244,18 +244,17 @@ css_ai_assist <- function() {
       padding: 4px 0;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.875rem;
-      color: #5ab4ac;
-      font-weight: 500;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #6c757d;
     }
 
     .ai-assist-toggle:hover {
-      color: #3d8b84;
+      color: #495057;
     }
 
     .ai-icon {
-      font-size: 0.875rem;
+      font-size: 0.75rem;
     }
 
     .ai-chevron {
@@ -284,6 +283,26 @@ css_ai_assist <- function() {
 
     .ai-assist-content {
       padding: 10px 0;
+    }
+
+    /* Make chat start compact and grow with content */
+    .ai-assist-content .chat-container {
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ai-assist-content .chat-messages {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .ai-assist-content .chat-input-container {
+      flex: 0 0 auto;
     }
     "
   ))
