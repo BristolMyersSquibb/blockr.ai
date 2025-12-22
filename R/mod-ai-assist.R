@@ -40,22 +40,25 @@ mod_ai_assist_ui <- function(
         id = ns("toggle"),
         onclick = sprintf(
           "var content = document.getElementById('%s');
+           var icon = this.querySelector('.ai-icon');
            var chevron = this.querySelector('.ai-chevron');
            if (content.classList.contains('ai-collapsed')) {
              content.classList.remove('ai-collapsed');
+             icon.classList.add('ai-active');
              chevron.classList.add('rotated');
            } else {
              content.classList.add('ai-collapsed');
+             icon.classList.remove('ai-active');
              chevron.classList.remove('rotated');
            }",
           ns("content")
         ),
+        bsicons::bs_icon("stars", class = if (collapsed) "ai-icon" else "ai-icon ai-active"),
+        span("AI Assist"),
         tags$span(
           class = if (collapsed) "ai-chevron" else "ai-chevron rotated",
           "\u203A"
-        ),
-        bsicons::bs_icon("stars", class = "ai-icon"),
-        span("Ask AI to configure this block")
+        )
       ),
 
       # Collapsible content
@@ -71,7 +74,8 @@ mod_ai_assist_ui <- function(
             ns("chat"),
             width = "100%",
             height = "auto",
-            placeholder = placeholder
+            placeholder = placeholder,
+            icon_assistant = bsicons::bs_icon("stars", class = "chat-ai-icon")
           )
         )
       )
@@ -119,7 +123,7 @@ mod_ai_assist_server <- function(
     block_name,
     on_apply,
     get_current_args = NULL,
-    model = "gpt-4o-mini",
+    model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
     max_iterations = 5
 ) {
 
@@ -229,9 +233,11 @@ css_ai_assist <- function() {
   tags$style(HTML(
     "
     .ai-assist-section {
+      margin-top: -4px;
       margin-bottom: 15px;
       margin-left: -16px;
       margin-right: -16px;
+      padding-top: 0;
       padding-left: 16px;
       padding-right: 16px;
       border-bottom: 1px solid #dee2e6;
@@ -241,12 +247,13 @@ css_ai_assist <- function() {
     .ai-assist-toggle {
       cursor: pointer;
       user-select: none;
-      padding: 4px 0;
+      padding: 0;
       display: flex;
       align-items: center;
       gap: 6px;
       font-size: 0.8rem;
       color: #6c757d;
+      width: 100%;
     }
 
     .ai-assist-toggle:hover {
@@ -254,12 +261,18 @@ css_ai_assist <- function() {
     }
 
     .ai-icon {
-      font-size: 0.75rem;
+      font-size: 0.85rem;
+      transition: color 0.3s, transform 0.3s;
+    }
+
+    .ai-icon.ai-active {
+      color: #7c3aed;
+      animation: sparkle 0.5s ease-out forwards;
     }
 
     .ai-chevron {
+      margin-left: auto;
       transition: transform 0.2s;
-      display: inline-block;
       font-size: 14px;
       font-weight: bold;
       color: #6c757d;
@@ -267,6 +280,21 @@ css_ai_assist <- function() {
 
     .ai-chevron.rotated {
       transform: rotate(90deg);
+    }
+
+    @keyframes sparkle {
+      0% {
+        transform: scale(1) rotate(0deg);
+        filter: brightness(1);
+      }
+      50% {
+        transform: scale(1.3) rotate(-8deg);
+        filter: brightness(1.5);
+      }
+      100% {
+        transform: scale(1) rotate(0deg);
+        filter: brightness(1);
+      }
     }
 
     .ai-assist-content-wrapper {
@@ -304,6 +332,13 @@ css_ai_assist <- function() {
     .ai-assist-content .chat-input-container {
       flex: 0 0 auto;
     }
+
+    /* Custom assistant icon in chat */
+    .chat-ai-icon {
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
     "
+
   ))
 }

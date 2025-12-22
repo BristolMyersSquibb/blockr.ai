@@ -12,6 +12,17 @@
 library(blockr)
 devtools::load_all()
 
+# Configure AI model (optional)
+# Default is "gpt-4o-mini". Uncomment one of the following to use a different model:
+#
+# options(blockr.ai_model = "gpt-4o-mini")      # OpenAI GPT-4o-mini (fast, cheap) - requires OPENAI_API_KEY
+# options(blockr.ai_model = "gpt-4o")           # OpenAI GPT-4o - requires OPENAI_API_KEY
+# options(blockr.ai_model = "gpt-oss:20b")        # Local model via OpenWebUI (20B) - requires OPENWEBUI_API_KEY
+# options(blockr.ai_model = "gemma3:12b")       # Local Gemma 12B via OpenWebUI - requires OPENWEBUI_API_KEY
+#
+# OpenAI models use OPENAI_API_KEY environment variable
+# OpenWebUI models (with ":" in name) use OPENWEBUI_API_KEY and connect to ai.cynkra.com
+
 cat("\n")
 cat(strrep("=", 70), "\n")
 cat("AI-Assisted Blocks Demo - All 6 Blocks\n")

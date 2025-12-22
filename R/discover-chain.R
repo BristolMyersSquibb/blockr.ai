@@ -25,7 +25,7 @@ discover_block_chain <- function(
   prompt,
   data,
   max_steps = 5,
-  model = "gpt-4o-mini",
+  model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
   verbose = TRUE
 ) {
 
@@ -47,7 +47,7 @@ discover_block_chain <- function(
   sys_prompt <- build_chain_system_prompt(blocks_prompt)
 
   # Create LLM client
-  client <- ellmer::chat_openai(model = model)
+  client <- create_chat_client(model)
   client$set_system_prompt(sys_prompt)
 
   # Track state
