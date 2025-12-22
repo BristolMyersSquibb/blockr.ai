@@ -119,7 +119,7 @@ mod_ai_assist_server <- function(
     block_name,
     on_apply,
     get_current_args = NULL,
-    model = "gpt-4o-mini",
+    model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
     max_iterations = 5
 ) {
 

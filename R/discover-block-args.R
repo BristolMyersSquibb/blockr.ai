@@ -47,7 +47,7 @@ discover_block_args <- function(
   block_ctor,
   block_name = NULL,
   max_iterations = 5,
-  model = "gpt-4o-mini",
+  model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
   verbose = TRUE
 ) {
 
@@ -84,7 +84,7 @@ discover_block_args <- function(
   }
 
   # Create LLM client
-  client <- ellmer::chat_openai(model = model)
+  client <- create_chat_client(model)
   client$set_system_prompt(sys_prompt)
 
   # Track state

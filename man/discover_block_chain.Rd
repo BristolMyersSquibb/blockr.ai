@@ -8,7 +8,7 @@ discover_block_chain(
   prompt,
   data,
   max_steps = 5,
-  model = "gpt-4o-mini",
+  model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
   verbose = TRUE
 )
 }

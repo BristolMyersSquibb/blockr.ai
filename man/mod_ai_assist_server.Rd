@@ -10,7 +10,8 @@ mod_ai_assist_server(
   block_ctor,
   block_name,
   on_apply,
-  model = "gpt-4o-mini",
+  get_current_args = NULL,
+  model = blockr.core::blockr_option("ai_model", "gpt-4o-mini"),
   max_iterations = 5
 )
 }
@@ -34,7 +35,7 @@ Should map args to the block's reactive values.}
 NULL (uses callback for communication)
 }
 \description{
-Server logic for the AI assist module. Handles the "Apply" button click,
+Server logic for the AI assist module. Handles chat messages,
 calls \code{discover_block_args()} to get the correct arguments, and invokes
 the \code{on_apply} callback with the discovered arguments.
 }

@@ -6,26 +6,24 @@
 \usage{
 mod_ai_assist_ui(
   id,
-  placeholder =
-    "Describe what you want... (e.g., keep only rows where Time is greater than 3)",
+  placeholder = "e.g., keep only setosa species",
   collapsed = TRUE
 )
 }
 \arguments{
 \item{id}{Module namespace ID}
 
-\item{placeholder}{Placeholder text for the input field}
+\item{placeholder}{Placeholder text for the chat input}
 
 \item{collapsed}{Logical. If TRUE (default), section starts collapsed}
 }
 \value{
-UI: tagList with collapsible section
+UI: tagList with collapsible chat section
 }
 \description{
 A reusable Shiny module that provides AI-powered argument discovery
-for blockr blocks. Shows a collapsible text input where users can
-describe what they want, and an "Apply" button that uses the LLM
-to figure out the correct block arguments.
+for blockr blocks. Uses shinychat for a conversational interface where
+users can describe what they want in natural language.
 }
 \examples{
 \dontrun{
