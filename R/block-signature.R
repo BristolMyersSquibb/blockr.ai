@@ -136,7 +136,8 @@ get_block_example <- function(block_name) {
     new_filter_expr_block = 'list(exprs = "mpg > 20 & cyl == 4")',
     new_select_block = 'list(columns = c("mpg", "cyl", "hp"), exclude = FALSE)',
     new_mutate_expr_block = 'list(expression = "hp_per_cyl = hp / cyl")',
-    new_arrange_block = 'list(columns = list(list(column = "mpg", direction = "desc")))'
+    new_arrange_block = 'list(columns = list(list(column = "mpg", direction = "desc")))',
+    new_code_block = 'list(code = "data |> dplyr::filter(cyl == 6) |> dplyr::summarize(mean_mpg = mean(mpg))")'
   )
   examples[[block_name]]
 }
@@ -178,6 +179,15 @@ infer_param_description <- function(param_name, default_val) {
   }
   if (param_name == "preserve_order" && is.logical(default_val)) {
     return("If TRUE, preserve the order of selected values")
+  }
+  if (param_name == "code") {
+    return(paste0(
+      "R code as a string. IMPORTANT:\n",
+      "    - The input data is available as `data`\n",
+      "    - Use |> pipe (NOT %>%)\n",
+      "    - Use namespace prefixes: dplyr::filter(), tidyr::pivot_longer(), etc.\n",
+      "    - Code must return a data.frame or tibble"
+    ))
   }
 
   NULL

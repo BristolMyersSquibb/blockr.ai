@@ -265,12 +265,34 @@ build_discovery_system_prompt <- function(block_ctor, block_name) {
     ""
   }
 
+  # Code writing guidelines for code block
+  code_hints <- if (grepl("code_block", block_name, ignore.case = TRUE)) {
+    paste0(
+      "\n\n## Code Writing Guidelines\n\n",
+      "The `code` parameter should contain R code that:\n",
+      "- Starts with `data` (the input data.frame)\n",
+      "- Uses the base R pipe `|>` (NOT magrittr `%>%`)\n",
+      "- Uses namespace prefixes: `dplyr::filter()`, `dplyr::mutate()`, `dplyr::summarize()`, etc.\n",
+      "- Returns a data.frame or tibble\n\n",
+      "Example of good code:\n",
+      "```r\n",
+      "data |>\n",
+      "  dplyr::filter(cyl == 6) |>\n",
+      "  dplyr::mutate(hp_per_cyl = hp / cyl) |>\n",
+      "  dplyr::select(mpg, hp, hp_per_cyl)\n",
+      "```\n"
+    )
+  } else {
+    ""
+  }
+
   paste0(
     "You are helping configure a blockr block. Given a data description and user task,\n",
     "generate R code that creates the correct arguments for the block constructor.\n\n",
     "# Block Information\n\n",
     sig_text,
     funcs,
+    code_hints,
     "\n\n",
     "# Instructions\n\n",
     "1. Output R code wrapped in ```r ... ``` blocks\n",

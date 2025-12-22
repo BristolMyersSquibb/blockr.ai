@@ -11,7 +11,8 @@ register_ai_blocks <- function() {
       "new_summarize_block",
       "new_mutate_block",
       "new_pivot_wider_block",
-      "new_pivot_longer_block"
+      "new_pivot_longer_block",
+      "new_code_block"
     ),
     name = c(
       "LLM transform block",
@@ -24,7 +25,8 @@ register_ai_blocks <- function() {
       "Summarize block (AI)",
       "Mutate block (AI)",
       "Pivot wider block (AI)",
-      "Pivot longer block (AI)"
+      "Pivot longer block (AI)",
+      "Code block (AI)"
     ),
     description = c(
       paste(
@@ -70,6 +72,9 @@ register_ai_blocks <- function() {
       paste(
         "Reshape data from wide to long format with AI assistance",
         "for natural language configuration"
+      ),
+      paste(
+        "Transform data with custom R code and AI-assisted code generation"
       )
     ),
     category = c(
@@ -79,6 +84,7 @@ register_ai_blocks <- function() {
       "table",
       "transform",
       "input",
+      "transform",
       "transform",
       "transform",
       "transform",
