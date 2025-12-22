@@ -163,19 +163,33 @@ discover_block_args <- function(
       next
     }
 
-    if (verbose) cat("  Args created with", length(args), "parameters\n")
+    if (verbose) {
+      cat("  Args created with", length(args), "parameters\n")
+      cat("  Args names:", paste(names(args), collapse = ", "), "\n")
+      cat("  Trying args:", utils::capture.output(str(args, max.level = 2)), "\n")
+    }
 
-    # Run block headlessly to validate
-    block_result <- tryCatch(
-      do.call(run_block_headless, c(list(block_ctor = block_ctor, data = data), args)),
-      error = function(e) {
-        list(success = FALSE, error = conditionMessage(e), result = NULL)
-      }
-    )
+    # Run block headlessly to validate (only if not inside a Shiny app)
+    # testServer cannot be called from within a running Shiny session
+    in_shiny <- !is.null(shiny::getDefaultReactiveDomain())
+
+    if (in_shiny) {
+      # Skip headless validation when running inside Shiny
+      # Just trust the args are correct based on the LLM output
+      if (verbose) cat("  Skipping headless validation (inside Shiny app)\n")
+      block_result <- list(success = TRUE, result = data, error = NULL)
+    } else {
+      block_result <- tryCatch(
+        do.call(run_block_headless, c(list(block_ctor = block_ctor, data = data), args)),
+        error = function(e) {
+          list(success = FALSE, error = conditionMessage(e), result = NULL)
+        }
+      )
+    }
 
     if (!block_result$success) {
-      if (verbose) cat("  Block execution failed\n")
       error_msg <- block_result$error %||% "Block did not produce a valid result"
+      if (verbose) cat("  Block execution failed:", error_msg, "\n")
       current_msg <- paste0(
         "The block execution failed with error:\n\n",
         "```\n", error_msg, "\n```\n\n",

@@ -12,7 +12,10 @@
 #' @importFrom ellmer chat_openai
 #' @importFrom ellmer type_object
 #' @importFrom ellmer type_string
+#' @importFrom glue glue
 #' @importFrom rlang abort
 #' @importFrom rlang names2
+#' @importFrom rlang `%||%`
+#' @importFrom shinyjs useShinyjs hide show enable disable hidden
 #' @importFrom stats setNames
 NULL

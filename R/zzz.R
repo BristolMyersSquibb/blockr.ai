@@ -6,7 +6,8 @@ register_ai_blocks <- function() {
       "new_llm_gt_block",
       "new_llm_flxtbl_block",
       "new_llm_insights_block",
-      "new_llm_data_block"
+      "new_llm_data_block",
+      "new_filter_block"
     ),
     name = c(
       "LLM transform block",
@@ -14,7 +15,8 @@ register_ai_blocks <- function() {
       "LLM gt block",
       "LLM flextable block",
       "LLM insights block",
-      "LLM data block"
+      "LLM data block",
+      "Filter block (AI)"
     ),
     description = c(
       paste(
@@ -40,6 +42,10 @@ register_ai_blocks <- function() {
       paste(
         "Generate data using LLM-generated R code based on natural language",
         "questions"
+      ),
+      paste(
+        "Filter rows by selecting values from columns with AI assistance",
+        "for natural language configuration"
       )
     ),
     category = c(
@@ -48,7 +54,8 @@ register_ai_blocks <- function() {
       "table",
       "table",
       "transform",
-      "input"
+      "input",
+      "transform"
     ),
     package = utils::packageName(),
     overwrite = TRUE
