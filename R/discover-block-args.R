@@ -78,6 +78,10 @@ discover_block_args <- function(
     "\n\nGenerate R code that creates a list called `args` with the correct block parameters."
   )
 
+  # Always show which model is being used
+
+  message("[blockr.ai] Using model: ", model)
+
   if (verbose) {
     cat("System prompt:", nchar(sys_prompt), "chars\n")
     cat("User message:", nchar(user_msg), "chars\n\n")

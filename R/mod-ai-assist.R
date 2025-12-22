@@ -168,6 +168,9 @@ mod_ai_assist_server <- function(
         }
       }
 
+      # Get model at runtime (so option changes are picked up)
+      current_model <- blockr.core::blockr_option("ai_model", "gpt-4o-mini")
+
       # Run discovery (non-streaming)
       result <- tryCatch(
         {
@@ -177,7 +180,7 @@ mod_ai_assist_server <- function(
             block_ctor = block_ctor,
             block_name = block_name,
             max_iterations = max_iterations,
-            model = model,
+            model = current_model,
             verbose = FALSE
           )
         },
