@@ -90,6 +90,12 @@ new_filter_block <- function(
               if (!is.null(args$preserve_order)) {
                 filter_result$set_preserve_order(args$preserve_order)
               }
+            },
+            get_current_args = function() {
+              list(
+                conditions = r_conditions(),
+                preserve_order = r_preserve_order()
+              )
             }
           )
 

@@ -1,15 +1,14 @@
 #' AI Assist Module for Block Argument Discovery
 #'
 #' A reusable Shiny module that provides AI-powered argument discovery
-#' for blockr blocks. Shows a collapsible text input where users can
-#' describe what they want, and an "Apply" button that uses the LLM
-#' to figure out the correct block arguments.
+#' for blockr blocks. Uses shinychat for a conversational interface where
+#' users can describe what they want in natural language.
 #'
 #' @param id Module namespace ID
-#' @param placeholder Placeholder text for the input field
+#' @param placeholder Placeholder text for the chat input
 #' @param collapsed Logical. If TRUE (default), section starts collapsed
 #'
-#' @return UI: tagList with collapsible section
+#' @return UI: tagList with collapsible chat section
 #'
 #' @examples
 #' \dontrun{
@@ -20,7 +19,7 @@
 #' @export
 mod_ai_assist_ui <- function(
     id,
-    placeholder = "Describe what you want... (e.g., keep only rows where Time is greater than 3)",
+    placeholder = "e.g., keep only setosa species",
     collapsed = TRUE
 ) {
   ns <- NS(id)
@@ -51,9 +50,9 @@ mod_ai_assist_ui <- function(
            }",
           ns("content")
         ),
-        span(
+        tags$span(
           class = if (collapsed) "ai-chevron" else "ai-chevron rotated",
-          HTML("&#9654;")
+          "\u203A"
         ),
         icon("wand-magic-sparkles", class = "ai-icon"),
         span("Ask AI to configure this block")
@@ -67,42 +66,12 @@ mod_ai_assist_ui <- function(
         div(
           class = "ai-assist-content",
 
-          # Text input for prompt
-          textAreaInput(
-            ns("prompt"),
-            label = NULL,
-            placeholder = placeholder,
-            rows = 2,
-            width = "100%"
-          ),
-
-          # Apply button + loading indicator
-          div(
-            class = "ai-assist-actions",
-            actionButton(
-              ns("apply"),
-              label = "Apply",
-              class = "btn btn-primary btn-sm ai-apply-btn"
-            ),
-
-            # Loading spinner (hidden by default)
-            shinyjs::hidden(
-              span(
-                id = ns("loading"),
-                class = "ai-assist-loading",
-                icon("spinner", class = "fa-spin"),
-                " Thinking..."
-              )
-            )
-          ),
-
-          # Error message area (hidden by default)
-          shinyjs::hidden(
-            div(
-              id = ns("error"),
-              class = "ai-assist-error",
-              uiOutput(ns("error_msg"))
-            )
+          # Shinychat interface
+          shinychat::chat_ui(
+            ns("chat"),
+            width = "100%",
+            height = "200px",
+            placeholder = placeholder
           )
         )
       )
@@ -113,7 +82,7 @@ mod_ai_assist_ui <- function(
 
 #' AI Assist Module Server
 #'
-#' Server logic for the AI assist module. Handles the "Apply" button click,
+#' Server logic for the AI assist module. Handles chat messages,
 #' calls `discover_block_args()` to get the correct arguments, and invokes
 #' the `on_apply` callback with the discovered arguments.
 #'
@@ -149,65 +118,21 @@ mod_ai_assist_server <- function(
     block_ctor,
     block_name,
     on_apply,
+    get_current_args = NULL,
     model = "gpt-4o-mini",
     max_iterations = 5
 ) {
+
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # State
-    r_loading <- reactiveVal(FALSE)
-    r_error <- reactiveVal(NULL)
+    # Handle chat input
+    observeEvent(input$chat_user_input, {
+      prompt <- input$chat_user_input
 
-    # Update UI based on loading state
-    observe({
-      if (r_loading()) {
-        shinyjs::disable("apply")
-        shinyjs::show("loading")
-      } else {
-        shinyjs::enable("apply")
-        shinyjs::hide("loading")
-      }
-    })
-
-    # Update UI based on error state
-    observe({
-      err <- r_error()
-      if (is.null(err)) {
-        shinyjs::hide("error")
-      } else {
-        shinyjs::show("error")
-      }
-    })
-
-    # Render error message
-    output$error_msg <- renderUI({
-      err <- r_error()
-      if (!is.null(err)) {
-        div(
-          class = "alert alert-warning",
-          role = "alert",
-          err
-        )
-      } else {
-        NULL
-      }
-    })
-
-    # Handle Apply button
-    observeEvent(input$apply, {
-      # Validate prompt
-      prompt <- input$prompt
       if (is.null(prompt) || nchar(trimws(prompt)) == 0) {
-        r_error("Please enter a description of what you want.")
         return()
       }
-
-      # Clear previous error
-      r_error(NULL)
-
-      # Set loading state
-      r_loading(TRUE)
 
       # Get current data
       data <- tryCatch(
@@ -216,39 +141,46 @@ mod_ai_assist_server <- function(
       )
 
       if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
-        r_loading(FALSE)
-        r_error("No data available. Please ensure data is connected to this block.")
+        shinychat::chat_append(
+          "chat",
+          "No data available. Please ensure data is connected to this block.",
+          session = session
+        )
         return()
       }
 
-      message("AI Assist: Got data with ", nrow(data), " rows and ", ncol(data), " columns")
-      message("AI Assist: Columns: ", paste(colnames(data), collapse = ", "))
+      # Build context-aware prompt with current configuration
+      context_prompt <- prompt
 
-      # Run discovery
+      if (!is.null(get_current_args)) {
+        current_args <- tryCatch(get_current_args(), error = function(e) NULL)
+        if (!is.null(current_args) && length(current_args) > 0) {
+          args_text <- paste(capture.output(str(current_args, max.level = 2)), collapse = "\n")
+          context_prompt <- paste0(
+            prompt, "\n\n",
+            "Current block configuration:\n```r\n", args_text, "\n```\n",
+            "Modify the configuration based on the user's request."
+          )
+        }
+      }
+
+      # Run discovery (non-streaming)
       result <- tryCatch(
         {
           discover_block_args(
-            prompt = prompt,
+            prompt = context_prompt,
             data = data,
             block_ctor = block_ctor,
             block_name = block_name,
             max_iterations = max_iterations,
             model = model,
-            verbose = TRUE
+            verbose = FALSE
           )
         },
         error = function(e) {
-          message("AI Assist error: ", conditionMessage(e))
           list(success = FALSE, error = conditionMessage(e))
         }
       )
-
-      # Clear loading state
-      r_loading(FALSE)
-
-      message("AI Assist: Result success = ", result$success)
-      if (!is.null(result$error)) message("AI Assist: Error = ", result$error)
-      if (!is.null(result$args)) message("AI Assist: Args = ", paste(names(result$args), collapse = ", "))
 
       # Handle result
       if (isTRUE(result$success) && !is.null(result$args)) {
@@ -256,17 +188,28 @@ mod_ai_assist_server <- function(
         tryCatch(
           {
             on_apply(result$args)
-            # Clear the prompt on success
-            updateTextAreaInput(session, "prompt", value = "")
+            shinychat::chat_append(
+              "chat",
+              "Done! I've updated the configuration.",
+              session = session
+            )
           },
           error = function(e) {
-            r_error(paste("Failed to apply arguments:", conditionMessage(e)))
+            shinychat::chat_append(
+              "chat",
+              paste("Failed to apply:", conditionMessage(e)),
+              session = session
+            )
           }
         )
       } else {
         # Error - show message
-        error_msg <- result$error %||% "Failed to discover block arguments. Please try rephrasing your request."
-        r_error(error_msg)
+        error_msg <- result$error %||% "I couldn't figure out the right configuration. Could you try rephrasing?"
+        shinychat::chat_append(
+          "chat",
+          error_msg,
+          session = session
+        )
       }
     })
 
@@ -287,14 +230,18 @@ css_ai_assist <- function() {
     "
     .ai-assist-section {
       margin-bottom: 15px;
+      margin-left: -16px;
+      margin-right: -16px;
+      padding-left: 16px;
+      padding-right: 16px;
       border-bottom: 1px solid #dee2e6;
-      padding-bottom: 5px;
+      padding-bottom: 12px;
     }
 
     .ai-assist-toggle {
       cursor: pointer;
       user-select: none;
-      padding: 8px 0;
+      padding: 4px 0;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -314,7 +261,8 @@ css_ai_assist <- function() {
     .ai-chevron {
       transition: transform 0.2s;
       display: inline-block;
-      font-size: 10px;
+      font-size: 14px;
+      font-weight: bold;
       color: #6c757d;
     }
 
@@ -323,7 +271,7 @@ css_ai_assist <- function() {
     }
 
     .ai-assist-content-wrapper {
-      max-height: 300px;
+      max-height: 400px;
       overflow: hidden;
       transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
       opacity: 1;
@@ -336,52 +284,6 @@ css_ai_assist <- function() {
 
     .ai-assist-content {
       padding: 10px 0;
-    }
-
-    .ai-assist-content textarea {
-      font-size: 0.875rem;
-      resize: vertical;
-      min-height: 60px;
-    }
-
-    .ai-assist-content .form-group {
-      margin-bottom: 8px;
-    }
-
-    .ai-assist-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .ai-apply-btn {
-      background-color: #5ab4ac;
-      border-color: #5ab4ac;
-    }
-
-    .ai-apply-btn:hover {
-      background-color: #4a9e97;
-      border-color: #4a9e97;
-    }
-
-    .ai-apply-btn:disabled {
-      background-color: #8fccc6;
-      border-color: #8fccc6;
-    }
-
-    .ai-assist-loading {
-      color: #6c757d;
-      font-size: 0.875rem;
-    }
-
-    .ai-assist-error {
-      margin-top: 10px;
-    }
-
-    .ai-assist-error .alert {
-      padding: 8px 12px;
-      font-size: 0.875rem;
-      margin-bottom: 0;
     }
     "
   ))
