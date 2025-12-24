@@ -20,24 +20,30 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
         function(input, output, session) {
 
           nrw <- reactiveVal(n)
-          til <- reactiveVal(isTRUE(direction == "tail"))
+          dir <- reactiveVal(direction)
 
           observeEvent(input$n, nrw(input$n))
-          observeEvent(input$tail, til(input$tail))
+          observeEvent(input$tail, dir(if (isTRUE(input$tail)) "tail" else "head"))
 
-          observeEvent(
-            nrow(data()),
-            updateNumericInput(
-              inputId = "n",
-              value = nrw(),
-              min = 1L,
-              max = nrow(data())
-            )
+          # Update UI when AI changes values
+          observeEvent(nrw(), updateNumericInput(inputId = "n", value = nrw()))
+          observeEvent(dir(), bslib::update_switch(id = "tail", value = dir() == "tail"))
+
+          observeEvent(nrow(data()), {
+            updateNumericInput(inputId = "n", min = 1L, max = nrow(data()))
+          })
+
+          mod_ai_assist_server(
+            "ai",
+            data = data,
+            args = list(n = nrw, direction = dir),
+            block_ctor = new_head_block,
+            block_name = "new_head_block"
           )
 
           list(
             expr = reactive(
-              if (isTRUE(til())) {
+              if (dir() == "tail") {
                 bbquote(utils::tail(.(data), n = .(n)), list(n = nrw()))
               } else {
                 bbquote(utils::head(.(data), n = .(n)), list(n = nrw()))
@@ -45,7 +51,7 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
             ),
             state = list(
               n = nrw,
-              direction = reactive(if (isTRUE(til())) "tail" else "head")
+              direction = dir
             )
           )
         }
@@ -53,6 +59,7 @@ new_head_block <- function(n = 6L, direction = c("head", "tail"), ...) {
     },
     function(id) {
       tagList(
+        mod_ai_assist_ui(NS(id, "ai"), placeholder = "e.g., show the last 10 rows"),
         numericInput(
           inputId = NS(id, "n"),
           label = "Number of rows",
