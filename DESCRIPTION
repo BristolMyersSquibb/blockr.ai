@@ -32,6 +32,7 @@ Imports:
     styler,
     ggplot2,
     gt,
+    jsonlite,
     bslib,
     flextable,
     utils,
