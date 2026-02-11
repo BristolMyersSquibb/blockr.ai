@@ -32,66 +32,54 @@ ai_ctrl_block <- function() {
 #' @rdname ai_ctrl_block
 #' @export
 ai_ctrl_ui <- function(id, x) {
+  # No UI for blocks without external_ctrl
+  if (length(blockr.core:::block_external_ctrl(x)) == 0) {
+    return(tagList())
+  }
+
   ns <- NS(id)
 
   tagList(
-    tags$style(HTML("
-      .ai-ctrl-section { margin-bottom: 12px; }
-      .ai-ctrl-toggle {
-        cursor: pointer; user-select: none; display: flex;
-        align-items: center; gap: 6px; font-size: 0.8rem; color: #6c757d;
-      }
-      .ai-ctrl-toggle:hover { color: #495057; }
-      .ai-ctrl-content { display: none; padding-top: 8px; }
-      .ai-ctrl-content.expanded { display: block; }
+    css_ai_ctrl(),
+    shinychat::chat_ui(
+      ns("chat"),
+      placeholder = "Describe what you want...",
+      width = "100%",
+      height = "auto",
+      icon_assistant = bsicons::bs_icon("stars")
+    )
+  )
+}
 
-      /* Squared chat input */
-      .ai-ctrl-content shiny-chat-input textarea {
-        border-radius: 6px !important;
-      }
-      .ai-ctrl-content shiny-chat-input textarea:focus {
-        border-color: #7c3aed !important;
-        box-shadow: none !important;
-      }
-      .ai-ctrl-content shiny-chat-input .shiny-chat-btn-send {
-        bottom: 7px !important;
-      }
-
-      /* Squared message bubbles */
-      .ai-ctrl-content shiny-chat-message {
-        border-radius: 6px !important;
-      }
-      .ai-ctrl-content shiny-chat-message[data-role=user] {
-        background-color: rgba(124, 58, 237, 0.1) !important;
-      }
-
-      /* Remove container padding */
-      .ai-ctrl-content shiny-chat-container {
+css_ai_ctrl <- function() {
+  htmltools::htmlDependency(
+    "blockr-ai-ctrl",
+    pkg_version(),
+    src = c(href = ""),
+    head = paste0("<style>",
+      ".blockr-ctrl-body shiny-chat-container {
         --_chat-container-padding: 0;
       }
-    ")),
-
-    div(
-      class = "ai-ctrl-section",
-      div(
-        class = "ai-ctrl-toggle",
-        id = ns("toggle"),
-        onclick = sprintf(
-          "var c = document.getElementById('%s');
-           c.classList.toggle('expanded');
-           this.querySelector('.chevron').textContent =
-             c.classList.contains('expanded') ? '\\u25BC' : '\\u25B6';",
-          ns("content")
-        ),
-        tags$span(class = "chevron", "\u25B6"),
-        "AI Assist"
-      ),
-      div(
-        id = ns("content"),
-        class = "ai-ctrl-content",
-        shinychat::chat_ui(ns("chat"), height = "auto", width = "100%")
-      )
-    )
+      .blockr-ctrl-body shiny-chat-input textarea {
+        border-radius: 6px !important;
+        min-height: 38px !important;
+      }
+      .blockr-ctrl-body shiny-chat-input textarea:focus {
+        border-color: #7c3aed !important;
+        box-shadow: none !important;
+        outline: none !important;
+      }
+      .blockr-ctrl-body shiny-chat-input .shiny-chat-btn-send {
+        bottom: 7px !important;
+      }
+      .blockr-ctrl-body shiny-chat-message[data-role=user] {
+        border-radius: 6px !important;
+        background-color: rgba(124, 58, 237, 0.1) !important;
+      }
+      .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
+        border-radius: 6px !important;
+      }",
+    "</style>")
   )
 }
 
@@ -104,41 +92,95 @@ ai_ctrl_ui <- function(id, x) {
 ai_ctrl_server <- function(id, x, vars, dat, expr) {
   moduleServer(id, function(input, output, session) {
 
+    # Identify which vars are reactiveVals (= block has external_ctrl)
+    ctrl_names <- names(Filter(
+      function(v) inherits(v, "reactiveVal"),
+      vars
+    ))
+
+    # No reactiveVal vars means this block doesn't support external_ctrl.
+    # Return TRUE (no-op) so default block evaluation proceeds normally.
+    if (length(ctrl_names) == 0) {
+      return(reactive(TRUE))
+    }
+
     # Gate controls downstream evaluation
     gate <- reactiveVal(TRUE)
+
+    # Persistent client — created on first prompt, reused for conversation memory
+    client <- NULL
 
     observeEvent(input$chat_user_input, {
       prompt <- input$chat_user_input
       if (is.null(prompt) || nchar(trimws(prompt)) == 0) return()
 
-      # Block downstream eval while working
       gate(FALSE)
+      on.exit(gate(TRUE))
 
-      # Shiny validator: updates vars, then validates
-      shiny_validator <- function(args) {
-        for (nm in names(args)) {
-          if (nm %in% names(vars) && inherits(vars[[nm]], "reactiveVal")) {
-            vars[[nm]](args[[nm]])
-          }
-        }
-        shiny::isolate(blockr.core:::eval_impl(x, expr(), dat()))
+      dat_snapshot <- shiny::isolate(dat())
+      input_data <- if (inherits(dat_snapshot, "dm")) {
+        dat_snapshot
+      } else if (is.list(dat_snapshot) && !is.data.frame(dat_snapshot) &&
+                        length(dat_snapshot) > 0) {
+        dat_snapshot[[1]]
+      } else {
+        dat_snapshot
       }
 
-      # Run LLM discovery loop
-      result <- discover_block_args(
-        prompt = prompt,
-        block = x,
-        data = shiny::isolate(dat()),
-        validate = shiny_validator
-      )
+      # Validator: sets reactiveVals then reads expr() which recomputes lazily.
+      # Rolls back on failure so block state stays valid.
+      eval_validator <- function(args) {
+        # Save state for rollback on failure
+        old <- lapply(ctrl_names, function(nm) shiny::isolate(vars[[nm]]()))
+        names(old) <- ctrl_names
+        for (nm in names(args)) {
+          if (nm %in% ctrl_names) vars[[nm]](args[[nm]])
+        }
+        result <- try(
+          shiny::isolate(blockr.core:::eval_impl(x, expr(), dat_snapshot)),
+          silent = TRUE
+        )
+        if (inherits(result, "try-error")) {
+          # Rollback to previous state
+          for (nm in ctrl_names) vars[[nm]](old[[nm]])
+          stop(attr(result, "condition"))
+        }
+        result
+      }
 
-      # Update gate and notify user
-      gate(result$success)
-      shinychat::chat_append(
-        "chat",
-        if (result$success) "Done!" else paste("Failed:", result$error),
-        session = session
+      # Create client on first prompt, reuse thereafter (R6 reference semantics)
+      if (is.null(client)) {
+        client <<- llm_client()
+        sp <- build_system_prompt(block_ctor_inputs(x), x)
+        client$set_system_prompt(sp)
+      }
+
+      # Snapshot current state for LLM context
+      current_state <- lapply(vars[ctrl_names], function(v) isolate(v()))
+
+      result <- tryCatch(
+        discover_block_args(
+          prompt = prompt,
+          block = x,
+          data = input_data,
+          validate = eval_validator,
+          client = client,
+          current_state = current_state
+        ),
+        error = function(e) {
+          message("[discover] error: ", conditionMessage(e))
+          list(success = FALSE, error = conditionMessage(e))
+        }
       )
+      if (result$success) {
+        shinychat::chat_append("chat", "Done!", session = session)
+      } else {
+        shinychat::chat_append(
+          "chat",
+          paste("Failed:", result$error),
+          session = session
+        )
+      }
     })
 
     reactive(gate())

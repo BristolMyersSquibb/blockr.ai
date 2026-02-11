@@ -5,6 +5,11 @@
 #' @return An ellmer chat client
 #' @noRd
 llm_client <- function(model = blockr.core::blockr_option("ai_model", "gpt-4o-mini")) {
+  message("[discover] client: ", model)
+  chat_fns <- getOption("blockr.chat_function")
+  if (!is.null(chat_fns) && model %in% names(chat_fns)) {
+    return(chat_fns[[model]]())
+  }
   ellmer::chat_openai(model = model)
 }
 
@@ -62,7 +67,14 @@ data_preview <- function(input) {
     return("")
   }
 
-  body <- if (is.data.frame(input)) {
+  body <- if (inherits(input, "dm")) {
+    tbl_names <- names(input)
+    previews <- vapply(tbl_names, function(nm) {
+      paste0("## ", nm, "\n\n", format_df_preview(input[[nm]]))
+    }, character(1))
+    paste0("dm object with ", length(tbl_names), " tables:\n\n",
+           paste(previews, collapse = "\n\n"))
+  } else if (is.data.frame(input)) {
     format_df_preview(input)
   } else if (is.list(input) && length(input) > 0) {
     previews <- vapply(seq_along(input), function(i) {
@@ -95,6 +107,49 @@ format_df_preview <- function(df) {
 }
 
 
+#' Truncate and collapse whitespace for log messages
+#' @param x Character string
+#' @param n Max characters (default 200)
+#' @return Truncated single-line string
+#' @noRd
+truncate_for_log <- function(x, n = 200) {
+  x <- gsub("\\s+", " ", x)
+  if (nchar(x) <= n) x else paste0(substr(x, 1, n), "...")
+}
+
+
+#' Format current block state for LLM prompt
+#' @param state Plain list of current parameter values, or NULL
+#' @return Character string with formatted section, or "" if NULL/empty
+#' @noRd
+format_current_state <- function(state) {
+  if (is.null(state) || length(state) == 0) return("")
+  json <- jsonlite::toJSON(state, auto_unbox = TRUE, pretty = TRUE)
+  paste0("# Current Configuration\n\n```json\n", json, "\n```\n\n")
+}
+
+
+#' Format a block result for LLM confirmation preview
+#' @param result Block evaluation result (data.frame, dm, ggplot, or other)
+#' @return Character string preview
+#' @noRd
+format_result_preview <- function(result) {
+  if (inherits(result, "dm")) {
+    tbl_names <- names(result)
+    lines <- vapply(tbl_names, function(nm) {
+      paste0(nm, ": ", nrow(result[[nm]]), " rows")
+    }, character(1))
+    paste(lines, collapse = "\n")
+  } else if (inherits(result, "ggplot")) {
+    "Plot created successfully"
+  } else if (is.data.frame(result)) {
+    paste(utils::capture.output(print(utils::head(result, 3))), collapse = "\n")
+  } else {
+    paste0(class(result)[1], " object")
+  }
+}
+
+
 #' Build system prompt for block argument discovery
 #' @param var_names Names of controllable variables
 #' @param block Block object for context
@@ -115,7 +170,21 @@ build_system_prompt <- function(var_names, block) {
     paste0("You are configuring a ", block_name, ".\n\n")
   }
 
-  example <- get_block_example(block_name)
+  param_docs_raw <- get_block_param_docs_raw(block_name)
+  param_text <- if (!is.null(param_docs_raw)) {
+    paste0(paste0(names(param_docs_raw), ": ", param_docs_raw, collapse = "\n"), "\n\n")
+  } else {
+    ""
+  }
+
+  block_prompt <- if (!is.null(param_docs_raw)) {
+    p <- attr(param_docs_raw, "prompt")
+    if (!is.null(p)) paste0(p, "\n\n") else ""
+  } else {
+    ""
+  }
+
+  example <- generate_example_json(param_docs_raw)
   example_text <- if (!is.null(example)) {
     paste0("Example:\n```json\n", example, "\n```\n\n")
   } else {
@@ -126,6 +195,8 @@ build_system_prompt <- function(var_names, block) {
     block_context,
     "Return JSON with parameter values.\n\n",
     "Parameters: ", paste(var_names, collapse = ", "), "\n\n",
+    param_text,
+    block_prompt,
     example_text,
     "After seeing the result, respond with just DONE if correct, or provide fixed JSON."
   )
@@ -163,19 +234,41 @@ get_block_registry_info <- function(block_name) {
 }
 
 
-#' Get example JSON for a block type
+#' Get raw parameter documentation vector for a block type
+#'
+#' Returns the named character vector from the registry with attributes intact,
+#' so that `generate_example_json()` can extract `example` attributes.
+#'
 #' @param block_name Name of the block
-#' @return JSON string example or NULL
+#' @return Named character vector (with attributes) or NULL
 #' @noRd
-get_block_example <- function(block_name) {
-  examples <- list(
-    filter_block = '{"conditions": [{"column": "Species", "values": ["setosa"]}]}',
-    summarize_block = '{"summaries": {"mean_val": {"func": "mean", "col": "column_name"}}, "by": ["group_col"]}',
-    summarize_expr_block = '{"exprs": {"mean_val": "mean(column_name)"}, "by": ["group_col"]}',
-    mutate_expr_block = '{"exprs": {"new_col": "old_col * 2"}}',
-    select_block = '{"columns": ["col1", "col2"], "exclude": false}',
-    arrange_block = '{"columns": ["col1", "col2"]}',
-    dataset_block = '{"dataset": "mtcars", "package": "datasets"}'
+get_block_param_docs_raw <- function(block_name) {
+  args <- tryCatch(
+    blockr.core::registry_metadata(block_name, "arguments"),
+    error = function(e) NULL
   )
-  examples[[block_name]]
+  # registry_metadata returns list(value) for list-type fields
+  if (is.list(args) && length(args) == 1L) args <- args[[1L]]
+  if (is.null(args) || length(args) == 0 || is.null(names(args))) {
+    return(NULL)
+  }
+  args
+}
+
+
+#' Generate example JSON from argument attributes
+#'
+#' Reads the `examples` attribute (a named list of R values) from the arguments
+#' vector and converts it to a JSON string via `jsonlite::toJSON()`.
+#'
+#' @param args Named character vector or list with an `examples` attribute
+#'   containing a named list of R values (e.g. `list(columns = list("mpg", "cyl"),
+#'   exclude = FALSE)`).
+#' @return A JSON object string, or NULL if no examples found
+#' @noRd
+generate_example_json <- function(args) {
+  if (is.null(args)) return(NULL)
+  examples <- attr(args, "examples")
+  if (is.null(examples)) return(NULL)
+  jsonlite::toJSON(examples, auto_unbox = TRUE, null = "null")
 }

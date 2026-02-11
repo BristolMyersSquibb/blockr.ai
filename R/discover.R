@@ -6,18 +6,26 @@
 #'
 #' @param prompt User prompt describing what they want (e.g., "setosa only")
 #' @param block A block object (e.g., `new_filter_block()`).
-#' @param data Input data.frame (or NULL for source blocks like dataset_block)
+#' @param data Input data (data.frame, dm, or NULL for source blocks)
 #' @param validate Validation function. If NULL, uses standalone validator
 #'   with testServer (for testing outside of Shiny).
 #' @param max_iter Maximum LLM iterations (default 5)
 #' @param verbose If TRUE, print conversation to console
+#' @param client An existing ellmer chat client to reuse. When NULL (default),
+#'   a new client is created. Pass a persistent client to retain conversation
+#'   memory across multiple calls.
+#' @param current_state Optional plain list of current block parameter values.
+#'   When non-NULL, a "Current Configuration" section is included in the user
+#'   message so the LLM can see what's already configured.
 #'
 #' @return List with:
 #'   \item{success}{TRUE if args were discovered successfully}
 #'   \item{args}{List of discovered arguments}
-#'   \item{result}{The resulting data.frame (if successful)}
+#'   \item{result}{The resulting object: data.frame, dm, ggplot, etc. (if successful)}
 #'   \item{error}{Error message (if failed)}
 #'   \item{conversation}{List of message exchanges (if verbose)}
+#'   \item{client}{The ellmer chat client (R6). Pass to subsequent calls to
+#'     retain conversation memory.}
 #'
 #' @examples
 #' \dontrun{
@@ -37,6 +45,11 @@
 #'   block = new_dataset_block()
 #' )
 #'
+#' # Conversation memory: pass result$client to follow-up calls
+#' r1 <- discover_block_args("use iris", new_dataset_block())
+#' r2 <- discover_block_args("now mtcars", new_dataset_block(),
+#'   client = r1$client)
+#'
 #' # Summarize block
 #' result <- discover_block_args(
 #'   prompt = "average sepal length by species",
@@ -52,10 +65,22 @@ discover_block_args <- function(
     data = NULL,
     validate = NULL,
     max_iter = 5,
-    verbose = FALSE
+    verbose = FALSE,
+    client = NULL,
+    current_state = NULL
 ) {
-  # Get controllable var_names from block's external_ctrl attribute
-  var_names <- attr(block, "external_ctrl")
+  # Get all constructor input names for the LLM prompt
+  var_names <- block_ctor_inputs(block)
+
+  if (length(var_names) == 0) {
+    return(list(
+      success = FALSE,
+      args = NULL,
+      conversation = NULL,
+      result = NULL,
+      error = "Block has no configurable parameters"
+    ))
+  }
 
   # Create standalone validator if none provided
   if (is.null(validate)) {
@@ -71,14 +96,27 @@ discover_block_args <- function(
     }
   }
 
-  client <- llm_client()
-  system_prompt <- build_system_prompt(var_names, block)
-  client$set_system_prompt(system_prompt)
-  log_msg("system", system_prompt)
+  block_name <- class(block)[1]
+
+  # Create new client only if none provided; reuse existing for conversation memory
+  if (is.null(client)) {
+    client <- llm_client()
+    system_prompt <- build_system_prompt(var_names, block)
+    client$set_system_prompt(system_prompt)
+    log_msg("system", system_prompt)
+  }
+
+  state_json <- if (!is.null(current_state) && length(current_state) > 0) {
+    jsonlite::toJSON(current_state, auto_unbox = TRUE)
+  }
+  message("[discover] ", block_name,
+          " | prompt: ", prompt,
+          if (!is.null(state_json)) paste0(" | state: ", state_json) else "")
 
   # Build initial message
   msg <- paste0(
     data_preview(data),
+    format_current_state(current_state),
     "# Task\n\n", prompt,
     "\n\nReturn JSON with parameter values."
   )
@@ -86,17 +124,21 @@ discover_block_args <- function(
   last_error <- NULL
   final_args <- NULL
   final_result <- NULL
+  prev_args <- NULL
 
   for (i in seq_len(max_iter)) {
     log_msg("user", msg)
+    message("[discover] \u2192 ", truncate_for_log(msg))
 
-    response <- tryCatch(client$chat(msg), error = function(e) NULL)
-    if (is.null(response)) {
-      last_error <- "LLM error"
-      break
-    }
+    response <- tryCatch(client$chat(msg), error = function(e) {
+      message("[discover] LLM error: ", conditionMessage(e))
+      last_error <<- paste0("LLM error: ", conditionMessage(e))
+      NULL
+    })
+    if (is.null(response)) break
 
     log_msg("assistant", response)
+    message("[discover] \u2190 ", truncate_for_log(response))
 
     if (is_done_response(response)) break
 
@@ -119,6 +161,18 @@ discover_block_args <- function(
       next
     }
 
+    message("[discover] args: ",
+            jsonlite::toJSON(new_args, auto_unbox = TRUE))
+
+    # Detect identical args sent twice — LLM is stuck, accept current result
+    if (!is.null(prev_args) && identical(new_args, prev_args) &&
+        !is.null(final_result)) {
+      message("[discover] identical args repeated, accepting result")
+      last_error <- NULL
+      break
+    }
+    prev_args <- new_args
+
     # Validate using provided function
     result <- tryCatch({
       validate(new_args)
@@ -127,7 +181,8 @@ discover_block_args <- function(
       NULL
     })
 
-    if (is.null(result) || !is.data.frame(result)) {
+    if (is.null(result)) {
+      message("[discover] validation failed: ", last_error)
       msg <- paste0("Validation failed: ", last_error, "\nPlease fix.")
       next
     }
@@ -135,30 +190,48 @@ discover_block_args <- function(
     # Success - ask for confirmation
     final_args <- new_args
     final_result <- result
-    preview <- paste(utils::capture.output(print(utils::head(result, 3))),
-                     collapse = "\n")
+    preview <- format_result_preview(result)
+    message("[discover] validated: ", truncate_for_log(preview))
     msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
     last_error <- NULL
   }
+
+  message("[discover] done, success: ", is.null(last_error))
 
   list(
     success = is.null(last_error),
     args = final_args,
     conversation = conversation,
     result = final_result,
-    error = last_error
+    error = last_error,
+    client = client
   )
+}
+
+
+# Get constructor input names from a block (excluding ...)
+block_ctor_inputs <- function(x) {
+  ctor <- attr(x, "ctor")
+  if (is.null(ctor)) return(character())
+  setdiff(names(formals(ctor)), "...")
 }
 
 
 # Internal validator factory - takes constructor function
 standalone_validator_internal <- function(ctor, data) {
-  # Get constructor name for building calls (do.call breaks resolve_ctor)
-  ctor_name <- as.name(attr(ctor, "fun"))
+  # Build a package-qualified call (do.call breaks blockr.core's resolve_ctor
+  # which walks the call stack to detect `::`).
+  ctor_fun_name <- attr(ctor, "fun")
+  ctor_pkg_name <- attr(ctor, "pkg")
 
   function(args) {
-    # Build call manually and eval (do.call breaks blockr.core's resolve_ctor)
-    call_expr <- as.call(c(list(ctor_name), args))
+    if (!is.null(ctor_pkg_name)) {
+      # Build pkg::fun(...) call so resolve_ctor can detect the package
+      fn_call <- call("::", as.symbol(ctor_pkg_name), as.symbol(ctor_fun_name))
+      call_expr <- as.call(c(list(fn_call), args))
+    } else {
+      call_expr <- as.call(c(list(as.symbol(ctor_fun_name)), args))
+    }
     test_block <- eval(call_expr)
 
     result <- NULL
@@ -172,7 +245,7 @@ standalone_validator_internal <- function(ctor, data) {
 
     # Use testServer to get proper reactive context
     shiny::testServer(
-      blockr.core:::get_s3_method("block_server", test_block),
+      blockr.core::get_s3_method("block_server", test_block),
       {
         session$flushReact()
         result <<- session$returned$result()
@@ -180,8 +253,8 @@ standalone_validator_internal <- function(ctor, data) {
       args = server_args
     )
 
-    if (is.null(result) || !is.data.frame(result)) {
-      stop("Block evaluation did not return a data.frame")
+    if (is.null(result)) {
+      stop("Block evaluation returned NULL")
     }
 
     result
