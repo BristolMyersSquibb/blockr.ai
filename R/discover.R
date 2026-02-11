@@ -150,7 +150,10 @@ discover_block_args <- function(
 
     # Parse JSON to get args
     new_args <- tryCatch({
-      jsonlite::fromJSON(json_str, simplifyVector = FALSE)
+      parsed <- jsonlite::fromJSON(json_str, simplifyVector = FALSE)
+      # Simplify leaf lists (all-scalar) to vectors so they work as
+      # column subscripts and other places expecting atomic vectors.
+      simplify_leaves(parsed)
     }, error = function(e) {
       last_error <<- conditionMessage(e)
       NULL
@@ -206,6 +209,25 @@ discover_block_args <- function(
     error = last_error,
     client = client
   )
+}
+
+
+# Recursively simplify leaf lists to atomic vectors.
+# A "leaf list" is a list where every element is a scalar (length-1 atomic).
+# Nested structures (like filter conditions) are left as-is.
+simplify_leaves <- function(x) {
+  if (!is.list(x)) return(x)
+  # If every element is a scalar atomic, collapse to a vector
+  if (length(x) > 0 && all(vapply(x, function(el) {
+    is.atomic(el) && length(el) == 1L
+  }, logical(1)))) {
+    return(unlist(x, use.names = FALSE))
+  }
+  # Otherwise recurse into named lists (dict-like structures)
+  if (!is.null(names(x))) {
+    return(lapply(x, simplify_leaves))
+  }
+  x
 }
 
 
