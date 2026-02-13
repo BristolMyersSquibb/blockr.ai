@@ -125,6 +125,7 @@ discover_block_args <- function(
   final_args <- NULL
   final_result <- NULL
   prev_args <- NULL
+  last_message <- NULL
 
   for (i in seq_len(max_iter)) {
     log_msg("user", msg)
@@ -144,8 +145,16 @@ discover_block_args <- function(
 
     json_str <- extract_json(response)
     if (is.null(json_str)) {
-      msg <- "No JSON found. Please return a JSON object like {\"param\": \"value\"}."
-      next
+      # LLM is asking a clarifying question — return it to the caller
+      return(list(
+        success = FALSE,
+        args = final_args,
+        conversation = conversation,
+        result = final_result,
+        error = NULL,
+        question = response,
+        client = client
+      ))
     }
 
     # Parse JSON to get args
@@ -194,6 +203,7 @@ discover_block_args <- function(
     # Success - ask for confirmation
     final_args <- new_args
     final_result <- result
+    last_message <- strip_json_block(response)
     preview <- format_result_preview(result)
     message("[discover] validated: ", truncate_for_log(preview))
     msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
@@ -208,6 +218,7 @@ discover_block_args <- function(
     conversation = conversation,
     result = final_result,
     error = last_error,
+    message = last_message,
     client = client
   )
 }

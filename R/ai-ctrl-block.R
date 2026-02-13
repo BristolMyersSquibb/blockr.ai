@@ -173,7 +173,11 @@ ai_ctrl_server <- function(id, x, vars, dat, expr) {
         }
       )
       if (result$success) {
-        shinychat::chat_append("chat", "Done!", session = session)
+        reply <- if (nzchar(result$message %||% "")) result$message else "Done!"
+        shinychat::chat_append("chat", reply, session = session)
+      } else if (!is.null(result$question)) {
+        # LLM asked a clarifying question — show it in chat
+        shinychat::chat_append("chat", result$question, session = session)
       } else {
         shinychat::chat_append(
           "chat",

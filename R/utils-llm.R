@@ -49,6 +49,30 @@ extract_json <- function(text) {
 }
 
 
+#' Strip JSON code blocks and clean up LLM response for display
+#'
+#' Removes JSON code blocks, sentences that reference JSON/configuration
+#' internals, and trailing LLM pleasantries (e.g. "Let me know if...").
+#' The result is a clean explanation suitable for showing to end users.
+#'
+#' @param text Character string from LLM response
+#' @return Trimmed explanation text (may be empty string)
+#' @noRd
+strip_json_block <- function(text) {
+  # Remove ```json ... ``` blocks
+  out <- gsub("```(?:json)?\\s*\\n[\\s\\S]*?\\n```", "", text, perl = TRUE)
+  # Split into sentences, drop those mentioning JSON or asking to confirm/let know
+  sentences <- strsplit(out, "(?<=[.!?:])\\s*", perl = TRUE)[[1]]
+  keep <- !grepl("\\bJSON\\b", sentences, ignore.case = TRUE) &
+    !grepl("^(If (this|there|you)|Let me know)\\b", sentences, perl = TRUE) &
+    !grepl("\\blet me know\\b", sentences, ignore.case = TRUE)
+  out <- paste(trimws(sentences[keep]), collapse = " ")
+  # Collapse multiple blank lines and trim
+  out <- gsub("\n{3,}", "\n\n", out)
+  trimws(out)
+}
+
+
 #' Create input data preview for LLM prompt
 #'
 #' Handles all input types: NULL, single data.frame, named list (x, y),
@@ -103,7 +127,18 @@ format_df_preview <- function(df) {
   }, character(1))
   cols <- paste0(names(df), " (", col_info, ")", collapse = ", ")
 
-  paste0(nrow(df), " rows x ", ncol(df), " cols: ", cols)
+  header <- paste0(nrow(df), " rows x ", ncol(df), " cols: ", cols)
+
+  # Add sample rows so the LLM can see actual values
+  sample_text <- tryCatch({
+    n_show <- min(5L, nrow(df))
+    if (n_show == 0L) return(header)
+    sample_df <- utils::head(df, n_show)
+    lines <- utils::capture.output(print(sample_df, right = FALSE))
+    paste0("\n\nFirst ", n_show, " rows:\n", paste(lines, collapse = "\n"))
+  }, error = function(e) "")
+
+  paste0(header, sample_text)
 }
 
 
@@ -184,6 +219,15 @@ build_system_prompt <- function(var_names, block) {
     ""
   }
 
+  # Include available helper functions from options (e.g. blockr.topline sets these)
+  helper_fns <- getOption("blockr.dplyr.summary_functions")
+  helper_text <- if (!is.null(helper_fns) && length(helper_fns) > 0) {
+    fn_lines <- paste0("  ", names(helper_fns), ": ", helper_fns, collapse = "\n")
+    paste0("Available helper functions:\n", fn_lines, "\n\n")
+  } else {
+    ""
+  }
+
   example <- generate_example_json(param_docs_raw)
   example_text <- if (!is.null(example)) {
     paste0("Example:\n```json\n", example, "\n```\n\n")
@@ -191,12 +235,29 @@ build_system_prompt <- function(var_names, block) {
     paste0("Return JSON like: {\"", var_names[1], "\": <value>}\n\n")
   }
 
+  ask_back_instructions <- paste0(
+    "IMPORTANT:\n",
+    "- If the user's request is vague or ambiguous (e.g. 'make it better', ",
+    "'fix it', 'clean up', 'summarize the data'), do NOT guess. ",
+    "Ask a specific clarifying question instead.\n",
+    "- If the request is directional but not fully specified (e.g. 'make the font bigger', ",
+    "'reduce the rows'), you MAY pick a reasonable value and return JSON. ",
+    "Only ask back when the request is truly unclear about WHAT to do.\n",
+    "- If the user asks for something this block CANNOT do (e.g. filtering in a formatting block, ",
+    "or adding columns in a display block), explain the limitation clearly and suggest which ",
+    "block type would be appropriate. Do NOT return JSON for impossible operations.\n",
+    "- Only set parameters the user asked about. Leave other parameters at their defaults ",
+    "unless you need to set them for the requested change to work.\n\n"
+  )
+
   paste0(
     block_context,
     "Return JSON with parameter values.\n\n",
     "Parameters: ", paste(var_names, collapse = ", "), "\n\n",
     param_text,
     block_prompt,
+    helper_text,
+    ask_back_instructions,
     example_text,
     "After seeing the result, respond with just DONE if correct, or provide fixed JSON."
   )
