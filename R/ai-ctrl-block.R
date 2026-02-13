@@ -63,6 +63,11 @@ css_ai_ctrl <- function() {
       .blockr-ctrl-body shiny-chat-input textarea {
         border-radius: 6px !important;
         min-height: 38px !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .blockr-ctrl-body shiny-chat-input textarea::-webkit-scrollbar {
+        display: none;
       }
       .blockr-ctrl-body shiny-chat-input textarea:focus {
         border-color: #7c3aed !important;

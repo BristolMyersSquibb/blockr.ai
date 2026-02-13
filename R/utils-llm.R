@@ -61,6 +61,8 @@ extract_json <- function(text) {
 strip_json_block <- function(text) {
   # Remove ```json ... ``` blocks
   out <- gsub("```(?:json)?\\s*\\n[\\s\\S]*?\\n```", "", text, perl = TRUE)
+  # Remove raw JSON objects (balanced braces)
+  out <- remove_raw_json(out)
   # Split into sentences, drop those mentioning JSON or asking to confirm/let know
   sentences <- strsplit(out, "(?<=[.!?:])\\s*", perl = TRUE)[[1]]
   keep <- !grepl("\\bJSON\\b", sentences, ignore.case = TRUE) &
@@ -70,6 +72,38 @@ strip_json_block <- function(text) {
   # Collapse multiple blank lines and trim
   out <- gsub("\n{3,}", "\n\n", out)
   trimws(out)
+}
+
+
+#' Remove raw JSON objects from text using balanced-brace matching
+#' @param text Character string
+#' @return Text with JSON objects removed
+#' @noRd
+remove_raw_json <- function(text) {
+  # Walk through the string, tracking brace depth to find top-level { ... }
+  chars <- strsplit(text, "")[[1]]
+  n <- length(chars)
+  if (n == 0) return(text)
+  keep <- rep(TRUE, n)
+  i <- 1L
+  while (i <= n) {
+    if (chars[i] == "{") {
+      depth <- 1L
+      start <- i
+      i <- i + 1L
+      while (i <= n && depth > 0L) {
+        if (chars[i] == "{") depth <- depth + 1L
+        else if (chars[i] == "}") depth <- depth - 1L
+        i <- i + 1L
+      }
+      if (depth == 0L) {
+        keep[start:(i - 1L)] <- FALSE
+      }
+    } else {
+      i <- i + 1L
+    }
+  }
+  paste(chars[keep], collapse = "")
 }
 
 
