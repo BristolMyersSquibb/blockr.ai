@@ -160,7 +160,8 @@ discover_block_args <- function(
     })
 
     if (is.null(new_args) || !is.list(new_args)) {
-      msg <- paste0("Error: ", last_error %||% "Invalid JSON")
+      last_error <- last_error %||% "Invalid JSON"
+      msg <- paste0("Error: ", last_error)
       next
     }
 
@@ -214,18 +215,20 @@ discover_block_args <- function(
 
 # Recursively simplify leaf lists to atomic vectors.
 # A "leaf list" is a list where every element is a scalar (length-1 atomic).
-# Nested structures (like filter conditions) are left as-is.
+# Named lists (JSON objects) always recurse — only unnamed lists (JSON arrays)
+# are collapsed to vectors. This preserves the top-level dict structure for
+# single-parameter blocks like function_block ({"fn": "..."}).
 simplify_leaves <- function(x) {
   if (!is.list(x)) return(x)
-  # If every element is a scalar atomic, collapse to a vector
+  # Named lists: always recurse into children (never collapse the dict itself)
+  if (!is.null(names(x))) {
+    return(lapply(x, simplify_leaves))
+  }
+  # Unnamed lists where every element is scalar atomic: collapse to vector
   if (length(x) > 0 && all(vapply(x, function(el) {
     is.atomic(el) && length(el) == 1L
   }, logical(1)))) {
     return(unlist(x, use.names = FALSE))
-  }
-  # Otherwise recurse into named lists (dict-like structures)
-  if (!is.null(names(x))) {
-    return(lapply(x, simplify_leaves))
   }
   x
 }
