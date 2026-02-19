@@ -172,7 +172,54 @@ format_df_preview <- function(df) {
     paste0("\n\nFirst ", n_show, " rows:\n", paste(lines, collapse = "\n"))
   }, error = function(e) "")
 
-  paste0(header, sample_text)
+  # Add per-column unique value summaries (crucial for value-based filters)
+  col_summary <- tryCatch(format_column_summaries(df), error = function(e) "")
+
+  paste0(header, sample_text, col_summary)
+}
+
+
+#' Format per-column summaries showing unique values
+#'
+#' For columns with few unique values (<= 50), lists all unique values.
+#' For high-cardinality columns, shows count and range.
+#'
+#' @param df A data.frame
+#' @param max_unique Maximum unique values to list per column (default 50)
+#' @return Character string with summary section, or ""
+#' @noRd
+format_column_summaries <- function(df, max_unique = 50L) {
+  if (ncol(df) == 0L || nrow(df) == 0L) return("")
+
+  lines <- vapply(names(df), function(nm) {
+    vals <- df[[nm]]
+    uvals <- unique(vals[!is.na(vals)])
+    n_unique <- length(uvals)
+    n_na <- sum(is.na(vals))
+
+    if (is.numeric(uvals)) {
+      uvals <- sort(uvals)
+    } else {
+      uvals <- sort(as.character(uvals))
+    }
+
+    na_note <- if (n_na > 0L) paste0(" (", n_na, " NA)") else ""
+
+    if (n_unique <= max_unique) {
+      val_str <- paste(uvals, collapse = ", ")
+      paste0("  ", nm, ": ", n_unique, " unique", na_note, ": ", val_str)
+    } else {
+      rng <- if (is.numeric(uvals)) {
+        paste0("range ", min(uvals), " to ", max(uvals))
+      } else {
+        ""
+      }
+      paste0("  ", nm, ": ", n_unique, " unique", na_note,
+             if (nzchar(rng)) paste0(", ", rng) else "")
+    }
+  }, character(1))
+
+  paste0("\n\nColumn values:\n", paste(lines, collapse = "\n"))
 }
 
 
