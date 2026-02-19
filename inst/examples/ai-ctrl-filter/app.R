@@ -4,9 +4,9 @@
 # Start the app, expand "AI Assist" on the filter block,
 # and type e.g. "only setosa" or "sepal length above 5".
 
-pkgload::load_all("../blockr.core")
-pkgload::load_all("../blockr.dplyr")
-pkgload::load_all("../blockr.ai")
+pkgload::load_all("blockr.core")
+pkgload::load_all("blockr.dplyr")
+pkgload::load_all("blockr.ai")
 
 serve(
   new_board(

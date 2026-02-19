@@ -33,7 +33,7 @@ ai_ctrl_block <- function() {
 #' @export
 ai_ctrl_ui <- function(id, x) {
   # No UI for blocks without external_ctrl
-  if (length(blockr.core:::block_external_ctrl(x)) == 0) {
+  if (length(blockr.core:::block_external_ctrl_vars(x)) == 0) {
     return(tagList())
   }
 
@@ -89,19 +89,17 @@ css_ai_ctrl <- function() {
 }
 
 
-#' @param vars Reactive state values
-#' @param dat Reactive input data
-#' @param expr Reactive block expression
+#' @param vars Reactive state values (pre-filtered to externally controllable vars)
+#' @param data Input data as list of reactive values
+#' @param eval Reactive that evaluates block expression against input data
 #' @rdname ai_ctrl_block
 #' @export
-ai_ctrl_server <- function(id, x, vars, dat, expr) {
+ai_ctrl_server <- function(id, x, vars, data, eval) {
   moduleServer(id, function(input, output, session) {
 
-    # Identify which vars are reactiveVals (= block has external_ctrl)
-    ctrl_names <- names(Filter(
-      function(v) inherits(v, "reactiveVal"),
-      vars
-    ))
+    # vars is now pre-filtered by blockr.core to only externally controllable
+    # reactiveVal entries
+    ctrl_names <- names(vars)
 
     # No reactiveVal vars means this block doesn't support external_ctrl.
     # Return TRUE (no-op) so default block evaluation proceeds normally.
@@ -122,7 +120,7 @@ ai_ctrl_server <- function(id, x, vars, dat, expr) {
       gate(FALSE)
       on.exit(gate(TRUE))
 
-      dat_snapshot <- shiny::isolate(dat())
+      dat_snapshot <- shiny::isolate(data())
       input_data <- if (inherits(dat_snapshot, "dm")) {
         dat_snapshot
       } else if (is.list(dat_snapshot) && !is.data.frame(dat_snapshot) &&
@@ -141,10 +139,7 @@ ai_ctrl_server <- function(id, x, vars, dat, expr) {
         for (nm in names(args)) {
           if (nm %in% ctrl_names) vars[[nm]](args[[nm]])
         }
-        result <- try(
-          shiny::isolate(blockr.core:::eval_impl(x, expr(), dat_snapshot)),
-          silent = TRUE
-        )
+        result <- try(shiny::isolate(eval()), silent = TRUE)
         if (inherits(result, "try-error")) {
           # Rollback to previous state
           for (nm in ctrl_names) vars[[nm]](old[[nm]])

@@ -3,8 +3,8 @@
 # A single dataset block with AI control. Start the app, expand "AI Assist",
 # and type e.g. "use mtcars" or "switch to CO2" to reconfigure the block.
 
-pkgload::load_all("../blockr.core")
-pkgload::load_all("../blockr.ai")
+pkgload::load_all("blockr.core")
+pkgload::load_all("blockr.ai")
 
 serve(
   new_board(

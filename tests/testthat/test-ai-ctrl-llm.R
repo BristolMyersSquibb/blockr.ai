@@ -17,9 +17,12 @@ test_that("ai_ctrl_server reconfigures dataset block to cars", {
   # Construct the same reactive args that block_server passes to ctrl_block servers
   dataset_rv <- shiny::reactiveVal("iris")
   vars <- list(dataset = dataset_rv)
-  dat  <- shiny::reactive(list())
-  expr <- shiny::reactive({
-    as.call(c(as.symbol("::"), quote(datasets), as.name(dataset_rv())))
+  data <- shiny::reactive(list())
+  eval <- shiny::reactive({
+    eval(
+      as.call(c(as.symbol("::"), quote(datasets), as.name(dataset_rv()))),
+      blockr.core::eval_env(list())
+    )
   })
 
   shiny::testServer(
@@ -32,7 +35,7 @@ test_that("ai_ctrl_server reconfigures dataset block to cars", {
       # Verify the reactiveVal was updated by ai_ctrl_server
       expect_equal(dataset_rv(), "cars")
     },
-    args = list(x = blk, vars = vars, dat = dat, expr = expr)
+    args = list(x = blk, vars = vars, data = data, eval = eval)
   )
 })
 
@@ -54,9 +57,12 @@ test_that("ai_ctrl_server reconfigures filter block to setosa only", {
   conditions_rv <- shiny::reactiveVal(list())
   preserve_order_rv <- shiny::reactiveVal(FALSE)
   vars <- list(conditions = conditions_rv, preserve_order = preserve_order_rv)
-  dat  <- shiny::reactive(list(data = iris))
-  expr <- shiny::reactive({
-    blockr.dplyr:::parse_value_filter(conditions_rv(), preserve_order = preserve_order_rv())
+  data <- shiny::reactive(list(data = iris))
+  eval <- shiny::reactive({
+    expr <- blockr.dplyr:::parse_value_filter(
+      conditions_rv(), preserve_order = preserve_order_rv()
+    )
+    blockr.core:::eval_impl(blk, expr, list(data = iris))
   })
 
   shiny::testServer(
@@ -72,11 +78,11 @@ test_that("ai_ctrl_server reconfigures filter block to setosa only", {
       expect_true("setosa" %in% conds[[1]]$values)
 
       # Verify expression evaluates to filtered data
-      result <- eval(expr(), blockr.core::eval_env(list(data = iris)))
+      result <- shiny::isolate(eval())
       expect_equal(nrow(result), 50)
       expect_true(all(result$Species == "setosa"))
     },
-    args = list(x = blk, vars = vars, dat = dat, expr = expr)
+    args = list(x = blk, vars = vars, data = data, eval = eval)
   )
 })
 
@@ -98,17 +104,16 @@ test_that("ai_ctrl_server works with exprs_to_lang chain (like live app)", {
   conditions_rv <- shiny::reactiveVal(list())
   preserve_order_rv <- shiny::reactiveVal(FALSE)
   vars <- list(conditions = conditions_rv, preserve_order = preserve_order_rv)
-  dat  <- shiny::reactive(list(data = iris))
+  data <- shiny::reactive(list(data = iris))
 
-  # Match the live app chain: lang <- reactive(exprs_to_lang(exp$expr()))
-  # In the live app, expr passed to ctrl_block_server is `lang`, not the raw
-  # expression. exprs_to_lang wraps the expression in a `{` call when needed.
-  expr <- shiny::reactive({
+  # Match the live app chain: the eval reactive now wraps exprs_to_lang + eval_impl
+  eval <- shiny::reactive({
     raw <- blockr.dplyr:::parse_value_filter(
       conditions_rv(),
       preserve_order = preserve_order_rv()
     )
-    blockr.core:::exprs_to_lang(raw)
+    lang <- blockr.core:::exprs_to_lang(raw)
+    blockr.core:::eval_impl(blk, lang, list(data = iris))
   })
 
   shiny::testServer(
@@ -124,12 +129,10 @@ test_that("ai_ctrl_server works with exprs_to_lang chain (like live app)", {
       expect_true("setosa" %in% conds[[1]]$values)
 
       # Verify expression evaluates to filtered data via eval_impl
-      result <- shiny::isolate(
-        blockr.core:::eval_impl(blk, expr(), list(data = iris))
-      )
+      result <- shiny::isolate(eval())
       expect_equal(nrow(result), 50)
       expect_true(all(result$Species == "setosa"))
     },
-    args = list(x = blk, vars = vars, dat = dat, expr = expr)
+    args = list(x = blk, vars = vars, data = data, eval = eval)
   )
 })
