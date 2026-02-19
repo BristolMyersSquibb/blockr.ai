@@ -331,14 +331,24 @@ build_system_prompt <- function(var_names, block) {
     "unless you need to set them for the requested change to work.\n\n"
   )
 
+  response_format <- paste0(
+    "RESPONSE FORMAT:\n",
+    "Always include a brief explanation BEFORE the JSON block. ",
+    "The explanation is shown to the user in the chat — the JSON is not.\n",
+    "- State what you understood from the request\n",
+    "- Describe the key choices you made (e.g. which column, which values, why)\n",
+    "- Keep it to 1-2 sentences\n\n",
+    "Then provide the JSON in a ```json code block.\n\n"
+  )
+
   paste0(
     block_context,
-    "Return JSON with parameter values.\n\n",
     "Parameters: ", paste(var_names, collapse = ", "), "\n\n",
     param_text,
     block_prompt,
     helper_text,
     ask_back_instructions,
+    response_format,
     example_text,
     "After seeing the result, respond with just DONE if correct, or provide fixed JSON."
   )

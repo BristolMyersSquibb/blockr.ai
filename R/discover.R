@@ -118,7 +118,7 @@ discover_block_args <- function(
     data_preview(data),
     format_current_state(current_state),
     "# Task\n\n", prompt,
-    "\n\nReturn JSON with parameter values."
+    "\n\nExplain your approach briefly, then provide JSON."
   )
 
   last_error <- NULL
