@@ -39,14 +39,25 @@ ai_ctrl_ui <- function(id, x) {
 
   ns <- NS(id)
 
+  chat_id <- ns("chat")
+
   tagList(
     css_ai_ctrl(),
     shinychat::chat_ui(
-      ns("chat"),
+      chat_id,
       placeholder = "Describe what you want...",
       width = "100%",
       height = "auto",
       icon_assistant = bsicons::bs_icon("stars")
+    ),
+    tags$div(
+      style = "text-align: right; padding: 4px 0;",
+      tags$a(
+        href = "#",
+        class = "blockr-report-conversation",
+        onclick = sprintf("blockrReportConversation('%s'); return false;", chat_id),
+        "Report"
+      )
     )
   )
 }
@@ -83,8 +94,47 @@ css_ai_ctrl <- function() {
       }
       .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
+      }
+      .blockr-report-conversation {
+        font-size: 0.75em;
+        color: #adb5bd;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .blockr-report-conversation:hover {
+        color: #7c3aed;
       }",
-    "</style>")
+    "</style>",
+    "<script>",
+    "Shiny.addCustomMessageHandler('blockr-report-data', function(data) {
+      window._blockrReports = window._blockrReports || {};
+      window._blockrReports[data.chatId] = window._blockrReports[data.chatId] || [];
+      window._blockrReports[data.chatId].push(data.entry);
+    });
+    function blockrReportConversation(chatId) {
+      var entries = (window._blockrReports || {})[chatId] || [];
+      if (entries.length === 0) return;
+      var parts = [];
+      entries.forEach(function(entry, i) {
+        var section = ['--- Prompt: ' + (entry.prompt || '') + ' ---'];
+        (entry.conversation || []).forEach(function(m) {
+          section.push('[' + (m.role || '').toUpperCase() + '] ' + (m.content || ''));
+        });
+        section.push('Result: success=' + entry.success +
+          ', args=' + (entry.args || 'null') +
+          ', error=' + (entry.error || 'none'));
+        parts.push(section.join('\\n'));
+      });
+      var body = parts.join('\\n\\n');
+      if (body.length > 1800) {
+        body = body.substring(0, 1800) + '\\n\\n[truncated]';
+      }
+      var mailto = 'mailto:contact@cynkra.com'
+        + '?subject=' + encodeURIComponent('blockr AI conversation report')
+        + '&body=' + encodeURIComponent(body);
+      window.location.href = mailto;
+    }",
+    "</script>")
   )
 }
 
@@ -165,13 +215,28 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           data = input_data,
           validate = eval_validator,
           client = client,
-          current_state = current_state
+          current_state = current_state,
+          verbose = TRUE
         ),
         error = function(e) {
           message("[discover] error: ", conditionMessage(e))
           list(success = FALSE, error = conditionMessage(e))
         }
       )
+
+      report_data <- list(
+        prompt = prompt,
+        success = result$success,
+        args = if (!is.null(result$args)) jsonlite::toJSON(result$args, auto_unbox = TRUE) else NULL,
+        error = result$error,
+        conversation = lapply(result$conversation %||% list(), function(m) {
+          list(role = m$role, content = m$content)
+        })
+      )
+      session$sendCustomMessage("blockr-report-data", list(
+        chatId = session$ns("chat"),
+        entry = report_data
+      ))
       if (result$success) {
         reply <- if (nzchar(result$message %||% "")) result$message else "Done!"
         shinychat::chat_append("chat", reply, session = session)
