@@ -207,11 +207,14 @@ manual_backend_structured <- function(max_probes, probe_count_env) {
 data_backend_tools <- function(
     max_probes = blockr.core::blockr_option("max_data_probes", 3L)
 ) {
+  tool_ref <- NULL
+
   setup <- function(client, data) {
     datasets <- normalize_datasets(data)
     if (length(datasets) == 0L) return(NULL)
 
     tool <- new_data_tool(NULL, datasets, max_probes = max_probes)
+    tool_ref <<- tool
     client$set_tools(list(get_tool(tool)))
 
     tool_prompt <- get_prompt(tool)
@@ -223,7 +226,10 @@ data_backend_tools <- function(
   list(
     setup = setup,
     process = function(response, data) NULL,
-    probes_used = function() NA_integer_
+    probes_used = function() {
+      if (is.null(tool_ref)) return(NA_integer_)
+      tool_ref$probes_used()
+    }
   )
 }
 

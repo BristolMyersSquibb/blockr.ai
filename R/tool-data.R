@@ -3,10 +3,12 @@ new_data_tool <- function(x, datasets,
                           ...) {
 
   invocation_count <- 0
+  total_probes <- 0L
 
   execute_r_code <- function(code) {
 
     invocation_count <<- invocation_count + 1
+    total_probes <<- total_probes + 1L
 
     code <- paste(code, collapse = "\n")
 
@@ -37,7 +39,7 @@ new_data_tool <- function(x, datasets,
     utils::capture.output(evaluate::replay(res))
   }
 
-  new_llm_tool(
+  tool <- new_llm_tool(
     execute_r_code,
     description = paste(
       "Run arbitrary R code to explore input datasets. Datasets are available",
@@ -59,4 +61,8 @@ new_data_tool <- function(x, datasets,
       )
     )
   )
+
+  tool$probes_used <- function() total_probes
+
+  tool
 }

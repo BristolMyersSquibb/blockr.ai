@@ -185,9 +185,16 @@ test_that("none backend probes_used returns 0", {
   expect_equal(be$probes_used(), 0L)
 })
 
-test_that("tools backend probes_used returns NA", {
+test_that("tools backend probes_used returns NA before setup", {
   be <- data_backend_tools()
   expect_true(is.na(be$probes_used()))
+})
+
+test_that("tools backend probes_used returns 0 after setup", {
+  be <- data_backend_tools()
+  mock_client <- list(set_tools = function(tools) NULL)
+  be$setup(mock_client, data.frame(x = 1))
+  expect_equal(be$probes_used(), 0L)
 })
 
 

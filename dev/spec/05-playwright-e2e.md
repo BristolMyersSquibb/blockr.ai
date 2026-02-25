@@ -45,7 +45,7 @@ Use absolute paths for `pkgload::load_all()` — relative paths resolve
 from the app file's directory, not the working directory.
 
 ```r
-# inst/examples/ai-ctrl-crossfilter/app.R
+# dev/examples/ai-ctrl-crossfilter/app.R
 pkgload::load_all("/Users/.../blockr.core")
 pkgload::load_all("/Users/.../blockr.dm")
 pkgload::load_all("/Users/.../blockr.ai")
