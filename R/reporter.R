@@ -115,6 +115,12 @@ reporter_shiny <- function(chat_id, session) {
     }
   }
 
+  scroll_to_bottom <- function() {
+    session$sendCustomMessage("blockr-scroll-chat", list(
+      chatId = session$ns(chat_id)
+    ))
+  }
+
   render <- function() {
     ensure_open()
     if (is.null(active_label)) {
@@ -144,6 +150,7 @@ reporter_shiny <- function(chat_id, session) {
     start_phase = function(phase, detail = NULL) {
       active_label <<- phase_label(phase, detail)
       render()
+      scroll_to_bottom()
     },
     update = function(text) {},
     end_phase = function(phase, result = NULL) {

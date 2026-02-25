@@ -145,12 +145,11 @@ css_ai_ctrl <- function() {
     "Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
       var container = document.getElementById(data.chatId);
       if (!container) return;
-      var messages = container.querySelector('shiny-chat-messages');
-      if (messages) {
-        setTimeout(function() {
-          messages.scroll({ top: messages.scrollHeight, behavior: 'smooth' });
-        }, 100);
-      }
+      var input = container.querySelector('shiny-chat-input');
+      var target = input || container;
+      setTimeout(function() {
+        target.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }, 100);
     });
     Shiny.addCustomMessageHandler('blockr-report-data', function(data) {
       window._blockrReports = window._blockrReports || {};
