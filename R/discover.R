@@ -17,6 +17,9 @@
 #' @param current_state Optional plain list of current block parameter values.
 #'   When non-NULL, a "Current Configuration" section is included in the user
 #'   message so the LLM can see what's already configured.
+#' @param reporter A progress reporter list (see [reporter_silent],
+#'   [reporter_console], [reporter_shiny]). When NULL (default), auto-detects:
+#'   console if interactive, silent otherwise.
 #'
 #' @return List with:
 #'   \item{success}{TRUE if args were discovered successfully}
@@ -68,8 +71,11 @@ discover_block_args <- function(
     verbose = FALSE,
     client = NULL,
     current_state = NULL,
-    data_exploration = blockr.core::blockr_option("data_exploration", "none")
+    data_exploration = blockr.core::blockr_option("data_exploration", "none"),
+    reporter = NULL
 ) {
+  if (is.null(reporter)) reporter <- auto_reporter()
+
   # Get all constructor input names for the LLM prompt
   var_names <- block_ctor_inputs(block)
 
@@ -143,21 +149,28 @@ discover_block_args <- function(
     log_msg("user", msg)
     message("[discover] \u2192 ", truncate_for_log(msg))
 
+    reporter$start_phase("thinking")
     response <- tryCatch(client$chat(msg), error = function(e) {
       message("[discover] LLM error: ", conditionMessage(e))
       last_error <<- paste0("LLM error: ", conditionMessage(e))
       NULL
     })
+    reporter$end_phase("thinking")
     if (is.null(response)) break
 
     log_msg("assistant", response)
     message("[discover] \u2190 ", truncate_for_log(response))
 
-    if (is_done_response(response)) break
+    if (is_done_response(response)) {
+      reporter$end_phase("confirming", result = "\u2713")
+      break
+    }
 
     # Let backend handle data exploration requests
     backend_msg <- backend$process(response, data)
     if (!is.null(backend_msg)) {
+      reporter$start_phase("exploring", detail = truncate_for_log(response, 60))
+      reporter$end_phase("exploring")
       msg <- backend_msg
       next
     }
@@ -206,6 +219,7 @@ discover_block_args <- function(
     prev_args <- new_args
 
     # Validate using provided function
+    reporter$start_phase("validating")
     result <- tryCatch({
       validate(new_args)
     }, error = function(e) {
@@ -214,10 +228,14 @@ discover_block_args <- function(
     })
 
     if (is.null(result)) {
+      reporter$end_phase("validating")
+      reporter$start_phase("retrying", detail = last_error)
       message("[discover] validation failed: ", last_error)
       msg <- paste0("Validation failed: ", last_error, "\nPlease fix.")
       next
     }
+
+    reporter$end_phase("validating", result = "\u2713")
 
     # Success - ask for confirmation
     final_args <- new_args
@@ -225,11 +243,13 @@ discover_block_args <- function(
     last_message <- strip_json_block(response)
     preview <- format_result_preview(result)
     message("[discover] validated: ", truncate_for_log(preview))
+    reporter$start_phase("confirming")
     msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
     last_error <- NULL
   }
 
   message("[discover] done, success: ", is.null(last_error))
+  reporter$done(is.null(last_error), last_error)
 
   list(
     success = is.null(last_error),

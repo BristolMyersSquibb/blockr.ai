@@ -78,7 +78,7 @@ x <- new_summarize_block(
 holder <- new.env(parent = emptyenv())
 
 # Custom ctrl_block that programmatically sets state
-test_ctrl_server <- function(id, x, vars, dat, expr) {
+test_ctrl_server <- function(id, x, vars, data, eval) {
   moduleServer(id, function(input, output, session) {
     ctrl_names <- names(Filter(
       function(v) inherits(v, "reactiveVal"),
@@ -104,7 +104,7 @@ test_ctrl_server <- function(id, x, vars, dat, expr) {
       vars$by(c("cyl", "gear"))
 
       # Verify eval works
-      result <- isolate(blockr.core:::eval_impl(x, expr(), dat()))
+      result <- isolate(eval())
       cat("eval_impl cols:", paste(names(result), collapse = ", "), "\n")
       holder$ok <- TRUE
     }, ignoreInit = TRUE)

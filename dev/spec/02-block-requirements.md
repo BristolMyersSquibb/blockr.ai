@@ -335,11 +335,7 @@ examples = paste0(
 
 ## Current Divergences from Target
 
-1. **`block_supports_external_ctrl()` bug:** Always returns `TRUE` due to
-   missing `(x)` in `length(block_external_ctrl) > 0L`. Env cloning
-   happens for all blocks. Harmless in practice but should be fixed.
-
-2. **Most blockr.dplyr blocks now have `external_ctrl = TRUE`** (per
+1. **Most blockr.dplyr blocks now have `external_ctrl = TRUE`** (per
    commit 433b16a). `external_ctrl = TRUE` is the standard pattern for
    blocks where all constructor params should be controllable.
    `dataset_block`'s `external_ctrl = "dataset"` is the exception (only
@@ -347,7 +343,7 @@ examples = paste0(
    incomplete coverage *within* a block — e.g. slice_block's `prop` param
    was missing reverse sync for derived state `r_use_prop`.
 
-3. **Most blocks now provide registry metadata** (per 433b16a). Main
+2. **Most blocks now provide registry metadata** (per 433b16a). Main
    remaining risk is incomplete `arguments` within a block — e.g.
    slice_block was missing a description for `rows`. Audit with
    `block_ctor_inputs()` (see [03-registry.md](03-registry.md)).

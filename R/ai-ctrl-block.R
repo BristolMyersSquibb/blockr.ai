@@ -90,10 +90,14 @@ css_ai_ctrl <- function() {
       }
       .blockr-ctrl-body shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
-        background-color: rgba(124, 58, 237, 0.1) !important;
+        background-color: #e5e7eb !important;
+        color: #374151 !important;
       }
       .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
+      }
+      .blockr-ctrl-body shiny-chat-message:has(.blockr-ai-status-empty) {
+        display: none !important;
       }
       .blockr-report-conversation {
         font-size: 0.75em;
@@ -103,10 +107,52 @@ css_ai_ctrl <- function() {
       }
       .blockr-report-conversation:hover {
         color: #7c3aed;
+      }
+      .blockr-ai-status {
+        display: flex;
+        margin: 2px 0;
+      }
+      .blockr-ai-status:empty {
+        display: none;
+      }
+      .blockr-ai-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.75em;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        color: #9ca3af;
+        white-space: nowrap;
+      }
+      .blockr-ai-status-icon {
+        display: inline-flex;
+        align-items: center;
+      }
+      .blockr-ai-status-badge .spinner-border {
+        width: 9px;
+        height: 9px;
+        border-width: 1.5px;
+        color: #9ca3af;
+      }
+      .blockr-ai-status .markdown-stream-dot {
+        display: none;
       }",
     "</style>",
     "<script>",
-    "Shiny.addCustomMessageHandler('blockr-report-data', function(data) {
+    "Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
+      var container = document.getElementById(data.chatId);
+      if (!container) return;
+      var messages = container.querySelector('shiny-chat-messages');
+      if (messages) {
+        setTimeout(function() {
+          messages.scroll({ top: messages.scrollHeight, behavior: 'smooth' });
+        }, 100);
+      }
+    });
+    Shiny.addCustomMessageHandler('blockr-report-data', function(data) {
       window._blockrReports = window._blockrReports || {};
       window._blockrReports[data.chatId] = window._blockrReports[data.chatId] || [];
       window._blockrReports[data.chatId].push(data.entry);
@@ -210,6 +256,8 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
       # Snapshot current state for LLM context
       current_state <- lapply(vars[ctrl_names], function(v) isolate(v()))
 
+      rpt <- reporter_shiny("chat", session)
+
       result <- tryCatch(
         discover_block_args(
           prompt = prompt,
@@ -221,7 +269,8 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           verbose = TRUE,
           data_exploration = blockr.core::blockr_option(
             "data_exploration", "none"
-          )
+          ),
+          reporter = rpt
         ),
         error = function(e) {
           message("[discover] error: ", conditionMessage(e))
@@ -255,6 +304,9 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           session = session
         )
       }
+      session$sendCustomMessage("blockr-scroll-chat", list(
+        chatId = session$ns("chat")
+      ))
     })
 
     reactive(gate())

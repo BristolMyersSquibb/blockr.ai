@@ -38,7 +38,7 @@ Both the default `ctrl_block_server` and `ai_ctrl_server` share the same
 signature:
 
 ```r
-function(id, x, vars, dat, expr)
+function(id, x, vars, data, eval)
 ```
 
 | Argument | Type | Description |
@@ -46,8 +46,8 @@ function(id, x, vars, dat, expr)
 | `id` | character | Shiny module namespace ID |
 | `x` | block | The block object (read-only, class info, metadata) |
 | `vars` | named list | Block state. For `external_ctrl` blocks, contains `reactiveVal` objects. For blocks without, contains plain `reactive()` values (read-only). |
-| `dat` | reactive | Reactive returning the block's input data |
-| `expr` | reactive | Reactive returning the block's current expression |
+| `data` | reactive | Reactive returning the block's input data (list of reactives) |
+| `eval` | reactive | Reactive that evaluates the block expression against input data |
 
 **The key insight:** `vars` contains *writable* `reactiveVal` objects for
 blocks with `external_ctrl`. Writing to these reactiveVals changes the
@@ -190,13 +190,6 @@ observeEvent(req(dataset()), {
 Without this, external changes (from the AI) would not reflect in the
 block's own UI widgets.
 
-> **Current divergence:** `block_supports_external_ctrl()` has a bug — it
-> checks `length(block_external_ctrl) > 0L` (missing the `(x)` call), so
-> it always returns `TRUE`. This means env cloning happens for ALL blocks,
-> not just those with `external_ctrl`. In practice this is harmless
-> because `block_ctrl()` returns an empty list when there are no
-> external_ctrl params, but it's conceptually wrong.
-
 ## Data Flow
 
 ```
@@ -214,14 +207,16 @@ Board (serve)
   │    │
   │    └─ ctrl_block plugin:
   │         ├─ ai_ctrl_ui(id, x) → shinychat widget
-  │         └─ ai_ctrl_server(id, x, vars, dat, expr)
+  │         └─ ai_ctrl_server(id, x, vars, data, eval)
   │              │
   │              ├─ Identify reactiveVal names in vars
   │              ├─ On user chat input:
-  │              │    ├─ Snapshot dat()
-  │              │    ├─ Create eval_validator (sets vars, calls eval_impl)
-  │              │    └─ discover_block_args(prompt, block, data, validate)
+  │              │    ├─ Snapshot data()
+  │              │    ├─ Create reporter_shiny for live progress
+  │              │    ├─ Create eval_validator (sets vars, calls eval)
+  │              │    └─ discover_block_args(prompt, block, data, validate, reporter)
   │              │         ├─ LLM proposes JSON
+  │              │         ├─ Reporter shows phase progress in chat
   │              │         ├─ Validator applies → success or error
   │              │         └─ Loop until DONE or max_iter
   │              │
@@ -244,10 +239,7 @@ eval_validator <- function(args) {
   for (nm in names(args)) {
     if (nm %in% ctrl_names) vars[[nm]](args[[nm]])
   }
-  result <- try(
-    shiny::isolate(blockr.core:::eval_impl(x, expr(), dat_snapshot)),
-    silent = TRUE
-  )
+  result <- try(shiny::isolate(eval()), silent = TRUE)
   if (inherits(result, "try-error")) {
     # Rollback to previous state
     for (nm in ctrl_names) vars[[nm]](old[[nm]])
@@ -258,9 +250,10 @@ eval_validator <- function(args) {
 ```
 
 This writes the proposed args into the block's reactiveVals, then
-evaluates the block's expression via `isolate(expr())`. Because the
-4 expression blocks (filter_expr, summarize_expr, mutate_expr, rename)
-return `expr = reactive(parse_*(state_rv()))`, `isolate()` forces lazy
+evaluates the block via `isolate(eval())`. The `eval` reactive
+(provided by blockr.core) re-evaluates the block expression against
+its input data. Because the expression blocks return
+`expr = reactive(parse_*(state_rv()))`, `isolate()` forces lazy
 recomputation from the just-updated reactiveVals — no observer needs
 to fire.
 

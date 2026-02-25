@@ -22,12 +22,27 @@ filters to setosa, and plots sepal length") is out of scope for now.
 
 ### Supported blocks today
 
-| Block | Package | `external_ctrl` | Status |
-|---|---|---|---|
-| `dataset_block` | blockr.core | `"dataset"` (character) | Working |
-| `filter_block` | blockr.dplyr | `TRUE` (all params) | Working |
-| `crossfilter_block` | blockr.dm | `TRUE` (all params) | Working |
-| `dm_crossfilter_block` | blockr.dm | `TRUE` (all params) | Working |
+16 blocks have `external_ctrl` enabled:
+
+| Block | Package | `external_ctrl` |
+|---|---|---|
+| `dataset_block` | blockr.core | `"dataset"` (single param) |
+| `subset_block` | blockr.core | `TRUE` |
+| `filter_block` | blockr.dplyr | `TRUE` |
+| `filter_expr_block` | blockr.dplyr | `TRUE` |
+| `select_block` | blockr.dplyr | `TRUE` |
+| `arrange_block` | blockr.dplyr | `TRUE` |
+| `mutate_expr_block` | blockr.dplyr | `TRUE` |
+| `summarize_block` | blockr.dplyr | `TRUE` |
+| `summarize_expr_block` | blockr.dplyr | `TRUE` |
+| `slice_block` | blockr.dplyr | `TRUE` |
+| `rename_block` | blockr.dplyr | `TRUE` |
+| `pivot_longer_block` | blockr.dplyr | `TRUE` |
+| `pivot_wider_block` | blockr.dplyr | `TRUE` |
+| `separate_block` | blockr.dplyr | `TRUE` |
+| `unite_block` | blockr.dplyr | `TRUE` |
+| `crossfilter_block` | blockr.dm | `TRUE` |
+| `dm_crossfilter_block` | blockr.dm | `TRUE` |
 
 Any block can be made AI-controllable by adding `external_ctrl` support
 (see [02-block-requirements.md](02-block-requirements.md)).

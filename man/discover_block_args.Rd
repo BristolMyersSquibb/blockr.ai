@@ -13,7 +13,8 @@ discover_block_args(
   verbose = FALSE,
   client = NULL,
   current_state = NULL,
-  data_exploration = blockr.core::blockr_option("data_exploration", "none")
+  data_exploration = blockr.core::blockr_option("data_exploration", "none"),
+  reporter = NULL
 )
 }
 \arguments{
@@ -37,6 +38,10 @@ memory across multiple calls.}
 \item{current_state}{Optional plain list of current block parameter values.
 When non-NULL, a "Current Configuration" section is included in the user
 message so the LLM can see what's already configured.}
+
+\item{reporter}{A progress reporter list (see \link{reporter_silent},
+\link{reporter_console}, \link{reporter_shiny}). When NULL (default), auto-detects:
+console if interactive, silent otherwise.}
 }
 \value{
 List with:

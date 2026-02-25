@@ -15,7 +15,10 @@ discover_block_args <- function(
   max_iter = 5,        # Maximum LLM round-trips
   verbose = FALSE,     # If TRUE, records full conversation
   client = NULL,       # Existing ellmer chat client (for conversation memory)
-  current_state = NULL # Plain list of current block param values
+  current_state = NULL,# Plain list of current block param values
+  data_exploration = blockr.core::blockr_option("data_exploration", "none"),
+                       # Data exploration backend: "none", "manual", or "tools"
+  reporter = NULL      # Progress reporter (NULL = auto-detect)
 )
 ```
 
@@ -34,25 +37,31 @@ list(
 ## The Iterative Loop
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  1. Build system prompt (from registry metadata)     │
-│  2. Build first user message (data preview + task)   │
-│                                                      │
-│  for i in 1:max_iter:                                │
-│    ├─ Send message to LLM                            │
-│    ├─ Check: is response "DONE"?  ──yes──► break     │
-│    ├─ Extract JSON from response                     │
-│    │   └─ No JSON found? → ask again, next           │
-│    ├─ Parse JSON (fromJSON)                          │
-│    │   └─ Parse error? → send error, next            │
-│    ├─ Identical to prev args? ──yes──► accept, break │
-│    ├─ Validate (call validate(args))                 │
-│    │   └─ Validation error? → send error, next       │
-│    └─ Success! Show result preview to LLM            │
-│        → "Correct? Say DONE or fix."                 │
-│                                                      │
-│  Return {success, args, result, error, conversation} │
-└──────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│  1. Auto-detect reporter (console / silent / shiny)       │
+│  2. Build system prompt (from registry metadata)          │
+│  3. Let backend$setup() modify client/prompt              │
+│  4. Build first user message (data preview + task)        │
+│                                                           │
+│  for i in 1:max_iter:                                     │
+│    ├─ Send message to LLM                                 │
+│    ├─ Check: is response "DONE"?  ──yes──► break          │
+│    ├─ backend$process(response) — data exploration        │
+│    │   └─ Consumed? → reporter("exploring") → next        │
+│    ├─ Extract JSON from response                          │
+│    │   └─ No JSON found? → return with question=response  │
+│    ├─ Parse JSON (fromJSON)                               │
+│    │   └─ Parse error? → send error, next                 │
+│    ├─ Identical to prev args? ──yes──► accept, break      │
+│    ├─ reporter("validating") → validate(args)             │
+│    │   └─ Validation error? → reporter("retrying"), next  │
+│    ├─ reporter("validating" ✓)                            │
+│    └─ reporter("confirming") → show result preview to LLM │
+│        → "Correct? Say DONE or fix."                      │
+│                                                           │
+│  reporter$done(success, error)                            │
+│  Return {success, args, result, error, conversation}      │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ### Step-by-step
@@ -60,11 +69,22 @@ list(
 #### 1. Setup
 
 ```r
+if (is.null(reporter)) reporter <- auto_reporter()
+
 var_names <- block_ctor_inputs(block)
 # e.g. c("conditions", "preserve_order")
 
+backend <- data_exploration_backend(data_exploration)
+
 client <- llm_client()
 system_prompt <- build_system_prompt(var_names, block)
+
+# Let backend modify client (register tools) and append to system prompt
+prompt_addition <- backend$setup(client, data)
+if (!is.null(prompt_addition)) {
+  system_prompt <- paste0(system_prompt, prompt_addition)
+}
+
 client$set_system_prompt(system_prompt)
 ```
 
@@ -226,10 +246,7 @@ eval_validator <- function(args) {
   for (nm in names(args)) {
     if (nm %in% ctrl_names) vars[[nm]](args[[nm]])
   }
-  result <- try(
-    shiny::isolate(blockr.core:::eval_impl(x, expr(), dat_snapshot)),
-    silent = TRUE
-  )
+  result <- try(shiny::isolate(eval()), silent = TRUE)
   if (inherits(result, "try-error")) {
     for (nm in ctrl_names) vars[[nm]](old[[nm]])
     stop(attr(result, "condition"))
@@ -240,8 +257,8 @@ eval_validator <- function(args) {
 
 This mode:
 - Writes proposed args directly into the block's `reactiveVal` objects
-- Evaluates using `isolate(expr())` which forces lazy recomputation
-  (the 4 expression blocks return `expr = reactive(parse_*(...))`)
+- Evaluates using `isolate(eval())` — the `eval` reactive re-evaluates
+  the block expression against its input data
 - On failure, **rolls back** all reactiveVals to previous state
 - Works within a live Shiny session
 - Updates the block's state in-place (changes are visible immediately
@@ -305,13 +322,16 @@ response <- tryCatch(client$chat(msg), error = function(e) {
 if (is.null(response)) break
 ```
 
-### JSON extraction failures
+### JSON extraction failures (ask-back)
 
-If `extract_json()` returns NULL:
+If `extract_json()` returns NULL, the LLM is asking a clarifying question.
+The loop returns immediately so the caller can show the question to the user:
 
 ```r
-msg <- "No JSON found. Please return a JSON object like {\"param\": \"value\"}."
-next
+return(list(
+  success = FALSE, args = final_args, result = final_result,
+  error = NULL, question = response, client = client
+))
 ```
 
 ### JSON parse failures
@@ -392,6 +412,52 @@ DONE
 | Complex multi-condition | 2-3 | JSON + DONE (or one refinement) |
 | Ambiguous prompt | 3-4 | JSON → wrong result → refined JSON + DONE |
 | Unresolvable | 5 | Exhausts max_iter, returns failure |
+
+## Progress Reporter
+
+The `reporter` parameter enables live feedback during the discovery loop.
+Three implementations are available:
+
+| Reporter | Use case | Output |
+|---|---|---|
+| `reporter_silent()` | Benchmarks, non-interactive | No output |
+| `reporter_console()` | Interactive standalone use | Formatted stdout |
+| `reporter_shiny(chat_id, session)` | Live Shiny app | shinychat streaming bubbles |
+
+When `reporter = NULL` (default), auto-detects: `reporter_console()` if
+`interactive()`, `reporter_silent()` otherwise.
+
+The reporter is called at these points in the loop:
+
+- `start_phase("exploring", detail=...)` / `end_phase("exploring")` —
+  data exploration rounds
+- `start_phase("validating")` / `end_phase("validating", "✓")` —
+  validation attempt
+- `start_phase("retrying", detail=error)` — validation failed, retrying
+- `start_phase("confirming")` / `end_phase("confirming", "✓")` —
+  waiting for LLM DONE confirmation
+- `done(success, error)` — loop finished
+
+In Shiny mode, `ai_ctrl_server` creates a `reporter_shiny("chat", session)`
+and passes it to `discover_block_args`. The reporter opens a single
+streaming assistant message that accumulates phase updates, providing
+live feedback while the loop runs.
+
+## Data Exploration
+
+The `data_exploration` parameter controls how the LLM can inspect input
+data before proposing arguments. Three backends are available:
+
+| Backend | How it works |
+|---|---|
+| `"none"` (default) | No exploration; LLM uses only the 5-row preview |
+| `"manual"` | LLM writes R code in tagged code blocks; code is executed against the data |
+| `"tools"` | LLM uses ellmer tool calling to run R code |
+
+Backends implement the `setup(client, data)` / `process(response, data)` /
+`probes_used()` interface. Custom backends can be passed as a list.
+
+See `blockr.ai/R/backend-data.R` for implementation details.
 
 ## Current Divergences from Target
 

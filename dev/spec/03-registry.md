@@ -163,7 +163,7 @@ R-native example values map to JSON naturally:
 
 ### System Prompt Assembly
 
-The prompt is built from five pieces:
+The prompt is built from seven pieces:
 
 #### 1. Block context (from registry `name` + `description`)
 
@@ -206,7 +206,40 @@ Optional. Injected between parameter docs and the example JSON.
 Use for cross-parameter guidance that doesn't belong in any single
 parameter's description.
 
-#### 5. Example JSON (from `examples` attribute)
+#### 5. Ask-back instructions (hard-coded)
+
+```
+IMPORTANT:
+- If the user's request is vague or ambiguous (e.g. 'make it better',
+  'fix it', 'clean up', 'summarize the data'), do NOT guess.
+  Ask a specific clarifying question instead.
+- If the request is directional but not fully specified (e.g. 'make the font bigger',
+  'reduce the rows'), you MAY pick a reasonable value and return JSON.
+  Only ask back when the request is truly unclear about WHAT to do.
+- If the user asks for something this block CANNOT do, explain the limitation
+  clearly and suggest which block type would be appropriate.
+- Only set parameters the user asked about. Leave other parameters at their defaults.
+```
+
+These instructions guide the LLM's behavior when prompts are vague,
+impossible, or only partially specified.
+
+#### 6. Response format instructions (hard-coded)
+
+```
+RESPONSE FORMAT:
+Always include a brief explanation BEFORE the JSON block.
+The explanation is shown to the user in the chat — the JSON is not.
+- State what you understood from the request
+- Describe the key choices you made
+- Keep it to 1-2 sentences
+
+Then provide the JSON in a ```json code block.
+```
+
+Ensures the LLM provides user-facing explanation text alongside JSON.
+
+#### 7. Example JSON (from `examples` attribute)
 
 ```
 Example:
