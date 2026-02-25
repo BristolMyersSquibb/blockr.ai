@@ -107,6 +107,92 @@ remove_raw_json <- function(text) {
 }
 
 
+#' Format data preview for a single object
+#'
+#' S3 generic that produces a text summary of an object for LLM consumption.
+#' Packages can define methods for custom types.
+#'
+#' @param x Object to preview
+#' @param ... Additional arguments
+#' @return Character string
+#' @export
+format_data_preview <- function(x, ...) {
+  UseMethod("format_data_preview")
+}
+
+#' @rdname format_data_preview
+#' @export
+format_data_preview.data.frame <- function(x, ...) {
+  format_df_preview(x)
+}
+
+#' @rdname format_data_preview
+#' @export
+format_data_preview.dm <- function(x, ...) {
+  tbl_names <- names(x)
+
+  # Table dimensions
+  dims <- vapply(tbl_names, function(nm) {
+    tbl <- x[[nm]]
+    paste0("  ", nm, ": ", nrow(tbl), " rows x ", ncol(tbl), " cols")
+  }, character(1))
+
+  # Primary keys
+  pk_text <- tryCatch({
+    pks <- dm::dm_get_all_pks(x)
+    if (nrow(pks) > 0) {
+      lines <- vapply(seq_len(nrow(pks)), function(i) {
+        paste0("  ", pks$table[i], ": ", paste(pks$pk_col[[i]], collapse = ", "))
+      }, character(1))
+      paste0("\nPrimary keys:\n", paste(lines, collapse = "\n"))
+    } else ""
+  }, error = function(e) "")
+
+  # Foreign keys
+  fk_text <- tryCatch({
+    fks <- dm::dm_get_all_fks(x)
+    if (nrow(fks) > 0) {
+      lines <- vapply(seq_len(nrow(fks)), function(i) {
+        paste0(
+          "  ", fks$child_table[i], ".", paste(fks$child_fk_cols[[i]], collapse = ", "),
+          " -> ", fks$parent_table[i], ".", paste(fks$parent_key_cols[[i]], collapse = ", ")
+        )
+      }, character(1))
+      paste0("\nForeign keys:\n", paste(lines, collapse = "\n"))
+    } else ""
+  }, error = function(e) "")
+
+  # Per-table previews
+  previews <- vapply(tbl_names, function(nm) {
+    paste0("## ", nm, "\n\n", format_df_preview(x[[nm]]))
+  }, character(1))
+
+  paste0(
+    "dm object with ", length(tbl_names), " tables:\n",
+    paste(dims, collapse = "\n"),
+    pk_text, fk_text, "\n\n",
+    paste(previews, collapse = "\n\n")
+  )
+}
+
+#' @rdname format_data_preview
+#' @export
+format_data_preview.default <- function(x, ...) {
+  cls <- paste(class(x), collapse = ", ")
+  summary <- tryCatch({
+    lines <- utils::capture.output(utils::str(x, max.level = 2, list.len = 20))
+    if (length(lines) > 30) lines <- c(lines[1:30], "... (truncated)")
+    paste(lines, collapse = "\n")
+  }, error = function(e) {
+    tryCatch(
+      paste(utils::capture.output(print(x)), collapse = "\n"),
+      error = function(e2) "(no preview available)"
+    )
+  })
+  paste0("Object of class: ", cls, "\n", summary)
+}
+
+
 #' Create input data preview for LLM prompt
 #'
 #' Handles all input types: NULL, single data.frame, named list (x, y),
@@ -116,40 +202,35 @@ remove_raw_json <- function(text) {
 #' @return Character string with formatted preview section, or "" if no data
 #' @noRd
 data_preview <- function(input) {
-  if (is.null(input)) {
+  if (is.null(input) || (is.list(input) && length(input) == 0)) {
     return("")
   }
 
-  # Empty list = no input data (source block)
-  if (is.list(input) && length(input) == 0) {
-    return("")
-  }
-
-  body <- if (inherits(input, "dm")) {
-    tbl_names <- names(input)
-    previews <- vapply(tbl_names, function(nm) {
-      paste0("## ", nm, "\n\n", format_df_preview(input[[nm]]))
-    }, character(1))
-    paste0("dm object with ", length(tbl_names), " tables:\n\n",
-           paste(previews, collapse = "\n\n"))
-  } else if (is.data.frame(input)) {
-    format_df_preview(input)
-  } else if (is.list(input) && length(input) > 0) {
+  body <- if (is.list(input) && !is.data.frame(input) &&
+              !inherits(input, "dm") && length(input) > 0) {
     previews <- vapply(seq_along(input), function(i) {
       name <- names(input)[i] %||% paste0("Input ", i)
-      item <- input[[i]]
-      if (is.data.frame(item)) {
-        paste0("## ", name, "\n\n", format_df_preview(item))
-      } else {
-        paste0("## ", name, "\n\n", "Non-dataframe object: ", class(item)[1])
-      }
+      paste0("## ", name, "\n\n", format_data_preview(input[[i]]))
     }, character(1))
     paste(previews, collapse = "\n\n")
   } else {
-    paste0("Unknown input type: ", class(input)[1])
+    format_data_preview(input)
   }
 
   paste0("# Input Data\n\n", body, "\n\n")
+}
+
+
+#' Normalize data into a named list for exploration backends
+#' @param data Input data (data.frame, dm, named list, or other)
+#' @return Named list
+#' @noRd
+normalize_datasets <- function(data) {
+  if (is.null(data)) return(list())
+  if (is.data.frame(data)) return(list(data = data))
+  if (inherits(data, "dm")) return(list(data = data))
+  if (is.list(data) && length(data) > 0 && !is.null(names(data))) return(data)
+  list(data = data)
 }
 
 

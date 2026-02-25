@@ -10,7 +10,10 @@ discover_block_args(
   data = NULL,
   validate = NULL,
   max_iter = 5,
-  verbose = FALSE
+  verbose = FALSE,
+  client = NULL,
+  current_state = NULL,
+  data_exploration = blockr.core::blockr_option("data_exploration", "none")
 )
 }
 \arguments{
@@ -18,7 +21,7 @@ discover_block_args(
 
 \item{block}{A block object (e.g., \code{new_filter_block()}).}
 
-\item{data}{Input data.frame (or NULL for source blocks like dataset_block)}
+\item{data}{Input data (data.frame, dm, or NULL for source blocks)}
 
 \item{validate}{Validation function. If NULL, uses standalone validator
 with testServer (for testing outside of Shiny).}
@@ -26,14 +29,24 @@ with testServer (for testing outside of Shiny).}
 \item{max_iter}{Maximum LLM iterations (default 5)}
 
 \item{verbose}{If TRUE, print conversation to console}
+
+\item{client}{An existing ellmer chat client to reuse. When NULL (default),
+a new client is created. Pass a persistent client to retain conversation
+memory across multiple calls.}
+
+\item{current_state}{Optional plain list of current block parameter values.
+When non-NULL, a "Current Configuration" section is included in the user
+message so the LLM can see what's already configured.}
 }
 \value{
 List with:
 \item{success}{TRUE if args were discovered successfully}
 \item{args}{List of discovered arguments}
-\item{result}{The resulting data.frame (if successful)}
+\item{result}{The resulting object: data.frame, dm, ggplot, etc. (if successful)}
 \item{error}{Error message (if failed)}
 \item{conversation}{List of message exchanges (if verbose)}
+\item{client}{The ellmer chat client (R6). Pass to subsequent calls to
+retain conversation memory.}
 }
 \description{
 Uses an LLM to discover block arguments from a natural language prompt.
@@ -57,6 +70,11 @@ result <- discover_block_args(
   prompt = "use mtcars",
   block = new_dataset_block()
 )
+
+# Conversation memory: pass result$client to follow-up calls
+r1 <- discover_block_args("use iris", new_dataset_block())
+r2 <- discover_block_args("now mtcars", new_dataset_block(),
+  client = r1$client)
 
 # Summarize block
 result <- discover_block_args(

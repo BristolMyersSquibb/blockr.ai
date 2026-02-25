@@ -10,18 +10,18 @@ ai_ctrl_block()
 
 ai_ctrl_ui(id, x)
 
-ai_ctrl_server(id, x, vars, dat, expr)
+ai_ctrl_server(id, x, vars, data, eval)
 }
 \arguments{
 \item{id}{Namespace ID}
 
 \item{x}{Block object}
 
-\item{vars}{Reactive state values}
+\item{vars}{Reactive state values (pre-filtered to externally controllable vars)}
 
-\item{dat}{Reactive input data}
+\item{data}{Input data as list of reactive values}
 
-\item{expr}{Reactive block expression}
+\item{eval}{Reactive that evaluates block expression against input data}
 }
 \value{
 A ctrl_block plugin object

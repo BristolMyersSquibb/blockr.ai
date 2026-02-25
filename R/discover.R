@@ -67,7 +67,8 @@ discover_block_args <- function(
     max_iter = 5,
     verbose = FALSE,
     client = NULL,
-    current_state = NULL
+    current_state = NULL,
+    data_exploration = blockr.core::blockr_option("data_exploration", "none")
 ) {
   # Get all constructor input names for the LLM prompt
   var_names <- block_ctor_inputs(block)
@@ -98,10 +99,21 @@ discover_block_args <- function(
 
   block_name <- class(block)[1]
 
+  backend <- data_exploration_backend(data_exploration)
+
   # Create new client only if none provided; reuse existing for conversation memory
   if (is.null(client)) {
     client <- llm_client()
     system_prompt <- build_system_prompt(var_names, block)
+
+    # Let backend modify client (register tools) and append to system prompt
+    if (!is.null(data)) {
+      prompt_addition <- backend$setup(client, data)
+      if (!is.null(prompt_addition) && nzchar(prompt_addition)) {
+        system_prompt <- paste0(system_prompt, prompt_addition)
+      }
+    }
+
     client$set_system_prompt(system_prompt)
     log_msg("system", system_prompt)
   }
@@ -142,6 +154,13 @@ discover_block_args <- function(
     message("[discover] \u2190 ", truncate_for_log(response))
 
     if (is_done_response(response)) break
+
+    # Let backend handle data exploration requests
+    backend_msg <- backend$process(response, data)
+    if (!is.null(backend_msg)) {
+      msg <- backend_msg
+      next
+    }
 
     json_str <- extract_json(response)
     if (is.null(json_str)) {

@@ -126,13 +126,15 @@ css_ai_ctrl <- function() {
         parts.push(section.join('\\n'));
       });
       var body = parts.join('\\n\\n');
-      if (body.length > 1800) {
-        body = body.substring(0, 1800) + '\\n\\n[truncated]';
-      }
-      var mailto = 'mailto:contact@cynkra.com'
-        + '?subject=' + encodeURIComponent('blockr AI conversation report')
-        + '&body=' + encodeURIComponent(body);
-      window.location.href = mailto;
+      var blob = new Blob([body], {type: 'text/plain'});
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'blockr-ai-report.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }",
     "</script>")
   )
@@ -216,7 +218,10 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           validate = eval_validator,
           client = client,
           current_state = current_state,
-          verbose = TRUE
+          verbose = TRUE,
+          data_exploration = blockr.core::blockr_option(
+            "data_exploration", "none"
+          )
         ),
         error = function(e) {
           message("[discover] error: ", conditionMessage(e))
