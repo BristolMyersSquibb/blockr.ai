@@ -72,7 +72,8 @@ discover_block_args <- function(
     client = NULL,
     current_state = NULL,
     data_exploration = blockr.core::blockr_option("data_exploration", "none"),
-    reporter = NULL
+    reporter = NULL,
+    images = NULL
 ) {
   if (is.null(reporter)) reporter <- auto_reporter()
 
@@ -150,7 +151,16 @@ discover_block_args <- function(
     message("[discover] \u2192 ", truncate_for_log(msg))
 
     reporter$start_phase("thinking")
-    response <- tryCatch(client$chat(msg), error = function(e) {
+    response <- tryCatch({
+      if (i == 1 && !is.null(images) && length(images) > 0) {
+        img_contents <- lapply(images, function(img) {
+          ellmer::ContentImageInline(type = img$type, data = img$data)
+        })
+        do.call(client$chat, c(list(msg), img_contents))
+      } else {
+        client$chat(msg)
+      }
+    }, error = function(e) {
       message("[discover] LLM error: ", conditionMessage(e))
       last_error <<- paste0("LLM error: ", conditionMessage(e))
       NULL

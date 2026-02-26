@@ -92,6 +92,8 @@ css_ai_ctrl <- function() {
         border-radius: 6px !important;
         background-color: #e5e7eb !important;
         color: #374151 !important;
+        padding: 6px 12px !important;
+        font-size: 0.9em;
       }
       .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
@@ -142,7 +144,18 @@ css_ai_ctrl <- function() {
       }",
     "</style>",
     "<script>",
-    "Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
+    "new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        m.addedNodes.forEach(function(node) {
+          if (node.nodeType !== 1) return;
+          var ta = node.matches && node.matches('.blockr-ctrl-body shiny-chat-input textarea')
+            ? node
+            : node.querySelector && node.querySelector('.blockr-ctrl-body shiny-chat-input textarea');
+          if (ta) setTimeout(function() { ta.focus(); }, 100);
+        });
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+    Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
       var container = document.getElementById(data.chatId);
       if (!container) return;
       var input = container.querySelector('shiny-chat-input');
@@ -211,8 +224,16 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
     client <- NULL
 
     observeEvent(input$chat_user_input, {
-      prompt <- input$chat_user_input
-      if (is.null(prompt) || nchar(trimws(prompt)) == 0) return()
+      raw_input <- input$chat_user_input
+      if (is.list(raw_input)) {
+        prompt <- raw_input$text %||% ""
+        images <- raw_input$images
+      } else {
+        prompt <- raw_input
+        images <- NULL
+      }
+      if (is.null(prompt) || (nchar(trimws(prompt)) == 0 &&
+          (is.null(images) || length(images) == 0))) return()
 
       gate(FALSE)
       on.exit(gate(TRUE))
@@ -269,7 +290,8 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           data_exploration = blockr.core::blockr_option(
             "data_exploration", "none"
           ),
-          reporter = rpt
+          reporter = rpt,
+          images = images
         ),
         error = function(e) {
           message("[discover] error: ", conditionMessage(e))
