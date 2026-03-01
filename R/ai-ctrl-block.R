@@ -41,7 +41,8 @@ ai_ctrl_ui <- function(id, x) {
 
   chat_id <- ns("chat")
 
-  tagList(
+  tags$div(
+    class = "blockr-ctrl-body",
     css_ai_ctrl(),
     shinychat::chat_ui(
       chat_id,
@@ -76,6 +77,7 @@ css_ai_ctrl <- function() {
         min-height: 38px !important;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        box-shadow: none !important;
       }
       .blockr-ctrl-body shiny-chat-input textarea::-webkit-scrollbar {
         display: none;
@@ -266,13 +268,6 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         result
       }
 
-      # Create client on first prompt, reuse thereafter (R6 reference semantics)
-      if (is.null(client)) {
-        client <<- llm_client()
-        sp <- build_system_prompt(block_ctor_inputs(x), x)
-        client$set_system_prompt(sp)
-      }
-
       # Snapshot current state for LLM context
       current_state <- lapply(vars[ctrl_names], function(v) isolate(v()))
 
@@ -288,7 +283,7 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           current_state = current_state,
           verbose = TRUE,
           data_exploration = blockr.core::blockr_option(
-            "data_exploration", "none"
+            "data_exploration", "manual"
           ),
           reporter = rpt,
           images = images
@@ -298,6 +293,9 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           list(success = FALSE, error = conditionMessage(e))
         }
       )
+
+      # Save client for conversation memory across prompts
+      if (!is.null(result$client)) client <<- result$client
 
       report_data <- list(
         prompt = prompt,

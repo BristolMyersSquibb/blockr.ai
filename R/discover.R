@@ -71,7 +71,7 @@ discover_block_args <- function(
     verbose = FALSE,
     client = NULL,
     current_state = NULL,
-    data_exploration = blockr.core::blockr_option("data_exploration", "none"),
+    data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
     reporter = NULL,
     images = NULL
 ) {
@@ -150,7 +150,7 @@ discover_block_args <- function(
     log_msg("user", msg)
     message("[discover] \u2192 ", truncate_for_log(msg))
 
-    reporter$start_phase("thinking")
+    if (i == 1L) reporter$start_phase("thinking")
     response <- tryCatch({
       if (i == 1 && !is.null(images) && length(images) > 0) {
         img_contents <- lapply(images, function(img) {
@@ -165,7 +165,7 @@ discover_block_args <- function(
       last_error <<- paste0("LLM error: ", conditionMessage(e))
       NULL
     })
-    reporter$end_phase("thinking")
+    if (i == 1L) reporter$end_phase("thinking")
     if (is.null(response)) break
 
     log_msg("assistant", response)
@@ -177,13 +177,13 @@ discover_block_args <- function(
     }
 
     # Let backend handle data exploration requests
+    reporter$start_phase("exploring")
     backend_msg <- backend$process(response, data)
     if (!is.null(backend_msg)) {
-      reporter$start_phase("exploring", detail = truncate_for_log(response, 60))
-      reporter$end_phase("exploring")
       msg <- backend_msg
       next
     }
+    reporter$end_phase("exploring")
 
     json_str <- extract_json(response)
     if (is.null(json_str)) {

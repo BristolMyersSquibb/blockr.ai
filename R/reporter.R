@@ -66,10 +66,9 @@ reporter_console <- function() {
 #' Progress reporter: Shiny
 #'
 #' Uses shinychat's chunk protocol to show live progress in the chat widget.
-#' Opens a single streaming assistant message and shows an ephemeral status
-#' badge using `operation = "replace"`. Only the current active phase is
-#' visible; completed phases disappear. When done, the entire status message
-#' is cleared so only the final answer remains.
+#' Opens a single streaming assistant message and shows one active badge at a
+#' time using `operation = "replace"`. When `done()` is called the message is
+#' closed.
 #'
 #' @param chat_id The shinychat chat widget ID (namespaced)
 #' @param session The Shiny session
@@ -107,7 +106,9 @@ reporter_shiny <- function(chat_id, session) {
     if (streaming) {
       shinychat::chat_append_message(
         chat_id,
-        list(role = "assistant", content = ""),
+        list(role = "assistant", content = shiny::tags$div(
+          class = "blockr-ai-status blockr-ai-status-empty"
+        )),
         chunk = "end",
         session = session
       )
@@ -124,7 +125,6 @@ reporter_shiny <- function(chat_id, session) {
   render <- function() {
     ensure_open()
     if (is.null(active_label)) {
-      # Nothing active — mark as empty so CSS can hide the message bubble
       html <- shiny::tags$div(class = "blockr-ai-status blockr-ai-status-empty")
     } else {
       badge <- shiny::tags$span(
@@ -159,7 +159,6 @@ reporter_shiny <- function(chat_id, session) {
     },
     done = function(success, message = NULL) {
       active_label <<- NULL
-      if (streaming) render()
       flush_and_close()
     }
   )
