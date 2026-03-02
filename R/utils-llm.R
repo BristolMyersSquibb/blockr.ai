@@ -59,21 +59,21 @@ extract_json <- function(text) {
 #' @return Trimmed explanation text (may be empty string)
 #' @noRd
 strip_json_block <- function(text) {
-  # Remove ```json ... ``` blocks
-  out <- gsub("```(?:json)?\\s*\\n[\\s\\S]*?\\n```", "", text, perl = TRUE)
-  # Remove raw JSON objects (balanced braces)
-  out <- remove_raw_json(out)
-  # Filter by lines to preserve markdown structure (lists, paragraphs)
+  # Explanation always comes before the JSON — take only what's before it.
+  out <- sub("```(?:json)?\\s*\\n[\\s\\S]*", "", text, perl = TRUE)
+  out <- sub("(?m)^\\s*\\{[\\s\\S]*", "", out, perl = TRUE)
+  # Walk backwards and trim trailing meta lines that introduce the JSON
   lines <- strsplit(out, "\n", fixed = TRUE)[[1]]
-  keep <- !grepl("^\\s*\\{", lines) &
-    !grepl("\\bJSON\\b", lines, ignore.case = TRUE) &
-    !grepl("^(If (this|there|you)|Let me know)\\b", lines, perl = TRUE) &
-    !grepl("\\blet me know\\b", lines, ignore.case = TRUE)
-  out <- paste(lines[keep], collapse = "\n")
-  # Collapse multiple blank lines
+  while (length(lines) > 0) {
+    last <- trimws(lines[length(lines)])
+    if (nchar(last) == 0 || grepl(":\\s*$", last)) {
+      lines <- lines[-length(lines)]
+    } else {
+      break
+    }
+  }
+  out <- paste(lines, collapse = "\n")
   out <- gsub("\n{3,}", "\n\n", out)
-  # Clean trailing whitespace per line
-  out <- gsub("[[:blank:]]+\n", "\n", out)
   trimws(out)
 }
 
