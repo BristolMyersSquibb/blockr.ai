@@ -144,7 +144,22 @@ css_ai_ctrl <- function() {
         width: 9px;
         height: 9px;
         border-width: 1.5px;
-        color: var(--blockr-color-text-muted, #6b7280);
+        color: inherit;
+      }
+      .blockr-ai-status-badge.phase-thinking {
+        background-color: #eff6ff; border-color: #bfdbfe; color: #3b82f6;
+      }
+      .blockr-ai-status-badge.phase-exploring {
+        background-color: #f0fdfa; border-color: #99f6e4; color: #14b8a6;
+      }
+      .blockr-ai-status-badge.phase-validating {
+        background-color: #f5f3ff; border-color: #c4b5fd; color: #7c3aed;
+      }
+      .blockr-ai-status-badge.phase-confirming {
+        background-color: #f0fdf4; border-color: #bbf7d0; color: #22c55e;
+      }
+      .blockr-ai-status-badge.phase-retrying {
+        background-color: #fffbeb; border-color: #fde68a; color: #d97706;
       }
       .blockr-ai-status .markdown-stream-dot {
         display: none;

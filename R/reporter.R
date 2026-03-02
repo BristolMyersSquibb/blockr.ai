@@ -77,6 +77,7 @@ reporter_console <- function() {
 reporter_shiny <- function(chat_id, session) {
   streaming <- FALSE
   active_label <- NULL
+  active_phase <- NULL
 
   phase_label <- function(phase, detail = NULL) {
     label <- switch(phase,
@@ -128,7 +129,8 @@ reporter_shiny <- function(chat_id, session) {
       html <- shiny::tags$div(class = "blockr-ai-status blockr-ai-status-empty")
     } else {
       badge <- shiny::tags$span(
-        class = "blockr-ai-status-badge is-active",
+        class = paste("blockr-ai-status-badge is-active",
+                      paste0("phase-", active_phase)),
         shiny::tags$span(
           class = "blockr-ai-status-icon",
           shiny::tags$span(class = "spinner-border spinner-border-sm")
@@ -148,12 +150,14 @@ reporter_shiny <- function(chat_id, session) {
 
   list(
     start_phase = function(phase, detail = NULL) {
+      active_phase <<- phase
       active_label <<- phase_label(phase, detail)
       render()
       scroll_to_bottom()
     },
     update = function(text) {},
     end_phase = function(phase, result = NULL) {
+      active_phase <<- NULL
       active_label <<- NULL
       render()
     },
