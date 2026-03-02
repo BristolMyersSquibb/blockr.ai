@@ -52,7 +52,9 @@ ai_ctrl_ui <- function(id, x) {
       icon_assistant = bsicons::bs_icon("stars")
     ),
     tags$div(
-      style = "text-align: right; padding: 4px 0;",
+      style = "text-align: right; padding: 4px 0; display: none;",
+      class = "blockr-report-wrapper",
+      `data-chat-id` = chat_id,
       tags$a(
         href = "#",
         class = "blockr-report-conversation",
@@ -69,7 +71,10 @@ css_ai_ctrl <- function() {
     pkg_version(),
     src = c(href = ""),
     head = paste0("<style>",
-      ".blockr-ctrl-body shiny-chat-container {
+      ".blockr-ctrl-body {
+        padding-bottom: 8px;
+      }
+      .blockr-ctrl-body shiny-chat-container {
         --_chat-container-padding: 0;
       }
       .blockr-ctrl-body shiny-chat-input textarea {
@@ -123,12 +128,12 @@ css_ai_ctrl <- function() {
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        font-size: 0.75em;
+        font-size: 0.625rem;
         padding: 2px 8px;
-        border-radius: 999px;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        color: #9ca3af;
+        border-radius: 4px;
+        background-color: var(--blockr-grey-100, #f3f4f6);
+        border: 1px solid var(--blockr-color-border, #e5e7eb);
+        color: var(--blockr-color-text-muted, #6b7280);
         white-space: nowrap;
       }
       .blockr-ai-status-icon {
@@ -139,7 +144,7 @@ css_ai_ctrl <- function() {
         width: 9px;
         height: 9px;
         border-width: 1.5px;
-        color: #9ca3af;
+        color: var(--blockr-color-text-muted, #6b7280);
       }
       .blockr-ai-status .markdown-stream-dot {
         display: none;
@@ -170,6 +175,10 @@ css_ai_ctrl <- function() {
       window._blockrReports = window._blockrReports || {};
       window._blockrReports[data.chatId] = window._blockrReports[data.chatId] || [];
       window._blockrReports[data.chatId].push(data.entry);
+      var wrapper = document.querySelector(
+        '.blockr-report-wrapper[data-chat-id=\"' + data.chatId + '\"]'
+      );
+      if (wrapper) wrapper.style.display = '';
     });
     function blockrReportConversation(chatId) {
       var entries = (window._blockrReports || {})[chatId] || [];
