@@ -1,3 +1,5 @@
+utils::globalVariables("session")
+
 register_ai_blocks <- function() {
   register_blocks(
     c(

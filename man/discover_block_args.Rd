@@ -40,9 +40,16 @@ memory across multiple calls.}
 When non-NULL, a "Current Configuration" section is included in the user
 message so the LLM can see what's already configured.}
 
+\item{data_exploration}{Data exploration strategy passed to
+\code{\link[=data_exploration_backend]{data_exploration_backend()}}. Defaults to
+\code{blockr.core::blockr_option("data_exploration", "manual")}.}
+
 \item{reporter}{A progress reporter list (see \link{reporter_silent},
 \link{reporter_console}, \link{reporter_shiny}). When NULL (default), auto-detects:
 console if interactive, silent otherwise.}
+
+\item{images}{Optional list of base64-encoded images to include with the
+first prompt.}
 }
 \value{
 List with:

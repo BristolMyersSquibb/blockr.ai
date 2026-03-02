@@ -111,14 +111,22 @@ css_ai_ctrl <- function() {
     src = c(href = ""),
     head = paste0("<style>",
       ".blockr-ctrl-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
         padding-bottom: 0;
       }
       .blockr-ctrl-body shiny-chat-container {
         --_chat-container-padding: 0;
+        min-height: 0;
+        overflow-y: auto;
       }
       .blockr-ctrl-body shiny-chat-input textarea {
         border-radius: 6px !important;
+        height: 38px;
         min-height: 38px !important;
+        max-height: 120px !important;
         scrollbar-width: none;
         -ms-overflow-style: none;
         box-shadow: none !important;
@@ -137,12 +145,14 @@ css_ai_ctrl <- function() {
       .blockr-ctrl-body shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
         background-color: var(--blockr-grey-50, #f9fafb) !important;
-        color: #374151 !important;
+        color: var(--blockr-color-text-muted, #6b7280) !important;
         padding: 6px 12px !important;
-        font-size: 0.9em;
+        font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
       .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
+        color: var(--blockr-color-text-muted, #6b7280) !important;
+        font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
       .blockr-ctrl-body shiny-chat-message .message-icon {
         border: none;
@@ -157,6 +167,7 @@ css_ai_ctrl <- function() {
         align-items: center;
         justify-content: flex-end;
         gap: 4px;
+        flex-shrink: 0;
       }
       .blockr-action-sep {
         font-size: 0.75em;
@@ -236,11 +247,16 @@ css_ai_ctrl <- function() {
     Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
       var container = document.getElementById(data.chatId);
       if (!container) return;
-      var input = container.querySelector('shiny-chat-input');
-      var target = input || container;
-      setTimeout(function() {
-        target.scrollIntoView({ behavior: 'smooth', block: 'end' });
-      }, 100);
+      var sidebar = container.closest('.blockr-ctrl-sidebar-content');
+      if (sidebar) {
+        setTimeout(function() { sidebar.scrollTop = sidebar.scrollHeight; }, 100);
+      } else {
+        var input = container.querySelector('shiny-chat-input');
+        var target = input || container;
+        setTimeout(function() {
+          target.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+      }
     });
 ",
     "</script>")

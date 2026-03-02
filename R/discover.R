@@ -17,9 +17,14 @@
 #' @param current_state Optional plain list of current block parameter values.
 #'   When non-NULL, a "Current Configuration" section is included in the user
 #'   message so the LLM can see what's already configured.
+#' @param data_exploration Data exploration strategy passed to
+#'   [data_exploration_backend()]. Defaults to
+#'   `blockr.core::blockr_option("data_exploration", "manual")`.
 #' @param reporter A progress reporter list (see [reporter_silent],
 #'   [reporter_console], [reporter_shiny]). When NULL (default), auto-detects:
 #'   console if interactive, silent otherwise.
+#' @param images Optional list of base64-encoded images to include with the
+#'   first prompt.
 #'
 #' @return List with:
 #'   \item{success}{TRUE if args were discovered successfully}

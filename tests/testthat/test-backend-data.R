@@ -25,26 +25,26 @@ test_that("extract_data_query extracts last block when multiple present", {
 })
 
 
-# --- format_data_preview ---
+# --- data_schema ---
 
-test_that("format_data_preview.data.frame delegates to format_df_preview", {
+test_that("data_schema.data.frame delegates to format_df_preview", {
   df <- data.frame(x = 1:3, y = letters[1:3])
-  result <- format_data_preview(df)
+  result <- data_schema(df)
   expect_type(result, "character")
   expect_match(result, "3 rows x 2 cols")
   expect_match(result, "x \\(integer\\)")
 })
 
-test_that("format_data_preview.default includes class name", {
+test_that("data_schema.default includes class name", {
   obj <- list(a = 1, b = "hello")
-  result <- format_data_preview(obj)
+  result <- data_schema(obj)
   expect_match(result, "Object of class: list")
 })
 
-test_that("format_data_preview.default handles environments", {
+test_that("data_schema.default handles environments", {
   e <- new.env(parent = emptyenv())
   e$x <- 42
-  result <- format_data_preview(e)
+  result <- data_schema(e)
   expect_match(result, "Object of class: environment")
 })
 

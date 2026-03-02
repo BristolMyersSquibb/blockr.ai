@@ -69,8 +69,11 @@ strip_json_block <- function(text) {
     !grepl("^(If (this|there|you)|Let me know)\\b", sentences, perl = TRUE) &
     !grepl("\\blet me know\\b", sentences, ignore.case = TRUE)
   out <- paste(trimws(sentences[keep]), collapse = " ")
-  # Collapse multiple blank lines and trim
+  # Collapse multiple blank lines
   out <- gsub("\n{3,}", "\n\n", out)
+  # Clean trailing artifacts left after stripping (dangling ":", ";", whitespace)
+  out <- sub("[[:space:]:;,]+$", "", out)
+  if (nzchar(out) && !grepl("[.!?]$", out)) out <- paste0(out, ".")
   trimws(out)
 }
 
@@ -107,77 +110,34 @@ remove_raw_json <- function(text) {
 }
 
 
-#' Format data preview for a single object
+#' Produce a text schema of a data object for LLM consumption
 #'
-#' S3 generic that produces a text summary of an object for LLM consumption.
-#' Packages can define methods for custom types.
+#' S3 generic that summarises an object's structure (dimensions, column types,
+#' sample rows, keys, etc.) as a character string suitable for inclusion in an
+#' LLM prompt.  Packages can define methods for custom types (e.g.
+#' \pkg{blockr.dm} registers a \code{dm} method).
 #'
-#' @param x Object to preview
-#' @param ... Additional arguments
-#' @return Character string
+#' @section Future:
+#' Consider moving this generic to \pkg{blockr.core} so that any package can
+#' provide methods without depending on \pkg{blockr.ai}.
+#'
+#' @param x Object to summarise.
+#' @param ... Additional arguments passed to methods.
+#' @return Character string.
 #' @export
-format_data_preview <- function(x, ...) {
-  UseMethod("format_data_preview")
+data_schema <- function(x, ...) {
+  UseMethod("data_schema")
 }
 
-#' @rdname format_data_preview
+#' @rdname data_schema
 #' @export
-format_data_preview.data.frame <- function(x, ...) {
+data_schema.data.frame <- function(x, ...) {
   format_df_preview(x)
 }
 
-#' @rdname format_data_preview
+#' @rdname data_schema
 #' @export
-format_data_preview.dm <- function(x, ...) {
-  tbl_names <- names(x)
-
-  # Table dimensions
-  dims <- vapply(tbl_names, function(nm) {
-    tbl <- x[[nm]]
-    paste0("  ", nm, ": ", nrow(tbl), " rows x ", ncol(tbl), " cols")
-  }, character(1))
-
-  # Primary keys
-  pk_text <- tryCatch({
-    pks <- dm::dm_get_all_pks(x)
-    if (nrow(pks) > 0) {
-      lines <- vapply(seq_len(nrow(pks)), function(i) {
-        paste0("  ", pks$table[i], ": ", paste(pks$pk_col[[i]], collapse = ", "))
-      }, character(1))
-      paste0("\nPrimary keys:\n", paste(lines, collapse = "\n"))
-    } else ""
-  }, error = function(e) "")
-
-  # Foreign keys
-  fk_text <- tryCatch({
-    fks <- dm::dm_get_all_fks(x)
-    if (nrow(fks) > 0) {
-      lines <- vapply(seq_len(nrow(fks)), function(i) {
-        paste0(
-          "  ", fks$child_table[i], ".", paste(fks$child_fk_cols[[i]], collapse = ", "),
-          " -> ", fks$parent_table[i], ".", paste(fks$parent_key_cols[[i]], collapse = ", ")
-        )
-      }, character(1))
-      paste0("\nForeign keys:\n", paste(lines, collapse = "\n"))
-    } else ""
-  }, error = function(e) "")
-
-  # Per-table previews
-  previews <- vapply(tbl_names, function(nm) {
-    paste0("## ", nm, "\n\n", format_df_preview(x[[nm]]))
-  }, character(1))
-
-  paste0(
-    "dm object with ", length(tbl_names), " tables:\n",
-    paste(dims, collapse = "\n"),
-    pk_text, fk_text, "\n\n",
-    paste(previews, collapse = "\n\n")
-  )
-}
-
-#' @rdname format_data_preview
-#' @export
-format_data_preview.default <- function(x, ...) {
+data_schema.default <- function(x, ...) {
   cls <- paste(class(x), collapse = ", ")
   summary <- tryCatch({
     lines <- utils::capture.output(utils::str(x, max.level = 2, list.len = 20))
@@ -207,14 +167,14 @@ data_preview <- function(input) {
   }
 
   body <- if (is.list(input) && !is.data.frame(input) &&
-              !inherits(input, "dm") && length(input) > 0) {
+              !is.object(input) && length(input) > 0) {
     previews <- vapply(seq_along(input), function(i) {
       name <- names(input)[i] %||% paste0("Input ", i)
-      paste0("## ", name, "\n\n", format_data_preview(input[[i]]))
+      paste0("## ", name, "\n\n", data_schema(input[[i]]))
     }, character(1))
     paste(previews, collapse = "\n\n")
   } else {
-    format_data_preview(input)
+    data_schema(input)
   }
 
   paste0("# Input Data\n\n", body, "\n\n")
@@ -228,8 +188,11 @@ data_preview <- function(input) {
 normalize_datasets <- function(data) {
   if (is.null(data)) return(list())
   if (is.data.frame(data)) return(list(data = data))
-  if (inherits(data, "dm")) return(list(data = data))
-  if (is.list(data) && length(data) > 0 && !is.null(names(data))) return(data)
+  if (inherits(data, "dm")) {
+    nms <- names(data)
+    return(setNames(lapply(nms, function(n) data[[n]]), nms))
+  }
+  if (is.list(data) && !is.object(data) && length(data) > 0 && !is.null(names(data))) return(data)
   list(data = data)
 }
 
@@ -399,6 +362,14 @@ build_system_prompt <- function(var_names, block) {
 
   ask_back_instructions <- paste0(
     "IMPORTANT:\n",
+    "- If the user is asking a question or wants an explanation (e.g. 'what does ",
+    "this mean?', 'explain the numbers', 'what am I looking at?'), give a rich, ",
+    "data-grounded explanation. Use the data exploration capability to look at ",
+    "actual values, then narrate what the chart shows: highlight key patterns, ",
+    "notable values, and comparisons. Reference the current configuration to ",
+    "explain HOW the visual is constructed (e.g. 'since we're grouping by SOC ",
+    "and coloring by severity, you can see that...'). Then return the current ",
+    "configuration as JSON unchanged to keep the visual in place.\n",
     "- If the user's request is vague or ambiguous (e.g. 'make it better', ",
     "'fix it', 'clean up', 'summarize the data'), do NOT guess. ",
     "Ask a specific clarifying question instead.\n",
@@ -415,10 +386,12 @@ build_system_prompt <- function(var_names, block) {
   response_format <- paste0(
     "RESPONSE FORMAT:\n",
     "Always include a brief explanation BEFORE the JSON block. ",
-    "The explanation is shown to the user in the chat — the JSON is not.\n",
-    "- State what you understood from the request\n",
-    "- Describe the key choices you made (e.g. which column, which values, why)\n",
-    "- Keep it to 1-2 sentences\n\n",
+    "The explanation is shown to the user in the chat \u2014 the JSON is not.\n",
+    "- For questions/explanations: narrate what the data shows in the chart, ",
+    "referencing the configuration to connect the visual to the data story. ",
+    "Use data exploration to ground your answer in actual values.\n",
+    "- For change requests: state what you understood and describe key choices.\n",
+    "- Keep it concise but informative.\n\n",
     "Then provide the JSON in a ```json code block.\n\n"
   )
 
