@@ -16,6 +16,7 @@ A reporter list
 }
 \description{
 Uses shinychat's chunk protocol to show live progress in the chat widget.
-Opens a single streaming assistant message that accumulates phase updates,
-then closes it when done.
+Opens a single streaming assistant message and shows one active badge at a
+time using \code{operation = "replace"}. When \code{done()} is called the message is
+closed.
 }

@@ -13,8 +13,9 @@ discover_block_args(
   verbose = FALSE,
   client = NULL,
   current_state = NULL,
-  data_exploration = blockr.core::blockr_option("data_exploration", "none"),
-  reporter = NULL
+  data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
+  reporter = NULL,
+  images = NULL
 )
 }
 \arguments{

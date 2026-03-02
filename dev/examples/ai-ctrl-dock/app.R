@@ -9,6 +9,13 @@ pkgload::load_all("blockr.dock")
 pkgload::load_all("blockr.dag")
 pkgload::load_all("blockr.dplyr")
 pkgload::load_all("blockr.ai")
+library(blockr.extra)
+
+# always include on prod
+options(
+  blockr.eval_parent_env = asNamespace("stats"),
+  blockr.html_table_preview = TRUE
+)
 
 serve(
   new_dock_board(

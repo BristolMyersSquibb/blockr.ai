@@ -2,6 +2,33 @@
 #
 # Provides AI-powered control for blocks with external_ctrl enabled.
 
+#' Sparkle icon SVG
+#'
+#' Three-star sparkle SVG icon used as the blockr.ai brand icon.
+#'
+#' @param size Icon pixel size (default 18)
+#'
+#' @return An [htmltools::HTML()] string containing an SVG element.
+#'
+#' @keywords internal
+sparkle_icon <- function(size = 18) {
+  HTML(sprintf(
+    paste0(
+      '<svg class="blockr-sparkle-svg" width="%d" height="%d" ',
+      'viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">',
+      '<path class="sparkle-main" d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18',
+      'L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor"/>',
+      '<path class="sparkle-sm sparkle-sm-1" d="M19 15L19.75 17.25L22 18',
+      'L19.75 18.75L19 21L18.25 18.75L16 18L18.25 17.25L19 15Z" ',
+      'fill="currentColor" opacity="0.7"/>',
+      '<path class="sparkle-sm sparkle-sm-2" d="M5 1L5.5 2.5L7 3L5.5 3.5',
+      'L5 5L4.5 3.5L3 3L4.5 2.5L5 1Z" fill="currentColor" opacity="0.5"/>',
+      '</svg>'
+    ),
+    size, size
+  ))
+}
+
 #' AI-powered control block plugin
 #'
 #' Replaces the default ctrl_block with an AI chat interface. Users can
@@ -49,16 +76,28 @@ ai_ctrl_ui <- function(id, x) {
       placeholder = "Describe what you want...",
       width = "100%",
       height = "auto",
-      icon_assistant = bsicons::bs_icon("stars")
+      icon_assistant = sparkle_icon(16)
     ),
     tags$div(
-      style = "text-align: right; padding: 4px 0; display: none;",
+      style = "padding: 4px 0;",
       class = "blockr-report-wrapper",
       `data-chat-id` = chat_id,
       tags$a(
         href = "#",
-        class = "blockr-report-conversation",
-        onclick = sprintf("blockrReportConversation('%s'); return false;", chat_id),
+        class = "blockr-clear-conversation",
+        onclick = sprintf(
+          "Shiny.setInputValue('%s', Date.now()); return false;",
+          ns("clear_chat")
+        ),
+        "Clear"
+      ),
+      tags$span(class = "blockr-action-sep", "\u00b7"),
+      tags$a(
+        id = ns("download_report"),
+        class = "blockr-report-conversation shiny-download-link",
+        href = "",
+        target = "_blank",
+        download = "",
         "Report"
       )
     )
@@ -72,7 +111,7 @@ css_ai_ctrl <- function() {
     src = c(href = ""),
     head = paste0("<style>",
       ".blockr-ctrl-body {
-        padding-bottom: 8px;
+        padding-bottom: 0;
       }
       .blockr-ctrl-body shiny-chat-container {
         --_chat-container-padding: 0;
@@ -97,7 +136,7 @@ css_ai_ctrl <- function() {
       }
       .blockr-ctrl-body shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
-        background-color: #e5e7eb !important;
+        background-color: var(--blockr-grey-50, #f9fafb) !important;
         color: #374151 !important;
         padding: 6px 12px !important;
         font-size: 0.9em;
@@ -105,15 +144,32 @@ css_ai_ctrl <- function() {
       .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
       }
+      .blockr-ctrl-body shiny-chat-message .message-icon {
+        border: none;
+        border-radius: 0;
+        color: #7c3aed;
+      }
       .blockr-ctrl-body shiny-chat-message:has(.blockr-ai-status-empty) {
         display: none !important;
       }
+      .blockr-report-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+      }
+      .blockr-action-sep {
+        font-size: 0.75em;
+        color: #d1d5db;
+      }
+      .blockr-clear-conversation,
       .blockr-report-conversation {
         font-size: 0.75em;
         color: #adb5bd;
         text-decoration: none;
         cursor: pointer;
       }
+      .blockr-clear-conversation:hover,
       .blockr-report-conversation:hover {
         color: #7c3aed;
       }
@@ -147,10 +203,10 @@ css_ai_ctrl <- function() {
         color: inherit;
       }
       .blockr-ai-status-badge.phase-thinking {
-        background-color: #eff6ff; border-color: #bfdbfe; color: #3b82f6;
+        background-color: #f0fdfa; border-color: #99f6e4; color: #14b8a6;
       }
       .blockr-ai-status-badge.phase-exploring {
-        background-color: #f0fdfa; border-color: #99f6e4; color: #14b8a6;
+        background-color: #eff6ff; border-color: #bfdbfe; color: #3b82f6;
       }
       .blockr-ai-status-badge.phase-validating {
         background-color: #f5f3ff; border-color: #c4b5fd; color: #7c3aed;
@@ -186,40 +242,7 @@ css_ai_ctrl <- function() {
         target.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }, 100);
     });
-    Shiny.addCustomMessageHandler('blockr-report-data', function(data) {
-      window._blockrReports = window._blockrReports || {};
-      window._blockrReports[data.chatId] = window._blockrReports[data.chatId] || [];
-      window._blockrReports[data.chatId].push(data.entry);
-      var wrapper = document.querySelector(
-        '.blockr-report-wrapper[data-chat-id=\"' + data.chatId + '\"]'
-      );
-      if (wrapper) wrapper.style.display = '';
-    });
-    function blockrReportConversation(chatId) {
-      var entries = (window._blockrReports || {})[chatId] || [];
-      if (entries.length === 0) return;
-      var parts = [];
-      entries.forEach(function(entry, i) {
-        var section = ['--- Prompt: ' + (entry.prompt || '') + ' ---'];
-        (entry.conversation || []).forEach(function(m) {
-          section.push('[' + (m.role || '').toUpperCase() + '] ' + (m.content || ''));
-        });
-        section.push('Result: success=' + entry.success +
-          ', args=' + (entry.args || 'null') +
-          ', error=' + (entry.error || 'none'));
-        parts.push(section.join('\\n'));
-      });
-      var body = parts.join('\\n\\n');
-      var blob = new Blob([body], {type: 'text/plain'});
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = 'blockr-ai-report.txt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }",
+",
     "</script>")
   )
 }
@@ -248,6 +271,35 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
 
     # Persistent client — created on first prompt, reused for conversation memory
     client <- NULL
+
+    # Server-side report data accumulator
+    report_entries <- list()
+
+    output$download_report <- downloadHandler(
+      filename = function() "blockr-ai-report.txt",
+      content = function(file) {
+        parts <- vapply(report_entries, function(entry) {
+          section <- sprintf("--- Prompt: %s ---", entry$prompt %||% "")
+          msgs <- vapply(entry$conversation %||% list(), function(m) {
+            sprintf("[%s] %s", toupper(m$role %||% ""), m$content %||% "")
+          }, character(1))
+          result_line <- sprintf(
+            "Result: success=%s, args=%s, error=%s",
+            entry$success,
+            entry$args %||% "null",
+            entry$error %||% "none"
+          )
+          paste(c(section, msgs, result_line), collapse = "\n")
+        }, character(1))
+        writeLines(paste(parts, collapse = "\n\n"), file)
+      }
+    )
+
+    observeEvent(input$clear_chat, {
+      shinychat::chat_clear("chat", session = session)
+      client <<- NULL
+      report_entries <<- list()
+    })
 
     observeEvent(input$chat_user_input, {
       raw_input <- input$chat_user_input
@@ -321,7 +373,7 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
       # Save client for conversation memory across prompts
       if (!is.null(result$client)) client <<- result$client
 
-      report_data <- list(
+      report_entries[[length(report_entries) + 1L]] <<- list(
         prompt = prompt,
         success = result$success,
         args = if (!is.null(result$args)) jsonlite::toJSON(result$args, auto_unbox = TRUE) else NULL,
@@ -330,10 +382,6 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           list(role = m$role, content = m$content)
         })
       )
-      session$sendCustomMessage("blockr-report-data", list(
-        chatId = session$ns("chat"),
-        entry = report_data
-      ))
       if (result$success) {
         reply <- if (nzchar(result$message %||% "")) result$message else "Done!"
         shinychat::chat_append("chat", reply, session = session)
