@@ -230,6 +230,29 @@ css_ai_ctrl <- function() {
       }
       .blockr-ai-status .markdown-stream-dot {
         display: none;
+      }
+      @keyframes sparkle-rotate {
+        0%   { transform: rotate(0deg) scale(1); }
+        25%  { transform: rotate(5deg) scale(1.1); }
+        50%  { transform: rotate(0deg) scale(1); }
+        75%  { transform: rotate(-5deg) scale(1.1); }
+        100% { transform: rotate(0deg) scale(1); }
+      }
+      @keyframes sparkle-twinkle {
+        0%, 100% { opacity: 0.5; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-main {
+        animation: sparkle-rotate 3s ease-in-out infinite;
+        transform-origin: center;
+      }
+      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-1 {
+        animation: sparkle-twinkle 2s ease-in-out 0.3s infinite;
+        transform-origin: center;
+      }
+      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
+        animation: sparkle-twinkle 2s ease-in-out 0.8s infinite;
+        transform-origin: center;
       }",
     "</style>",
     "<script>",
@@ -244,6 +267,17 @@ css_ai_ctrl <- function() {
         });
       });
     }).observe(document.body, { childList: true, subtree: true });
+    Shiny.addCustomMessageHandler('blockr-ai-working', function(data) {
+      var container = document.getElementById(data.chatId);
+      if (!container) return;
+      var body = container.closest('.blockr-ctrl-body');
+      if (!body) return;
+      if (data.working) {
+        body.classList.add('ai-working');
+      } else {
+        body.classList.remove('ai-working');
+      }
+    });
     Shiny.addCustomMessageHandler('blockr-scroll-chat', function(data) {
       var container = document.getElementById(data.chatId);
       if (!container) return;
@@ -331,6 +365,13 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
 
       gate(FALSE)
       on.exit(gate(TRUE))
+
+      session$sendCustomMessage("blockr-ai-working", list(
+        chatId = session$ns("chat"), working = TRUE
+      ))
+      on.exit(session$sendCustomMessage("blockr-ai-working", list(
+        chatId = session$ns("chat"), working = FALSE
+      )), add = TRUE)
 
       dat_snapshot <- shiny::isolate(data())
       input_data <- if (inherits(dat_snapshot, "dm")) {

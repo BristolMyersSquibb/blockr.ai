@@ -63,17 +63,17 @@ strip_json_block <- function(text) {
   out <- gsub("```(?:json)?\\s*\\n[\\s\\S]*?\\n```", "", text, perl = TRUE)
   # Remove raw JSON objects (balanced braces)
   out <- remove_raw_json(out)
-  # Split into sentences, drop those mentioning JSON or asking to confirm/let know
-  sentences <- strsplit(out, "(?<=[.!?:])\\s*", perl = TRUE)[[1]]
-  keep <- !grepl("\\bJSON\\b", sentences, ignore.case = TRUE) &
-    !grepl("^(If (this|there|you)|Let me know)\\b", sentences, perl = TRUE) &
-    !grepl("\\blet me know\\b", sentences, ignore.case = TRUE)
-  out <- paste(trimws(sentences[keep]), collapse = " ")
+  # Filter by lines to preserve markdown structure (lists, paragraphs)
+  lines <- strsplit(out, "\n", fixed = TRUE)[[1]]
+  keep <- !grepl("^\\s*\\{", lines) &
+    !grepl("\\bJSON\\b", lines, ignore.case = TRUE) &
+    !grepl("^(If (this|there|you)|Let me know)\\b", lines, perl = TRUE) &
+    !grepl("\\blet me know\\b", lines, ignore.case = TRUE)
+  out <- paste(lines[keep], collapse = "\n")
   # Collapse multiple blank lines
   out <- gsub("\n{3,}", "\n\n", out)
-  # Clean trailing artifacts left after stripping (dangling ":", ";", whitespace)
-  out <- sub("[[:space:]:;,]+$", "", out)
-  if (nzchar(out) && !grepl("[.!?]$", out)) out <- paste0(out, ".")
+  # Clean trailing whitespace per line
+  out <- gsub("[[:blank:]]+\n", "\n", out)
   trimws(out)
 }
 
