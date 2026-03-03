@@ -122,6 +122,9 @@ css_ai_ctrl <- function() {
         min-height: 0;
         overflow-y: auto;
       }
+      .blockr-ctrl-body shiny-chat-input {
+        overflow-x: hidden;
+      }
       .blockr-ctrl-body shiny-chat-input textarea {
         border-radius: 6px !important;
         height: 38px;
