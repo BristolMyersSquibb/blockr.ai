@@ -11,6 +11,7 @@
 #' @return An [htmltools::HTML()] string containing an SVG element.
 #'
 #' @keywords internal
+# nolint start: quotes_linter.
 sparkle_icon <- function(size = 18) {
   HTML(sprintf(
     paste0(
@@ -28,6 +29,7 @@ sparkle_icon <- function(size = 18) {
     size, size
   ))
 }
+# nolint end
 
 #' AI-powered control block plugin
 #'
