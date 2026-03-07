@@ -27,16 +27,10 @@ Imports:
     blockr.core (>= 0.1.1),
     ellmer (>= 0.3.0),
     htmltools,
-    shinyAce,
-    styler,
     jsonlite,
-    bslib,
     utils,
-    tools,
     shinychat (>= 0.2.0.9000),
-    btw,
-    evaluate,
-    promises
+    evaluate
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr,
