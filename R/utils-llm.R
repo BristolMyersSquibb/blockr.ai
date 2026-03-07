@@ -289,24 +289,23 @@ format_current_state <- function(state) {
 }
 
 
-#' Format a block result for LLM confirmation preview
-#' @param result Block evaluation result (data.frame, dm, ggplot, or other)
-#' @return Character string preview
-#' @noRd
-format_result_preview <- function(result) {
-  if (inherits(result, "dm")) {
-    tbl_names <- names(result)
-    lines <- vapply(tbl_names, function(nm) {
-      paste0(nm, ": ", nrow(result[[nm]]), " rows")
-    }, character(1))
-    paste(lines, collapse = "\n")
-  } else if (inherits(result, "ggplot")) {
-    "Plot created successfully"
-  } else if (is.data.frame(result)) {
-    paste(utils::capture.output(print(utils::head(result, 3))), collapse = "\n")
-  } else {
-    paste0(class(result)[1], " object")
-  }
+#' @rdname data_schema
+#' @export
+data_schema.ggplot <- function(x, ...) {
+  layers <- vapply(x$layers, function(l) {
+    geom <- class(l$geom)[1]
+    aes <- paste(names(l$mapping), collapse = ", ")
+    if (nzchar(aes)) paste0(geom, " (", aes, ")") else geom
+  }, character(1))
+
+  global_aes <- paste(names(x$mapping), collapse = ", ")
+
+  parts <- c(
+    paste0("ggplot with ", length(x$layers), " layer(s):"),
+    paste0("- ", layers),
+    if (nzchar(global_aes)) paste0("Global mappings: ", global_aes)
+  )
+  paste(parts, collapse = "\n")
 }
 
 

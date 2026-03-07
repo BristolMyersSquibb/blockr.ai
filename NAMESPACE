@@ -2,6 +2,7 @@
 
 S3method(data_schema,data.frame)
 S3method(data_schema,default)
+S3method(data_schema,ggplot)
 export(ai_ctrl_block)
 export(ai_ctrl_server)
 export(ai_ctrl_ui)

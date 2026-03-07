@@ -256,7 +256,7 @@ discover_block_args <- function(
     final_args <- new_args
     final_result <- result
     last_message <- strip_json_block(response)
-    preview <- format_result_preview(result)
+    preview <- data_schema(result)
     message("[discover] validated: ", truncate_for_log(preview))
     reporter$start_phase("confirming")
     msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
