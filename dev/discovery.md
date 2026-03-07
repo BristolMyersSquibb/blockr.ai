@@ -57,6 +57,29 @@ The first message includes:
   values as JSON, so the LLM can build on them
 - **The task**: the user's prompt
 
+## How the LLM Understands Data
+
+The LLM gets information about data through three mechanisms, all
+text-based (no image support):
+
+1. **Data preview** (compulsory): the `data_schema()` S3 generic
+   produces a text summary of the input data, included in the first
+   user message. Methods exist for data.frames (dimensions, types,
+   sample rows, value summaries), dm objects (per-table previews), and
+   ggplot objects (layers, geoms, mappings). Packages can register
+   methods for custom types.
+
+2. **Data exploration** (optional): the LLM can run arbitrary R code
+   against the input data to inspect things the preview doesn't show --
+   unique factor levels, computed aggregates, object structure
+   (`str()`, `$layers`, etc.). See the Data Exploration section below.
+
+3. **Output verification** (compulsory): after the LLM proposes args
+   and validation succeeds, the result is summarised using
+   `data_schema()` again and shown to the LLM for confirmation. This
+   uses the same dispatch, so a ggplot result shows its layer/mapping
+   structure rather than just "Plot created successfully."
+
 ## Validation
 
 Two modes depending on context:
