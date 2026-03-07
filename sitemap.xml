@@ -1,0 +1,23 @@
+<urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
+<url><loc>/404.html</loc></url>
+<url><loc>/LICENSE.html</loc></url>
+<url><loc>/authors.html</loc></url>
+<url><loc>/index.html</loc></url>
+<url><loc>/reference/ai_ctrl_block.html</loc></url>
+<url><loc>/reference/blockr.ai-package.html</loc></url>
+<url><loc>/reference/data_exploration_backend.html</loc></url>
+<url><loc>/reference/data_schema.html</loc></url>
+<url><loc>/reference/discover_block_args.html</loc></url>
+<url><loc>/reference/extract_result.html</loc></url>
+<url><loc>/reference/index.html</loc></url>
+<url><loc>/reference/inherits_base_class.html</loc></url>
+<url><loc>/reference/new_llm_block.html</loc></url>
+<url><loc>/reference/new_llm_tool.html</loc></url>
+<url><loc>/reference/print_conversation.html</loc></url>
+<url><loc>/reference/reporter_console.html</loc></url>
+<url><loc>/reference/reporter_shiny.html</loc></url>
+<url><loc>/reference/reporter_silent.html</loc></url>
+<url><loc>/reference/sparkle_icon.html</loc></url>
+<url><loc>/reference/system_prompt.html</loc></url>
+</urlset>
+
