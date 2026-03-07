@@ -4,10 +4,10 @@
 \name{blockr.ai-package}
 \alias{blockr.ai}
 \alias{blockr.ai-package}
-\title{AI-powered blocks for the blockr framework}
+\title{AI-powered block configuration for the blockr framework}
 \description{
-Provides AI-powered blocks that extend the blockr.core framework with
-natural language capabilities for data analysis and visualization.
+Provides AI-powered block configuration via natural language. Users describe
+what they want and an LLM configures block parameters accordingly.
 }
 \seealso{
 Useful links:
@@ -18,12 +18,12 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Nicolas Bennett \email{nicolas@cynkra.com}
+\strong{Maintainer}: Christoph Sax \email{christoph@cynkra.com}
 
 Authors:
 \itemize{
+  \item Nicolas Bennett \email{nicolas@cynkra.com}
   \item Antoine Fabri \email{antoine@cynkra.com}
-  \item Christoph Sax \email{christoph@cynkra.com}
 }
 
 }

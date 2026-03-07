@@ -46,22 +46,3 @@ get_prompt <- function(x) {
     stop("Cannot extract a tool from ", paste_enum(class(x)))
   }
 }
-
-#' @rdname new_llm_tool
-#' @export
-llm_tools <- function(x, ...) {
-  UseMethod("llm_tools", x)
-}
-
-#' @rdname new_llm_tool
-#' @export
-llm_tools.llm_block_proxy <- function(x, ...) {
-  blockr_option(
-    "llm_tools",
-    list(
-      new_eval_tool(x, ...),
-      new_help_tool(x, ...),
-      new_data_tool(x, ...)
-    )
-  )
-}

@@ -23,11 +23,11 @@
 #   unite:          use the unite block on people data
 #   separate:       use the separate block on people data
 
-pkgload::load_all("../blockr.core")
-pkgload::load_all("../blockr.dock")
-pkgload::load_all("../blockr.dag")
-pkgload::load_all("../blockr.dplyr")
-pkgload::load_all("../blockr.ai")
+pkgload::load_all("blockr.core")
+pkgload::load_all("blockr.dock")
+pkgload::load_all("blockr.dag")
+pkgload::load_all("blockr.dplyr")
+pkgload::load_all("blockr.ai")
 
 # --- helpers -----------------------------------------------------------------
 

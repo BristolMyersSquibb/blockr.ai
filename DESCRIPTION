@@ -4,7 +4,7 @@ Version: 0.0.1
 Authors@R:
     c(person(given = "Nicolas",
              family = "Bennett",
-             role = c("aut", "cre"),
+             role = c("aut"),
              email = "nicolas@cynkra.com"),
       person(given = "Antoine",
              family = "Fabri",
@@ -12,7 +12,7 @@ Authors@R:
              email = "antoine@cynkra.com"),
       person(given = "Christoph",
              family = "Sax",
-             role = c("aut"),
+             role = c("aut", "cre"),
              email = "christoph@cynkra.com")
     )
 Description: Provides AI-powered functionality as blocks for 'blockr.core'.
@@ -27,24 +27,13 @@ Imports:
     blockr.core (>= 0.1.1),
     ellmer (>= 0.3.0),
     htmltools,
-    shinyAce,
-    styler,
-    ggplot2,
-    gt,
     jsonlite,
-    bslib,
-    flextable,
     utils,
-    tools,
     shinychat (>= 0.2.0.9000),
-    btw,
-    evaluate,
-    promises
+    evaluate
 Suggests:
     testthat (>= 3.0.0),
-    blockr.dplyr,
-    dplyr,
-    dm
+    blockr.dplyr
 Remotes:
     BristolMyersSquibb/blockr.core,
     BristolMyersSquibb/blockr.dplyr,
