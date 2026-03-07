@@ -1,61 +1,79 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # blockr.ai
 
-<!-- badges: start -->
-
-<!-- badges: end -->
+AI-powered block configuration for the
+[blockr.core](https://github.com/BristolMyersSquibb/blockr.core) framework.
 
 ## Overview
 
-`blockr.ai` provides AI-powered blocks for the `blockr.core` framework.
-It enables integration with various AI services and models to enhance
-data analysis workflows through natural language interactions.
+`blockr.ai` lets users configure blocks via natural language. Instead of
+manually setting filter conditions, plot aesthetics, or summary functions,
+describe what you want and an LLM figures out the right parameters.
 
-## Features
+The package provides two main capabilities:
 
-- Natural language powered plot creation through `new_llm_plot_block()`.
-- AI-assisted data transformations through `new_llm_transform_block()`.
-- Integration with many LLM APIs via the ellmer package.
-- Interactive blocks that can be composed with other blockr components.
+- **`ai_ctrl_block()`** — A plugin that replaces the default block control
+  panel with an AI chat interface. Works with any block that has
+  `external_ctrl` enabled.
+- **`discover_block_args()`** — Programmatic interface for LLM-driven block
+  configuration, useful for testing and scripting.
 
 ## Installation
 
-You can install the development version of blockr.ai from GitHub with:
-
-``` r
+```r
 # install.packages("remotes")
 remotes::install_github("BristolMyersSquibb/blockr.ai")
 ```
 
 ## Usage
 
-`blockr.ai` extends the `blockr.core` framework with AI capabilities.
+### AI control plugin
 
-### Examples
+Add the AI chat interface to any board:
 
-``` r
+```r
 library(blockr.core)
 library(blockr.ai)
 
 serve(
-  new_llm_plot_block(),
-  data = list(data = iris)
-)
-
-serve(
-  new_llm_transform_block(),
-  data = list(data = iris)
-)
-
-serve(
   new_board(
     blocks = blocks(
-      a = new_dataset_block("mtcars"),
-      b = new_llm_plot_block("Plot mpg vs hp")
+      a = new_dataset_block("iris"),
+      b = new_filter_block()
     ),
     links = links("a", "b", "data")
-  )
+  ),
+  plugins = custom_plugins(ai_ctrl_block())
 )
 ```
+
+Users can then type prompts like "show only setosa" or "filter where
+Sepal.Length > 5" in the chat panel.
+
+### Programmatic discovery
+
+```r
+result <- discover_block_args(
+  prompt = "setosa only",
+  block = new_filter_block(),
+  data = iris
+)
+
+result$success
+result$args
+```
+
+### Data exploration
+
+The LLM can optionally explore input data before configuring a block:
+
+```r
+result <- discover_block_args(
+  prompt = "average sepal length by species",
+  block = new_summarize_block(),
+  data = iris,
+  data_exploration = "manual"
+)
+```
+
+See `?data_exploration_backend` for available strategies (`"none"`,
+`"manual"`, `"tools"`).
