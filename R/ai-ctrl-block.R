@@ -60,7 +60,7 @@ ai_ctrl_block <- function() {
 #' @export
 ai_ctrl_ui <- function(id, x) {
   # No UI for blocks without external_ctrl
-  if (length(blockr.core:::block_external_ctrl_vars(x)) == 0) {
+  if (isFALSE(attr(x, "external_ctrl"))) {
     return(tagList())
   }
 

@@ -2,14 +2,13 @@
 
 Status: **In progress**
 
-## Open — Needs discussion with Nicolas
+## Done — Resolved
 
-- [ ] **`:::` usage for blockr.core internals**
-  `ai_ctrl_ui()` calls `blockr.core:::block_external_ctrl_vars(x)` (R/ai-ctrl-block.R:63)
-  and `get_block_registry_info()` calls `blockr.core:::block_registry` (R/utils-llm.R:418).
-  Neither function/object is exported by blockr.core.
-  Options: export from core, replace with public API (`registry_metadata()`), or
-  extract directly from block attributes. Discuss best approach with Nicolas.
+- [x] **`:::` usage for blockr.core internals**
+  `ai_ctrl_ui()` replaced `blockr.core:::block_external_ctrl_vars(x)` with
+  `isFALSE(attr(x, "external_ctrl"))` (same semantics, no private API).
+  `get_block_registry_info()` replaced `blockr.core:::block_registry` env access
+  with the exported `blockr.core::registry_metadata()` public API.
 
 ## Open — Cleanup
 

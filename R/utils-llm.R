@@ -414,28 +414,17 @@ build_system_prompt <- function(var_names, block) {
 #' @return List with name, description, category (or NULLs if not found)
 #' @noRd
 get_block_registry_info <- function(block_name) {
-  reg <- tryCatch(
-    blockr.core:::block_registry,
-    error = function(e) NULL
-  )
-
-  if (is.null(reg)) {
-    return(list(name = NULL, description = NULL, category = NULL))
-  }
-
-  entry <- tryCatch(
-    get(block_name, envir = reg, inherits = FALSE),
-    error = function(e) NULL
-  )
-
-  if (is.null(entry)) {
-    return(list(name = NULL, description = NULL, category = NULL))
-  }
-
-  list(
-    name = attr(entry, "name"),
-    description = attr(entry, "description"),
-    category = attr(entry, "category")
+  tryCatch(
+    {
+      meta <- blockr.core::registry_metadata(block_name,
+        fields = c("name", "description", "category"))
+      list(
+        name = meta$name,
+        description = meta$description,
+        category = meta$category
+      )
+    },
+    error = function(e) list(name = NULL, description = NULL, category = NULL)
   )
 }
 
