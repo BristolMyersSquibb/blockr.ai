@@ -1,3 +1,14 @@
+# Mock block proxy for testing eval infrastructure
+mock_df_block <- function() {
+  structure(list(), class = "mock_df_block_proxy")
+}
+
+result_ptype.mock_df_block_proxy <- function(x) { # nolint
+  data.frame()
+}
+
+.S3method("result_ptype", "mock_df_block_proxy")
+
 test_that("eval_code works with simple expressions", {
   data <- list(x = 1:3, y = 4:6)
   result <- eval_code("x + y", data)
@@ -23,12 +34,11 @@ test_that("eval_code uses isolated environment", {
 })
 
 test_that("try_eval_code returns result on success", {
-  # Use existing transform block proxy which expects data.frame result
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   data <- list(df = data.frame(x = 1:3, y = 4:6))
 
   result <- try_eval_code(
-    transform_block,
+    block,
     "data.frame(sum_x = sum(df$x))",
     data
   )
@@ -37,41 +47,13 @@ test_that("try_eval_code returns result on success", {
 })
 
 test_that("try_eval_code returns try-error on failure", {
-  # Use existing transform block proxy
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   data <- list(x = 1:3)
 
-  result <- try_eval_code(transform_block, "nonexistent_function(x)", data)
+  result <- try_eval_code(block, "nonexistent_function(x)", data)
   expect_true(inherits(result, "try-error"))
   expect_type(result, "character")
   expect_match(result, "could not find function")
-})
-
-test_that("try_eval_code handles ggplot objects", {
-  skip_if_not_installed("ggplot2")
-
-  # Use existing plot block proxy which expects ggplot result
-  plot_block <- structure(list(), class = "llm_plot_block_proxy")
-  data <- list(df = data.frame(x = 1:3, y = 1:3))
-
-  # Valid ggplot should work
-  result <- try_eval_code(
-    plot_block,
-    "ggplot2::ggplot(df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
-    data
-  )
-
-  expect_true(ggplot2::is_ggplot(result))
-  expect_false(inherits(result, "try-error"))
-
-  # Invalid ggplot should fail early
-  result2 <- try_eval_code(
-    plot_block,
-    "ggplot2::ggplot(nonexist_df, ggplot2::aes(x, y)) + ggplot2::geom_point()",
-    data
-  )
-
-  expect_true(inherits(result2, "try-error"))
 })
 
 test_that("extract_try_error extracts error message", {
@@ -91,9 +73,9 @@ test_that("extract_try_error fails on non-try-error objects", {
 })
 
 test_that("new_eval_tool creates valid ellmer tool", {
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   datasets <- list(data = data.frame(x = 1:3, y = 1:3))
-  tool <- new_eval_tool(transform_block, datasets, max_retries = 3)
+  tool <- new_eval_tool(block, datasets, max_retries = 3)
 
   # Should be an ellmer tool object
   expect_true(is_llm_tool(tool))
@@ -103,9 +85,9 @@ test_that("new_eval_tool creates valid ellmer tool", {
 })
 
 test_that("eval tool invocation counting works", {
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   datasets <- list(data = data.frame(x = 1:3))
-  tool <- new_eval_tool(transform_block, datasets, max_retries = 2)
+  tool <- new_eval_tool(block, datasets, max_retries = 2)
 
   # Get the actual tool function for testing
   tool_func <- get_tool(tool)
@@ -140,10 +122,10 @@ test_that("eval tool invocation counting works", {
 })
 
 test_that("eval tool resets counter on success", {
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   datasets <- list(data = data.frame(x = 1:3))
 
-  tool <- new_eval_tool(transform_block, datasets, max_retries = 3)
+  tool <- new_eval_tool(block, datasets, max_retries = 3)
   tool_func <- get_tool(tool)
 
   # Successful execution should work and reset counter
@@ -156,9 +138,9 @@ test_that("eval tool resets counter on success", {
 })
 
 test_that("eval tool handles max retries exceeded", {
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- mock_df_block()
   datasets <- list(data = data.frame(x = 1:3))
-  tool <- new_eval_tool(transform_block, datasets, max_retries = 1)
+  tool <- new_eval_tool(block, datasets, max_retries = 1)
   tool_func <- get_tool(tool)
 
   # Mock ellmer::tool_reject

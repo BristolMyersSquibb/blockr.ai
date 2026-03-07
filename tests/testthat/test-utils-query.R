@@ -1,3 +1,9 @@
+result_ptype.mock_df_block_proxy <- function(x) { # nolint
+  data.frame()
+}
+
+.S3method("result_ptype", "mock_df_block_proxy")
+
 test_that("query_llm_with_tools sets up system prompt correctly", {
   user_prompt <- "Test user prompt"
   system_prompt <- "Test system prompt"
@@ -14,9 +20,9 @@ test_that("query_llm_with_tools sets up system prompt correctly", {
 
   # Create tools with prompts
   datasets <- list(data = data.frame(x = 1:3))
-  transform_block <- structure(list(), class = "llm_transform_block_proxy")
+  block <- structure(list(), class = "mock_df_block_proxy")
   tools <- list(
-    new_eval_tool(transform_block, datasets, max_retries = 3),
+    new_eval_tool(block, datasets, max_retries = 3),
     new_help_tool()
   )
 

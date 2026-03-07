@@ -5,7 +5,6 @@
 \alias{result_ptype}
 \alias{check_result}
 \alias{check_result.default}
-\alias{check_result.ggplot}
 \title{Tools for evaluating and checking code}
 \usage{
 inherits_base_class(x, ptype)
@@ -15,8 +14,6 @@ result_ptype(x)
 check_result(x, ptype, check_fun = inherits_base_class)
 
 \method{check_result}{default}(x, ptype, check_fun = inherits_base_class)
-
-\method{check_result}{ggplot}(x, ptype, check_fun = inherits_base_class)
 }
 \arguments{
 \item{x}{Object to be checked}

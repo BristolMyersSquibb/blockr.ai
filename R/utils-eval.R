@@ -75,11 +75,3 @@ check_result.default <- function(x, ptype, check_fun = inherits_base_class) {
   stop(chk)
 }
 
-#' @rdname inherits_base_class
-#' @export
-check_result.ggplot <- function(x, ptype, check_fun = inherits_base_class) {
-  # plots might not fail at definition time but only when printing.
-  # We trigger the failure early with ggplotGrob()
-  suppressMessages(ggplot2::ggplotGrob(x))
-  NextMethod()
-}

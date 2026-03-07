@@ -1,3 +1,8 @@
+#' LLM-as-operation block: the AI generates content directly from data,
+#' rather than configuring block parameters (LLM-as-assistant pattern).
+#' Code-producing blocks (transform, plot, gt, flextable, data) have been
+#' removed in favor of blockr.extra's `new_function_block()`.
+#'
 #' @rdname new_llm_block
 #' @export
 new_llm_insights_block <- function(...) {
