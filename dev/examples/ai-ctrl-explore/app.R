@@ -10,6 +10,8 @@
 # group means before providing JSON.
 
 pkgload::load_all("blockr.core")
+pkgload::load_all("blockr.dock")
+pkgload::load_all("blockr.dag")
 pkgload::load_all("blockr.dplyr")
 pkgload::load_all("blockr.ai")
 
@@ -28,14 +30,15 @@ demo_data <- data.frame(
 )
 
 serve(
-  new_board(
+  new_dock_board(
     blocks = c(
       data = new_static_block(demo_data),
       filter = new_filter_block()
     ),
     links = c(
       new_link("data", "filter", "data")
-    )
+    ),
+    extensions = list(dag = new_dag_extension())
   ),
   plugins = custom_plugins(ai_ctrl_block())
 )

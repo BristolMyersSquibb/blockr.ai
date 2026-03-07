@@ -2,9 +2,9 @@
 #
 # Run interactively to verify discover_block_args works with crossfilter blocks.
 
-pkgload::load_all("../blockr.core")
-pkgload::load_all("../blockr.dm")
-pkgload::load_all(".")
+pkgload::load_all("blockr.core")
+pkgload::load_all("blockr.dm")
+pkgload::load_all("blockr.ai")
 
 # --- crossfilter_block with iris ---
 

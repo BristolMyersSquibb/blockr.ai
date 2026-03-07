@@ -18,12 +18,12 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Nicolas Bennett \email{nicolas@cynkra.com}
+\strong{Maintainer}: Christoph Sax \email{christoph@cynkra.com}
 
 Authors:
 \itemize{
+  \item Nicolas Bennett \email{nicolas@cynkra.com}
   \item Antoine Fabri \email{antoine@cynkra.com}
-  \item Christoph Sax \email{christoph@cynkra.com}
 }
 
 }
