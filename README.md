@@ -77,3 +77,14 @@ result <- discover_block_args(
 
 See `?data_exploration_backend` for available strategies (`"none"`,
 `"manual"`, `"tools"`).
+
+## Developer Documentation
+
+The `dev/` directory contains detailed documentation for contributors
+and block authors:
+
+- **[Architecture](dev/architecture.md)** — Plugin system, data flow, and how blockr.ai integrates with blockr.core
+- **[Discovery](dev/discovery.md)** — The LLM loop, prompt assembly, registry metadata, and data exploration backends
+- **[External Control Guide](dev/external-ctrl-guide.md)** — How to make a block AI-controllable (for block authors, including external packages)
+- **[Debugging](dev/debugging.md)** — Three-level debugging strategy and Playwright E2E testing
+- **[Benchmark Summary](dev/benchmark-summary.md)** — Data exploration backend benchmark results
