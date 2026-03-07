@@ -3,10 +3,12 @@ new_data_tool <- function(x, datasets,
                           ...) {
 
   invocation_count <- 0
+  total_probes <- 0L
 
   execute_r_code <- function(code) {
 
     invocation_count <<- invocation_count + 1
+    total_probes <<- total_probes + 1L
 
     code <- paste(code, collapse = "\n")
 
@@ -37,24 +39,19 @@ new_data_tool <- function(x, datasets,
     utils::capture.output(evaluate::replay(res))
   }
 
-  new_llm_tool(
+  tool <- new_llm_tool(
     execute_r_code,
     description = paste(
-      "In order to explore input datasets, you can run arbitrary R code",
-      "in a context with the datasets available, bound to their respective",
-      "names (", paste_enum(names(datasets)), "). You can use this tool up to",
-      max_probes, "times. If the counter is exceeded, please report back any",
-      "open questions you might have and await further user instruction."
+      "Run arbitrary R code to explore input datasets. Datasets are available",
+      "by name:", paste_enum(names(datasets)), ". You can use this tool up to",
+      max_probes, "times."
     ),
     name = "data_tool",
     prompt = paste0(
-      "You are encouraged to use the \"data_tool\" to investigate input ",
-      "datasets. In order to do so, you may write R code which is evaluated ",
-      "in the context of the input datasets. In code you produce, refer to ",
-      "the datasets by their names: ", paste_enum(names(datasets)), ".",
-      "Please do not make excessive use of this tool but do use it in case ",
-      "you believe your answer might benefit from better understanding input ",
-      "data."
+      data_exploration_preamble(), "\n\n",
+      "Use the \"data_tool\" to run R code that refers to datasets by name: ",
+      paste_enum(names(datasets)), ". You can use this tool up to ",
+      max_probes, " times."
     ),
     arguments = list(
       code = ellmer::type_string(
@@ -64,4 +61,8 @@ new_data_tool <- function(x, datasets,
       )
     )
   )
+
+  tool$probes_used <- function() total_probes
+
+  tool
 }

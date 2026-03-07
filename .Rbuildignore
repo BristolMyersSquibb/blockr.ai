@@ -4,3 +4,5 @@
 ^\.lintr$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.claude$
+^dev$

@@ -25,13 +25,13 @@ RoxygenNote: 7.3.3
 Imports:
     shiny,
     blockr.core (>= 0.1.1),
-    rlang,
-    dplyr,
     ellmer (>= 0.3.0),
+    htmltools,
     shinyAce,
     styler,
     ggplot2,
     gt,
+    jsonlite,
     bslib,
     flextable,
     utils,
@@ -42,7 +42,9 @@ Imports:
     promises
 Suggests:
     testthat (>= 3.0.0),
-    blockr.dplyr
+    blockr.dplyr,
+    dplyr,
+    dm
 Remotes:
     BristolMyersSquibb/blockr.core,
     BristolMyersSquibb/blockr.dplyr,
