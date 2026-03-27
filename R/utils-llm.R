@@ -392,9 +392,10 @@ read_template <- function(name) {
 
 
 interpolate_template <- function(template, ...) {
-  # double backticks so glue's parser doesn't treat them as R quoting
+  # double backticks and subtitute hashes so glue's parser doesn't treat them as R quoting
   # inside {?...} expressions. Restored to single backticks after glue runs.
   template <- gsub("`", "``", template, fixed = TRUE)
+  template <- gsub("#", "\U{FF03}", template, fixed = TRUE)
   prompt <- as.character(glue::glue(
     template,
     .transformer = prompt_transformer,
@@ -404,8 +405,9 @@ interpolate_template <- function(template, ...) {
     ), parent = baseenv())
   )
   # Clean up:
-  # 1. Restore backticks
+  # 1. Restore backticks and hashes
   prompt <- gsub("``", "`", prompt, fixed = TRUE)
+  template <- gsub("\U{FF03}", "#", template, fixed = TRUE)
   # 2. Remove conditional lines marked with \b
   prompt <- gsub("\b\n", "", prompt, fixed = TRUE)
   # 3. Collapse excess blank lines left by removed sections
