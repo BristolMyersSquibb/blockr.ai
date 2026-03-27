@@ -202,7 +202,6 @@ test_that("tools backend probes_used returns 0 after setup", {
 
 test_that("data_preview works with data.frame", {
   result <- data_preview(data.frame(x = 1:3))
-  expect_match(result, "# Input Data")
   expect_match(result, "3 rows x 1 cols")
 })
 

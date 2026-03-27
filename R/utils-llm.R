@@ -187,7 +187,7 @@ data_preview <- function(input) {
     preview <- data_schema(input)
   }
 
-  paste0("# Input Data\n\n", preview, "\n\n")
+  preview
 }
 
 
