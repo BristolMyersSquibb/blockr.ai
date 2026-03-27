@@ -1,12 +1,11 @@
 #' Build system prompt for block argument discovery (template-based)
 #'
-#' Produces the same output as [build_system_prompt()] but reads a Markdown
-#' template from `inst/prompts/system_prompt.md` and interpolates it with
+#' Reads a Markdown template from `inst/prompts/system_prompt.md` and interpolates it with
 #' [glue::glue()]. The template uses `{? cond: content}` / `{! cond: content}`
-#' for conditional sections; the function only gathers raw data and passes it.
 #'
 #' @param var_names Names of controllable variables
 #' @param block Block object for context
+#' @param backend_prompt_addition Additional prompt from backend
 #' @return Character string with system prompt
 #' @noRd
 build_system_prompt <- function(var_names, block, backend_prompt_addition) {
