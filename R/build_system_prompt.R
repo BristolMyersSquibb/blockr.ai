@@ -118,8 +118,9 @@ prompt_transformer <- function(text, envir) {
     cond_name <- substring(rest, 1, colon_pos - 1)
     content <- substring(rest, colon_pos + 2)
     cond_val <- get(cond_name, envir = envir)
-    show <- if (negate) !length(cond_val) else length(cond_val)
-    if (!show) return("\b")
+    show <- length(cond_val) && all(nzchar(cond_val))
+    if (negate) show <- !show
+    if (!show) return("\b") # a marker used to remove empty lines
     if (!grepl("{", content, fixed = TRUE)) return(content)
     return(as.character(glue::glue(
       content, .envir = envir, .trim = FALSE
