@@ -116,16 +116,9 @@ discover_block_args <- function(
   # Create new client only if none provided; reuse existing for conversation memory
   if (is.null(client)) {
     client <- llm_client()
-    system_prompt <- build_system_prompt(var_names, block)
-
     # Let backend modify client (register tools) and append to system prompt
-    if (!is.null(data)) {
-      prompt_addition <- backend$setup(client, data)
-      if (!is.null(prompt_addition) && nzchar(prompt_addition)) {
-        system_prompt <- paste0(system_prompt, prompt_addition)
-      }
-    }
-
+    prompt_addition <- if (!is.null(data)) backend$setup(client, data)
+    system_prompt <- build_system_prompt(var_names, block, prompt_addition)
     client$set_system_prompt(system_prompt)
     log_msg("system", system_prompt)
   }

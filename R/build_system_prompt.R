@@ -9,7 +9,7 @@
 #' @param block Block object for context
 #' @return Character string with system prompt
 #' @noRd
-build_system_prompt <- function(var_names, block) {
+build_system_prompt <- function(var_names, block, backend_prompt_addition) {
   # FIXME: we shouldn't have something dplyr specific here
   helper_fns <- getOption("blockr.dplyr.summary_functions")
   block_name <- class(block)[1]
@@ -26,7 +26,8 @@ build_system_prompt <- function(var_names, block) {
     param_docs_raw = param_docs_raw,
     block_prompt = block_prompt,
     helper_fns = helper_fns,
-    example = example
+    example = example,
+    backend_prompt_addition = backend_prompt_addition
   )
   system_prompt
 }
@@ -40,7 +41,8 @@ interpolate_system_prompt_template <- function(
   param_docs_raw,
   block_prompt,
   helper_fns,
-  example
+  example,
+  backend_prompt_addition
 ) {
   # format multiline strings from vector, so use only strings in the interpolation
   if (length(param_docs_raw)) {
@@ -74,7 +76,8 @@ interpolate_system_prompt_template <- function(
       block_prompt = block_prompt,
       helper_descriptions = helper_descriptions,
       example = example,
-      var_name = var_names[1]
+      var_name = var_names[1],
+      backend_prompt_addition = backend_prompt_addition
     ), parent = baseenv())
   ))
 

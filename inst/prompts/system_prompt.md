@@ -33,3 +33,5 @@ Then provide the JSON in a ```json code block.
 {! example: Return JSON like: {{"{var_name}": <value>}}}
 
 After seeing the result, respond with just DONE if correct, or provide fixed JSON.
+
+{? backend_prompt_addition: {backend_prompt_addition}}
