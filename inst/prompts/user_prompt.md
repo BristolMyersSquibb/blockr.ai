@@ -5,6 +5,8 @@
 
 {data_preview_formatted}
 
+# Current Configuration
+
 {current_state_formatted}
 
 # Task

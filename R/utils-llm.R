@@ -295,7 +295,7 @@ truncate_for_log <- function(x, n = 200) {
 format_current_state <- function(state) {
   if (is.null(state) || length(state) == 0) return("")
   json <- jsonlite::toJSON(state, auto_unbox = TRUE, pretty = TRUE)
-  paste0("# Current Configuration\n\n```json\n", json, "\n```\n\n")
+  json
 }
 
 
