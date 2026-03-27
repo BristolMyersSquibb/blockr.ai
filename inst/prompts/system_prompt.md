@@ -1,3 +1,6 @@
+<!-- interpolated by interpolate_system_prompt_template() -->
+<!-- `?` is used to display conditionally if variable has length and nzchar -->
+<!-- `!` is the negation of `?` -->
 {? description: You are configuring a {name} ({block_name}).}
 {? description: {description}}
 {! description: You are configuring a {block_name}.}
@@ -30,6 +33,7 @@ Then provide the JSON in a ```json code block.
 {? example: ```json}
 {? example: {example}}
 {? example: ```}
+<!-- we escape proper curly braces by repeating them-->
 {! example: Return JSON like: {{"{var_name}": <value>}}}
 
 After seeing the result, respond with just DONE if correct, or provide fixed JSON.
