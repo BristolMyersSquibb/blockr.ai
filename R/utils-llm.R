@@ -162,22 +162,32 @@ data_schema.default <- function(x, ...) {
 #' @return Character string with formatted preview section, or "" if no data
 #' @noRd
 data_preview <- function(input) {
-  if (is.null(input) || (is.list(input) && length(input) == 0)) {
+  input_is_empty <- is.null(input) || (is.list(input) && length(input) == 0)
+  if (input_is_empty) {
     return("")
   }
 
-  body <- if (is.list(input) && !is.data.frame(input) &&
-              !is.object(input) && length(input) > 0) {
+  input_is_multiple <- 
+    is.list(input) && 
+    !is.data.frame(input) &&
+    !is.object(input) && 
+    length(input) > 0
+
+  if (input_is_multiple) {
+    # FIXME: I think this is the same
+    # nms <- names(input) %||% paste0("Input ", seq_along(input))
+    # previews <- vapply(input, data_schema, character(1))
+    # preview <- paste0("## ", nms, "\n\n", previews, collapse = "\n\n")
     previews <- vapply(seq_along(input), function(i) {
       name <- names(input)[i] %||% paste0("Input ", i)
       paste0("## ", name, "\n\n", data_schema(input[[i]]))
     }, character(1))
-    paste(previews, collapse = "\n\n")
+    preview <- paste(previews, collapse = "\n\n")
   } else {
-    data_schema(input)
+    preview <- data_schema(input)
   }
 
-  paste0("# Input Data\n\n", body, "\n\n")
+  paste0("# Input Data\n\n", preview, "\n\n")
 }
 
 
