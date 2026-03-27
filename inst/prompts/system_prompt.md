@@ -1,4 +1,4 @@
-<!-- interpolated by interpolate_system_prompt_template() -->
+<!-- interpolated by interpolate_template() -->
 <!-- `?` is used to display conditionally if variable has length and nzchar -->
 <!-- `!` is the negation of `?` -->
 {? description: You are configuring a {name} ({block_name}).}
