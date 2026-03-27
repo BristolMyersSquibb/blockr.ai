@@ -131,12 +131,7 @@ discover_block_args <- function(
           if (!is.null(state_json)) paste0(" | state: ", state_json) else "")
 
   # Build initial message
-  msg <- paste0(
-    data_preview(data),
-    format_current_state(current_state),
-    "# Task\n\n", prompt,
-    "\n\nExplain your approach briefly, then provide JSON."
-  )
+  msg <- build_user_prompt(prompt, data, current_state)
 
   last_error <- NULL
   final_args <- NULL
