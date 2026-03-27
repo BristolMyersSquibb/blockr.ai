@@ -56,7 +56,11 @@ interpolate_system_prompt_template <- function(
     helper_descriptions <- NULL
   }
 
+
+  # read template and double backticks so glue's parser doesn't treat them as R quoting
+  # inside {?...} expressions. Restored to single backticks after glue runs.
   system_prompt_template <- read_template("system_prompt.md")
+  system_prompt_template <- gsub("`", "``", system_prompt_template, fixed = TRUE)
   system_prompt <- as.character(glue::glue(
     system_prompt_template,
     .transformer = prompt_transformer,
@@ -75,7 +79,7 @@ interpolate_system_prompt_template <- function(
   ))
 
   # Clean up:
-  # 1. Restore backticks (doubled in read_template to work around glue quoting)
+  # 1. Restore backticks
   system_prompt <- gsub("``", "`", system_prompt, fixed = TRUE)
   # 2. Remove conditional lines marked with \b
   system_prompt <- gsub("\b\n", "", system_prompt, fixed = TRUE)
@@ -90,10 +94,11 @@ interpolate_system_prompt_template <- function(
 #' @noRd
 read_template <- function(name) {
   path <- system.file("prompts", name, package = "blockr.ai")
-  template <- paste(readLines(path, warn = FALSE), collapse = "\n")
-  # Double backticks so glue's parser doesn't treat them as R quoting
-  # inside {?...} expressions. Restored to single backticks after glue runs.
-  gsub("`", "``", template, fixed = TRUE)
+  template <- readLines(path, warn = FALSE)
+  # remove comments
+  template <- gsub("(?s)<!--.*?-->", "", template, perl = TRUE) 
+  template <- paste(template, collapse = "\n")
+  template
 }
 
 #' Custom glue transformer for conditional prompt sections
