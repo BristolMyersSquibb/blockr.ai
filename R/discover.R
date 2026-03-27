@@ -143,23 +143,27 @@ discover_block_args <- function(
     log_msg("user", msg)
     message("[discover] \u2192 ", truncate_for_log(msg))
 
-    if (i == 1L) reporter$start_phase("thinking")
-    response <- tryCatch({
-      if (i == 1 && !is.null(images) && length(images) > 0) {
-        img_contents <- lapply(images, function(img) {
+    # 1st round, thinking phase
+    if (i == 1L) {
+      reporter$start_phase("thinking")
+      # empty if images has length 0
+      img_contents <- lapply(images, function(img) {
           ellmer::ContentImageInline(type = img$type, data = img$data)
-        })
-        do.call(client$chat, c(list(msg), img_contents))
-      } else {
-        client$chat(msg)
-      }
-    }, error = function(e) {
+      })
+      response <- try(client$chat(msg, !!!img_contents))
+      reporter$end_phase("thinking")
+    } else {
+      # any other round
+      response <- try(client$chat(msg))
+    }
+
+    # error handling
+    if (inherits(response, "try-error")) {
+      e <- attr(response, "condition")
       message("[discover] LLM error: ", conditionMessage(e))
-      last_error <<- paste0("LLM error: ", conditionMessage(e))
-      NULL
-    })
-    if (i == 1L) reporter$end_phase("thinking")
-    if (is.null(response)) break
+      last_error <- paste0("LLM error: ", conditionMessage(e))
+      break
+    }
 
     log_msg("assistant", response)
     message("[discover] \u2190 ", truncate_for_log(response))
