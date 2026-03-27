@@ -99,8 +99,8 @@ read_template <- function(name) {
   path <- system.file("prompts", name, package = "blockr.ai")
   template <- readLines(path, warn = FALSE)
   # remove comments
-  template <- gsub("(?s)<!--.*?-->", "", template, perl = TRUE) 
   template <- paste(template, collapse = "\n")
+  template <- gsub("(?s)<!--.*?--> *\n", "", template, perl = TRUE) 
   template
 }
 
