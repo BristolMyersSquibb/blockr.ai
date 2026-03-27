@@ -366,3 +366,74 @@ generate_example_json <- function(args) {
   if (is.null(examples)) return(NULL)
   jsonlite::toJSON(examples, auto_unbox = TRUE, null = "null")
 }
+
+#' Read a prompt template from inst/prompts
+#' @param name Template file name
+#' @return Character string with template contents
+#' @noRd
+read_template <- function(name) {
+  path <- system.file("prompts", name, package = "blockr.ai")
+  template <- readLines(path, warn = FALSE)
+  # remove comments
+  template <- paste(template, collapse = "\n")
+  template <- gsub("(?s)<!--.*?--> *\n", "", template, perl = TRUE) 
+  template
+}
+
+
+interpolate_template <- function(template, ...) {
+  # double backticks so glue's parser doesn't treat them as R quoting
+  # inside {?...} expressions. Restored to single backticks after glue runs.
+  template <- gsub("`", "``", template, fixed = TRUE)
+  prompt <- as.character(glue::glue(
+    template,
+    .transformer = prompt_transformer,
+    .trim = FALSE,
+    .envir = rlang::env(
+      ...
+    ), parent = baseenv())
+  )
+  # Clean up:
+  # 1. Restore backticks
+  prompt <- gsub("``", "`", prompt, fixed = TRUE)
+  # 2. Remove conditional lines marked with \b
+  prompt <- gsub("\b\n", "", prompt, fixed = TRUE)
+  # 3. Collapse excess blank lines left by removed sections
+  prompt <- gsub("\n{3,}", "\n\n", prompt)
+  prompt <- gsub("^\n+", "", prompt)
+  prompt
+}
+
+
+#' Custom glue transformer for conditional prompt sections
+#'
+#' Handles three forms:
+#' - `{? condition: content}` — emit content if condition is TRUE, `"\b"` otherwise
+#' - `{! condition: content}` — emit content if condition is FALSE, `"\b"` otherwise
+#' - `{variable}` — plain interpolation
+#'
+#' Content is interpolated via [glue::glue()] so it may contain
+#' nested `{variable}` references.
+#'
+#' @param text The expression text inside the braces
+#' @param envir The environment to evaluate in
+#' @return The evaluated value, or `"\b"` for suppressed conditional lines
+#' @noRd
+prompt_transformer <- function(text, envir) {
+  if (startsWith(text, "? ") || startsWith(text, "! ")) {
+    negate <- startsWith(text, "!")
+    rest <- substring(text, 3)
+    colon_pos <- regexpr(": ", rest, fixed = TRUE)
+    cond_name <- substring(rest, 1, colon_pos - 1)
+    content <- substring(rest, colon_pos + 2)
+    cond_val <- get(cond_name, envir = envir)
+    show <- length(cond_val) && all(nzchar(cond_val))
+    if (negate) show <- !show
+    if (!show) return("\b") # a marker used to remove empty lines
+    if (!grepl("{", content, fixed = TRUE)) return(content)
+    return(as.character(glue::glue(
+      content, .envir = envir, .trim = FALSE
+    )))
+  }
+  glue::identity_transformer(text, envir)
+}

@@ -17,32 +17,6 @@ build_system_prompt <- function(var_names, block, backend_prompt_addition) {
   example <- generate_example_json(param_docs_raw)
   block_prompt <- attr(param_docs_raw, "prompt")
 
-  system_prompt <- interpolate_system_prompt_template(
-    name = reg_info$name,
-    block_name = block_name,
-    description = reg_info$description,
-    var_names = var_names,
-    param_docs_raw = param_docs_raw,
-    block_prompt = block_prompt,
-    helper_fns = helper_fns,
-    example = example,
-    backend_prompt_addition = backend_prompt_addition
-  )
-  system_prompt
-}
-
-# takes only character (or NULL) arguments and does the formatting and interpolation
-interpolate_system_prompt_template <- function(
-  name,
-  block_name,
-  description,
-  var_names,
-  param_docs_raw,
-  block_prompt,
-  helper_fns,
-  example,
-  backend_prompt_addition
-) {
   # format multiline strings from vector, so use only strings in the interpolation
   if (length(param_docs_raw)) {
     parameter_descriptions <-
@@ -57,81 +31,19 @@ interpolate_system_prompt_template <- function(
     helper_descriptions <- NULL
   }
 
+  system_prompt <- interpolate_template(
+    template = read_template("system_prompt.md"),
+    name = reg_info$name,
+    block_name = block_name,
+    description = reg_info$description,
+    collapsed_var_names = paste(var_names, collapse = ", "),
+    parameter_descriptions = parameter_descriptions,
+    block_prompt = block_prompt,
+    helper_descriptions = helper_descriptions,
+    example = example,
+    var_name = var_names[1],
+    backend_prompt_addition = backend_prompt_addition
+  )
 
-  # read template and double backticks so glue's parser doesn't treat them as R quoting
-  # inside {?...} expressions. Restored to single backticks after glue runs.
-  system_prompt_template <- read_template("system_prompt.md")
-  system_prompt_template <- gsub("`", "``", system_prompt_template, fixed = TRUE)
-  system_prompt <- as.character(glue::glue(
-    system_prompt_template,
-    .transformer = prompt_transformer,
-    .trim = FALSE,
-    .envir = list2env(list(
-      name = name,
-      block_name = block_name,
-      description = description,
-      collapsed_var_names = paste(var_names, collapse = ", "),
-      parameter_descriptions = parameter_descriptions,
-      block_prompt = block_prompt,
-      helper_descriptions = helper_descriptions,
-      example = example,
-      var_name = var_names[1],
-      backend_prompt_addition = backend_prompt_addition
-    ), parent = baseenv())
-  ))
-
-  # Clean up:
-  # 1. Restore backticks
-  system_prompt <- gsub("``", "`", system_prompt, fixed = TRUE)
-  # 2. Remove conditional lines marked with \b
-  system_prompt <- gsub("\b\n", "", system_prompt, fixed = TRUE)
-  # 3. Collapse excess blank lines left by removed sections
-  system_prompt <- gsub("\n{3,}", "\n\n", system_prompt)
-  gsub("^\n+", "", system_prompt)
-}
-
-#' Read a prompt template from inst/prompts
-#' @param name Template file name
-#' @return Character string with template contents
-#' @noRd
-read_template <- function(name) {
-  path <- system.file("prompts", name, package = "blockr.ai")
-  template <- readLines(path, warn = FALSE)
-  # remove comments
-  template <- paste(template, collapse = "\n")
-  template <- gsub("(?s)<!--.*?--> *\n", "", template, perl = TRUE) 
-  template
-}
-
-#' Custom glue transformer for conditional prompt sections
-#'
-#' Handles three forms:
-#' - `{? condition: content}` — emit content if condition is TRUE, `"\b"` otherwise
-#' - `{! condition: content}` — emit content if condition is FALSE, `"\b"` otherwise
-#' - `{variable}` — plain interpolation
-#'
-#' Content is interpolated via [glue::glue()] so it may contain
-#' nested `{variable}` references.
-#'
-#' @param text The expression text inside the braces
-#' @param envir The environment to evaluate in
-#' @return The evaluated value, or `"\b"` for suppressed conditional lines
-#' @noRd
-prompt_transformer <- function(text, envir) {
-  if (startsWith(text, "? ") || startsWith(text, "! ")) {
-    negate <- startsWith(text, "!")
-    rest <- substring(text, 3)
-    colon_pos <- regexpr(": ", rest, fixed = TRUE)
-    cond_name <- substring(rest, 1, colon_pos - 1)
-    content <- substring(rest, colon_pos + 2)
-    cond_val <- get(cond_name, envir = envir)
-    show <- length(cond_val) && all(nzchar(cond_val))
-    if (negate) show <- !show
-    if (!show) return("\b") # a marker used to remove empty lines
-    if (!grepl("{", content, fixed = TRUE)) return(content)
-    return(as.character(glue::glue(
-      content, .envir = envir, .trim = FALSE
-    )))
-  }
-  glue::identity_transformer(text, envir)
+  system_prompt
 }
