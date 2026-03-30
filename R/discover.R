@@ -143,7 +143,7 @@ discover_block_args <- function(
     log_msg("user", msg)
     message("[discover] \u2192 ", truncate_for_log(msg))
 
-    # 1st round, thinking phase
+    # 1st turn, thinking phase
     if (i == 1L) {
       reporter$start_phase("thinking")
       # empty if images has length 0
@@ -157,8 +157,9 @@ discover_block_args <- function(
       response <- try(client$chat(msg))
     }
 
-    # error handling
-    if (inherits(response, "try-error")) {
+    response_type <- categorize_response(response)
+
+    if (response_type == "llm_error") {
       e <- attr(response, "condition")
       message("[discover] LLM error: ", conditionMessage(e))
       last_error <- paste0("LLM error: ", conditionMessage(e))
@@ -168,22 +169,21 @@ discover_block_args <- function(
     log_msg("assistant", response)
     message("[discover] \u2190 ", truncate_for_log(response))
 
-    if (is_done_response(response)) {
+    if (response_type == "done") {
       reporter$end_phase("confirming", result = "\u2713")
       break
     }
 
     # Let backend handle data exploration requests
     reporter$start_phase("exploring")
-    backend_msg <- backend$process(response, data)
-    if (!is.null(backend_msg)) {
-      msg <- backend_msg
+    if (response_type == "data_query") {
+      # extract R code, run it, format the output
+      msg <- backend$process(response, data)
       next
     }
     reporter$end_phase("exploring")
 
-    json_str <- extract_json(response)
-    if (is.null(json_str)) {
+    if (response_type == "clarifying_question") {
       # LLM is asking a clarifying question — return it to the caller
       return(list(
         success = FALSE,
@@ -196,25 +196,27 @@ discover_block_args <- function(
       ))
     }
 
-    # Parse JSON to get args
-    new_args <- tryCatch({
-      parsed <- jsonlite::fromJSON(json_str, simplifyVector = FALSE)
-      # Simplify leaf lists (all-scalar) to vectors so they work as
-      # column subscripts and other places expecting atomic vectors.
-      simplify_leaves(parsed)
-    }, error = function(e) {
-      last_error <<- conditionMessage(e)
-      NULL
-    })
-
-    if (is.null(new_args) || !is.list(new_args)) {
-      last_error <- last_error %||% "Invalid JSON"
+    # All other response types have been handled
+    # We have a result candidate that still needs to be parsed and validated
+    stopifnot(response_type == "result_candidate")
+    json_str <- extract_json(response)
+    # Simplify leaf lists (all-scalar) to vectors so they work as
+    # column subscripts and other places expecting atomic vectors.
+    new_args <- try(jsonlite::fromJSON(json_str, simplifyVector = FALSE))
+    if (inherits(new_args, "try-error")) {
+      last_error <- conditionMessage(attr(new_args, "condition"))
       msg <- paste0("Error: ", last_error)
       next
     }
+    new_args <- simplify_leaves(new_args)
+    if (!is.list(new_args)) {
+      last_error <- "Invalid JSON"
+      msg <- "Error: Invalid JSON"
+      next
+    }
 
-    message("[discover] args: ",
-            jsonlite::toJSON(new_args, auto_unbox = TRUE))
+
+    message("[discover] args: ", jsonlite::toJSON(new_args, auto_unbox = TRUE))
 
     # Detect identical args sent twice — LLM is stuck, accept current result
     if (!is.null(prev_args) && identical(new_args, prev_args) &&
@@ -227,21 +229,15 @@ discover_block_args <- function(
 
     # Validate using provided function
     reporter$start_phase("validating")
-    result <- tryCatch({
-      validate(new_args)
-    }, error = function(e) {
-      last_error <<- conditionMessage(e)
-      NULL
-    })
-
-    if (is.null(result)) {
+    result <- try({validate(new_args)})
+    if (inherits(result, "try-error")) {
+      last_error <- conditionMessage(attr(result, "condition"))
       reporter$end_phase("validating")
       reporter$start_phase("retrying", detail = last_error)
       message("[discover] validation failed: ", last_error)
       msg <- paste0("Validation failed: ", last_error, "\nPlease fix.")
       next
     }
-
     reporter$end_phase("validating", result = "\u2713")
 
     # Success - ask for confirmation
@@ -253,7 +249,7 @@ discover_block_args <- function(
     reporter$start_phase("confirming")
     msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
     last_error <- NULL
-  }
+    }
 
   message("[discover] done, success: ", is.null(last_error))
   reporter$done(is.null(last_error), last_error)
@@ -267,6 +263,55 @@ discover_block_args <- function(
     message = last_message,
     client = client
   )
+}
+
+categorize_response <- function(response, exploration_format) {
+  llm_chat_query_failed <- inherits(response, "try-error")
+  if (llm_chat_query_failed) {
+    return("llm_error")
+  }
+
+  if (is_done_response(response)) {
+    return("done")
+  }
+
+  response_has_data_query_code_block <-
+    grepl("```data_query\\s*\\n([\\s\\S]*?)\\n```", response)
+  if (response_has_data_query_code_block) {
+    return("data_query")
+  }
+
+  # not used at time of writing because no way to set `structured = TRUE`
+  if (response_is_structured_exploration_query(response)) {
+    return("json_query")
+  }
+
+  response_has_json_or_curly_braces <- 
+    grepl("```(?:json)?\\s*\\n([\\s\\S]*?)\\n```", response, perl = TRUE) ||
+    grepl("^\\s*\\{", response)
+  if (response_has_json_or_curly_braces) {
+    return("result_candidate")
+  }
+  
+  # if not any of the above, we assume it's a clarification question
+  "clarifying_question"
+}
+
+response_is_structured_exploration_query <- function(response) {
+  # A structured exploration query is a response that contains parsable json with an
+  # "action" : "explore" element and non empty code
+  json_str <- extract_json(response)
+  if (is.null(json_str)) return(FALSE)
+  parsed <- try(jsonlite::fromJSON(json_str, simplifyVector = FALSE))
+  if (inherits(parsed, "try-error")) return(FALSE)
+
+  # Only handle exploration requests; answer JSON (no action field) falls
+  # through to the main loop's extract_json() + validation.
+  if (!identical(parsed$action, "explore")) return(FALSE)
+
+  code <- parsed$code
+  if (is.null(code) || !nzchar(trimws(code))) return(FALSE)
+  TRUE
 }
 
 
