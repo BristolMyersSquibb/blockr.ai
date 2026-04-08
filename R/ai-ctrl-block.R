@@ -108,9 +108,10 @@ ai_ctrl_ui <- structure(
   },
   # Customize the dock ctrl-toggle button: empty label = icon only,
   # sparkle SVG as the icon, blockr-sparkle-btn class for hover/active styling.
-  ctrl_label = "",
-  ctrl_icon  = sparkle_icon(18),
-  ctrl_class = "blockr-sparkle-btn"
+  ctrl_label   = "",
+  ctrl_icon    = sparkle_icon(14),
+  ctrl_class   = "blockr-sparkle-btn",
+  ctrl_tooltip = "AI Assistant"
 )
 
 css_ai_ctrl <- function() {
