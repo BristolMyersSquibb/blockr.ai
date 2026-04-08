@@ -60,51 +60,58 @@ ai_ctrl_block <- function() {
 #' @param x Block object
 #' @rdname ai_ctrl_block
 #' @export
-ai_ctrl_ui <- function(id, x) {
-  # No UI for blocks without external_ctrl
-  if (isFALSE(attr(x, "external_ctrl"))) {
-    return(tagList())
-  }
+ai_ctrl_ui <- structure(
+  function(id, x) {
+    # No UI for blocks without external_ctrl
+    if (isFALSE(attr(x, "external_ctrl"))) {
+      return(tagList())
+    }
 
-  ns <- NS(id)
+    ns <- NS(id)
 
-  chat_id <- ns("chat")
+    chat_id <- ns("chat")
 
-  tags$div(
-    class = "blockr-ctrl-body",
-    css_ai_ctrl(),
-    shinychat::chat_ui(
-      chat_id,
-      placeholder = "Describe what you want...",
-      width = "100%",
-      height = "auto",
-      icon_assistant = sparkle_icon(16)
-    ),
     tags$div(
-      style = "padding: 4px 0;",
-      class = "blockr-report-wrapper",
-      `data-chat-id` = chat_id,
-      tags$a(
-        href = "#",
-        class = "blockr-clear-conversation",
-        onclick = sprintf(
-          "Shiny.setInputValue('%s', Date.now()); return false;",
-          ns("clear_chat")
-        ),
-        "Clear"
+      class = "blockr-ctrl-body",
+      css_ai_ctrl(),
+      shinychat::chat_ui(
+        chat_id,
+        placeholder = "Describe what you want...",
+        width = "100%",
+        height = "auto",
+        icon_assistant = sparkle_icon(16)
       ),
-      tags$span(class = "blockr-action-sep", "\u00b7"),
-      tags$a(
-        id = ns("download_report"),
-        class = "blockr-report-conversation shiny-download-link",
-        href = "",
-        target = "_blank",
-        download = "",
-        "Report"
+      tags$div(
+        style = "padding: 4px 0;",
+        class = "blockr-report-wrapper",
+        `data-chat-id` = chat_id,
+        tags$a(
+          href = "#",
+          class = "blockr-clear-conversation",
+          onclick = sprintf(
+            "Shiny.setInputValue('%s', Date.now()); return false;",
+            ns("clear_chat")
+          ),
+          "Clear"
+        ),
+        tags$span(class = "blockr-action-sep", "\u00b7"),
+        tags$a(
+          id = ns("download_report"),
+          class = "blockr-report-conversation shiny-download-link",
+          href = "",
+          target = "_blank",
+          download = "",
+          "Report"
+        )
       )
     )
-  )
-}
+  },
+  # Customize the dock ctrl-toggle button: empty label = icon only,
+  # sparkle SVG as the icon, blockr-sparkle-btn class for hover/active styling.
+  ctrl_label = "",
+  ctrl_icon  = sparkle_icon(18),
+  ctrl_class = "blockr-sparkle-btn"
+)
 
 css_ai_ctrl <- function() {
   htmltools::htmlDependency(
@@ -256,6 +263,33 @@ css_ai_ctrl <- function() {
         transform-origin: center;
       }
       .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
+        animation: sparkle-twinkle 2s ease-in-out 0.8s infinite;
+        transform-origin: center;
+      }
+      .blockr-sparkle-btn {
+        display: inline-flex;
+        align-items: center;
+        transition: color 0.2s ease, transform 0.2s ease;
+      }
+      .blockr-sparkle-btn:hover {
+        color: #7c3aed !important;
+        transform: scale(1.15);
+      }
+      .blockr-sparkle-btn:hover .blockr-sparkle-svg {
+        filter: drop-shadow(0 0 3px rgba(124, 58, 237, 0.4));
+      }
+      .btn-check:checked + .btn .blockr-sparkle-btn {
+        color: #7c3aed !important;
+      }
+      .btn-check:checked + .btn .blockr-sparkle-btn .sparkle-main {
+        animation: sparkle-rotate 3s ease-in-out infinite;
+        transform-origin: center;
+      }
+      .btn-check:checked + .btn .blockr-sparkle-btn .sparkle-sm-1 {
+        animation: sparkle-twinkle 2s ease-in-out 0.3s infinite;
+        transform-origin: center;
+      }
+      .btn-check:checked + .btn .blockr-sparkle-btn .sparkle-sm-2 {
         animation: sparkle-twinkle 2s ease-in-out 0.8s infinite;
         transform-origin: center;
       }",
