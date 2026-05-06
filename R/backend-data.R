@@ -58,8 +58,8 @@ execute_data_query <- function(code, data, probe_count, max_probes) {
     paste0("Error: ", conditionMessage(e))
   })
 
-  if (nchar(result) > 3000L) {
-    result <- paste0(substr(result, 1, 3000), "\n... (truncated)")
+  if (nchar(result) > 10000L) {
+    result <- paste0(substr(result, 1, 10000), "\n... (truncated)")
   }
 
   message("[discover] data probe ", probe_count, "/", max_probes, ": ",
@@ -91,7 +91,13 @@ data_exploration_preamble <- function() {
     "types, value ranges, unique levels, or anything else you need to ",
     "understand the data well enough to configure this block correctly.\n\n",
     "If the 5-row preview already contains the information you need, ",
-    "go ahead and answer directly -- exploration is not required for every task."
+    "go ahead and answer directly -- exploration is not required for every task.\n\n",
+    "IMPORTANT: keep probes SMALL and TARGETED. Query only the specific ",
+    "columns you need (e.g. 5-8 columns at a time, not 20). If a probe ",
+    "result looks truncated, your next action MUST be either another, ",
+    "more targeted `data_query` (fewer columns, fewer rows), or your ",
+    "JSON answer based on what you've seen. Do not output a plain-text ",
+    "complaint about truncation -- act on it."
   )
 }
 
