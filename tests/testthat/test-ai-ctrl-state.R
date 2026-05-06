@@ -16,10 +16,16 @@ test_that("external state change propagates through block_server (filter)", {
       # Initial: no conditions, all 150 rows
       expect_equal(nrow(session$returned$result()), 150)
 
-      # Simulate what AI ctrl does: set conditions externally
+      # Simulate what AI ctrl does: set state externally
       state <- session$returned$state
-      state$conditions(list(
-        list(column = "Species", values = c("virginica"), mode = "include")
+      state$state(list(
+        conditions = list(
+          list(
+            type = "values", column = "Species",
+            values = c("virginica"), mode = "include"
+          )
+        ),
+        operator = "&"
       ))
       session$flushReact()
 
@@ -42,8 +48,14 @@ test_that("external state change with exclude mode (filter)", {
       expect_equal(nrow(session$returned$result()), 150)
 
       state <- session$returned$state
-      state$conditions(list(
-        list(column = "Species", values = c("setosa"), mode = "exclude")
+      state$state(list(
+        conditions = list(
+          list(
+            type = "values", column = "Species",
+            values = c("setosa"), mode = "exclude"
+          )
+        ),
+        operator = "&"
       ))
       session$flushReact()
 
@@ -67,8 +79,11 @@ test_that("external state change with numeric values (filter)", {
       expect_equal(nrow(session$returned$result()), 32)
 
       state <- session$returned$state
-      state$conditions(list(
-        list(column = "cyl", values = c(4), mode = "include")
+      state$state(list(
+        conditions = list(
+          list(type = "numeric", column = "cyl", op = "is", value = 4)
+        ),
+        operator = "&"
       ))
       session$flushReact()
 
