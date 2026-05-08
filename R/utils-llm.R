@@ -162,22 +162,32 @@ data_schema.default <- function(x, ...) {
 #' @return Character string with formatted preview section, or "" if no data
 #' @noRd
 data_preview <- function(input) {
-  if (is.null(input) || (is.list(input) && length(input) == 0)) {
+  input_is_empty <- is.null(input) || (is.list(input) && length(input) == 0)
+  if (input_is_empty) {
     return("")
   }
 
-  body <- if (is.list(input) && !is.data.frame(input) &&
-              !is.object(input) && length(input) > 0) {
+  input_is_multiple <- 
+    is.list(input) && 
+    !is.data.frame(input) &&
+    !is.object(input) && 
+    length(input) > 0
+
+  if (input_is_multiple) {
+    # FIXME: I think this is the same
+    # nms <- names(input) %||% paste0("Input ", seq_along(input))
+    # previews <- vapply(input, data_schema, character(1))
+    # preview <- paste0("## ", nms, "\n\n", previews, collapse = "\n\n")
     previews <- vapply(seq_along(input), function(i) {
       name <- names(input)[i] %||% paste0("Input ", i)
       paste0("## ", name, "\n\n", data_schema(input[[i]]))
     }, character(1))
-    paste(previews, collapse = "\n\n")
+    preview <- paste(previews, collapse = "\n\n")
   } else {
-    data_schema(input)
+    preview <- data_schema(input)
   }
 
-  paste0("# Input Data\n\n", body, "\n\n")
+  preview
 }
 
 
@@ -285,7 +295,7 @@ truncate_for_log <- function(x, n = 200) {
 format_current_state <- function(state) {
   if (is.null(state) || length(state) == 0) return("")
   json <- jsonlite::toJSON(state, auto_unbox = TRUE, pretty = TRUE)
-  paste0("# Current Configuration\n\n```json\n", json, "\n```\n\n")
+  json
 }
 
 
@@ -307,106 +317,6 @@ data_schema.ggplot <- function(x, ...) {
   )
   paste(parts, collapse = "\n")
 }
-
-
-#' Build system prompt for block argument discovery
-#' @param var_names Names of controllable variables
-#' @param block Block object for context
-#' @return Character string with system prompt
-#' @noRd
-build_system_prompt <- function(var_names, block) {
-  block_name <- class(block)[1]
-
-  # Get registry info for richer context
-  reg_info <- get_block_registry_info(block_name)
-
-  block_context <- if (!is.null(reg_info$description)) {
-    paste0(
-      "You are configuring a ", reg_info$name, " (", block_name, ").\n",
-      reg_info$description, "\n\n"
-    )
-  } else {
-    paste0("You are configuring a ", block_name, ".\n\n")
-  }
-
-  param_docs_raw <- get_block_param_docs_raw(block_name)
-  param_text <- if (!is.null(param_docs_raw)) {
-    paste0(paste0(names(param_docs_raw), ": ", param_docs_raw, collapse = "\n"), "\n\n")
-  } else {
-    ""
-  }
-
-  block_prompt <- if (!is.null(param_docs_raw)) {
-    p <- attr(param_docs_raw, "prompt")
-    if (!is.null(p)) paste0(p, "\n\n") else ""
-  } else {
-    ""
-  }
-
-  # Include available helper functions from options (e.g. blockr.topline sets these)
-  helper_fns <- getOption("blockr.dplyr.summary_functions")
-  helper_text <- if (!is.null(helper_fns) && length(helper_fns) > 0) {
-    fn_lines <- paste0("  ", names(helper_fns), ": ", helper_fns, collapse = "\n")
-    paste0("Available helper functions:\n", fn_lines, "\n\n")
-  } else {
-    ""
-  }
-
-  example <- generate_example_json(param_docs_raw)
-  example_text <- if (!is.null(example)) {
-    paste0("Example:\n```json\n", example, "\n```\n\n")
-  } else {
-    paste0("Return JSON like: {\"", var_names[1], "\": <value>}\n\n")
-  }
-
-  ask_back_instructions <- paste0(
-    "IMPORTANT:\n",
-    "- If the user is asking a question or wants an explanation (e.g. 'what does ",
-    "this mean?', 'explain the numbers', 'what am I looking at?'), give a rich, ",
-    "data-grounded explanation. Use the data exploration capability to look at ",
-    "actual values, then narrate what the chart shows: highlight key patterns, ",
-    "notable values, and comparisons. Reference the current configuration to ",
-    "explain HOW the visual is constructed (e.g. 'since we're grouping by SOC ",
-    "and coloring by severity, you can see that...'). Then return the current ",
-    "configuration as JSON unchanged to keep the visual in place.\n",
-    "- If the user's request is vague or ambiguous (e.g. 'make it better', ",
-    "'fix it', 'clean up', 'summarize the data'), do NOT guess. ",
-    "Ask a specific clarifying question instead.\n",
-    "- If the request is directional but not fully specified (e.g. 'make the font bigger', ",
-    "'reduce the rows'), you MAY pick a reasonable value and return JSON. ",
-    "Only ask back when the request is truly unclear about WHAT to do.\n",
-    "- If the user asks for something this block CANNOT do (e.g. filtering in a formatting block, ",
-    "or adding columns in a display block), explain the limitation clearly and suggest which ",
-    "block type would be appropriate. Do NOT return JSON for impossible operations.\n",
-    "- Only set parameters the user asked about. Leave other parameters at their defaults ",
-    "unless you need to set them for the requested change to work.\n\n"
-  )
-
-  response_format <- paste0(
-    "RESPONSE FORMAT:\n",
-    "Always include a brief explanation BEFORE the JSON block. ",
-    "The explanation is shown to the user in the chat \u2014 the JSON is not.\n",
-    "- For questions/explanations: narrate what the data shows in the chart, ",
-    "referencing the configuration to connect the visual to the data story. ",
-    "Use data exploration to ground your answer in actual values.\n",
-    "- For change requests: state what you understood and describe key choices.\n",
-    "- Keep it concise but informative.\n\n",
-    "Then provide the JSON in a ```json code block.\n\n"
-  )
-
-  paste0(
-    block_context,
-    "Parameters: ", paste(var_names, collapse = ", "), "\n\n",
-    param_text,
-    block_prompt,
-    helper_text,
-    ask_back_instructions,
-    response_format,
-    example_text,
-    "After seeing the result, respond with just DONE if correct, or provide fixed JSON."
-  )
-}
-
 
 #' Get registry info for a block type
 #' @param block_name Name of the block class
@@ -465,4 +375,77 @@ generate_example_json <- function(args) {
   examples <- attr(args, "examples")
   if (is.null(examples)) return(NULL)
   jsonlite::toJSON(examples, auto_unbox = TRUE, null = "null")
+}
+
+#' Read a prompt template from inst/prompts
+#' @param name Template file name
+#' @return Character string with template contents
+#' @noRd
+read_template <- function(name) {
+  path <- system.file("prompts", name, package = "blockr.ai")
+  template <- readLines(path, warn = FALSE)
+  # remove comments
+  template <- paste(template, collapse = "\n")
+  template <- gsub("(?s)<!--.*?--> *\n", "", template, perl = TRUE) 
+  template
+}
+
+
+interpolate_template <- function(template, ...) {
+  # double backticks and subtitute hashes so glue's parser doesn't treat them as R quoting
+  # inside {?...} expressions. Restored to single backticks after glue runs.
+  template <- gsub("`", "``", template, fixed = TRUE)
+  template <- gsub("#", "\U{FF03}", template, fixed = TRUE)
+  prompt <- as.character(glue::glue(
+    template,
+    .transformer = prompt_transformer,
+    .trim = FALSE,
+    .envir = rlang::env(
+      ...
+    ), parent = baseenv())
+  )
+  # Clean up:
+  # 1. Restore backticks and hashes
+  prompt <- gsub("``", "`", prompt, fixed = TRUE)
+  template <- gsub("\U{FF03}", "#", template, fixed = TRUE)
+  # 2. Remove conditional lines marked with \b
+  prompt <- gsub("\b\n", "", prompt, fixed = TRUE)
+  # 3. Collapse excess blank lines left by removed sections
+  prompt <- gsub("\n{3,}", "\n\n", prompt)
+  prompt <- gsub("^\n+", "", prompt)
+  prompt
+}
+
+
+#' Custom glue transformer for conditional prompt sections
+#'
+#' Handles three forms:
+#' - `{? condition: content}` — emit content if condition is TRUE, `"\b"` otherwise
+#' - `{! condition: content}` — emit content if condition is FALSE, `"\b"` otherwise
+#' - `{variable}` — plain interpolation
+#'
+#' Content is interpolated via [glue::glue()] so it may contain
+#' nested `{variable}` references.
+#'
+#' @param text The expression text inside the braces
+#' @param envir The environment to evaluate in
+#' @return The evaluated value, or `"\b"` for suppressed conditional lines
+#' @noRd
+prompt_transformer <- function(text, envir) {
+  if (startsWith(text, "? ") || startsWith(text, "! ")) {
+    negate <- startsWith(text, "!")
+    rest <- substring(text, 3)
+    colon_pos <- regexpr(": ", rest, fixed = TRUE)
+    cond_name <- substring(rest, 1, colon_pos - 1)
+    content <- substring(rest, colon_pos + 2)
+    cond_val <- get(cond_name, envir = envir)
+    show <- length(cond_val) && all(nzchar(cond_val))
+    if (negate) show <- !show
+    if (!show) return("\b") # a marker used to remove empty lines
+    if (!grepl("{", content, fixed = TRUE)) return(content)
+    return(as.character(glue::glue(
+      content, .envir = envir, .trim = FALSE
+    )))
+  }
+  glue::identity_transformer(text, envir)
 }

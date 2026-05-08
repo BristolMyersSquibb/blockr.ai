@@ -26,6 +26,7 @@ Imports:
     shiny,
     blockr.core (>= 0.1.1),
     ellmer (>= 0.3.0),
+    glue,
     htmltools,
     jsonlite,
     utils,
