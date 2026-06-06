@@ -154,7 +154,7 @@ css_ai_ctrl <- function() {
         outline: none !important;
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
-        bottom: 7px !important;
+        bottom: 8px !important;
       }
       .blockr-ctrl-body .shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
@@ -175,6 +175,15 @@ css_ai_ctrl <- function() {
       }
       .blockr-ctrl-body .shiny-chat-message:has(.blockr-ai-status-empty) {
         display: none !important;
+      }
+      /* shinychat 0.4 shows a default pulsing dot while a response streams; we
+         already have our own Analyzing badge, so hide it in the message stream
+         (but keep any dot inside our own status badge). */
+      .blockr-ctrl-body .markdown-stream-dot {
+        display: none !important;
+      }
+      .blockr-ctrl-body .blockr-ai-status .markdown-stream-dot {
+        display: inline-block !important;
       }
       .blockr-report-wrapper {
         display: flex;
