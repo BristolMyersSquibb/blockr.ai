@@ -127,15 +127,16 @@ css_ai_ctrl <- function() {
         min-height: 0;
         padding-bottom: 0;
       }
-      .blockr-ctrl-body shiny-chat-container {
+      .blockr-ctrl-body .shiny-chat-messages {
         --_chat-container-padding: 0;
+        --shiny-chat-messages-padding-bottom: 0;
         min-height: 0;
         overflow-y: auto;
       }
-      .blockr-ctrl-body shiny-chat-input {
+      .blockr-ctrl-body .shiny-chat-input {
         overflow-x: hidden;
       }
-      .blockr-ctrl-body shiny-chat-input textarea {
+      .blockr-ctrl-body .shiny-chat-input textarea {
         border-radius: 6px !important;
         height: 38px;
         min-height: 38px !important;
@@ -144,35 +145,35 @@ css_ai_ctrl <- function() {
         -ms-overflow-style: none;
         box-shadow: none !important;
       }
-      .blockr-ctrl-body shiny-chat-input textarea::-webkit-scrollbar {
+      .blockr-ctrl-body .shiny-chat-input textarea::-webkit-scrollbar {
         display: none;
       }
-      .blockr-ctrl-body shiny-chat-input textarea:focus {
+      .blockr-ctrl-body .shiny-chat-input textarea:focus {
         border-color: #7c3aed !important;
         box-shadow: none !important;
         outline: none !important;
       }
-      .blockr-ctrl-body shiny-chat-input .shiny-chat-btn-send {
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
         bottom: 7px !important;
       }
-      .blockr-ctrl-body shiny-chat-message[data-role=user] {
+      .blockr-ctrl-body .shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
         background-color: var(--blockr-grey-50, #f9fafb) !important;
         color: var(--blockr-color-text-muted, #6b7280) !important;
         padding: 6px 12px !important;
         font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
-      .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
+      .blockr-ctrl-body .shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
         color: var(--blockr-color-text-muted, #6b7280) !important;
         font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
-      .blockr-ctrl-body shiny-chat-message .message-icon {
+      .blockr-ctrl-body .shiny-chat-message .message-icon {
         border: none;
         border-radius: 0;
         color: #7c3aed;
       }
-      .blockr-ctrl-body shiny-chat-message:has(.blockr-ai-status-empty) {
+      .blockr-ctrl-body .shiny-chat-message:has(.blockr-ai-status-empty) {
         display: none !important;
       }
       .blockr-report-wrapper {
@@ -255,15 +256,15 @@ css_ai_ctrl <- function() {
         0%, 100% { opacity: 0.5; transform: scale(0.8); }
         50% { opacity: 1; transform: scale(1.2); }
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-main {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-main {
         animation: sparkle-rotate 3s ease-in-out infinite;
         transform-origin: center;
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-1 {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-sm-1 {
         animation: sparkle-twinkle 2s ease-in-out 0.3s infinite;
         transform-origin: center;
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
         animation: sparkle-twinkle 2s ease-in-out 0.8s infinite;
         transform-origin: center;
       }
@@ -300,9 +301,9 @@ css_ai_ctrl <- function() {
       mutations.forEach(function(m) {
         m.addedNodes.forEach(function(node) {
           if (node.nodeType !== 1) return;
-          var ta = node.matches && node.matches('.blockr-ctrl-body shiny-chat-input textarea')
+          var ta = node.matches && node.matches('.blockr-ctrl-body .shiny-chat-input textarea')
             ? node
-            : node.querySelector && node.querySelector('.blockr-ctrl-body shiny-chat-input textarea');
+            : node.querySelector && node.querySelector('.blockr-ctrl-body .shiny-chat-input textarea');
           if (ta) setTimeout(function() { ta.focus(); }, 100);
         });
       });
@@ -325,7 +326,7 @@ css_ai_ctrl <- function() {
       if (sidebar) {
         setTimeout(function() { sidebar.scrollTop = sidebar.scrollHeight; }, 100);
       } else {
-        var input = container.querySelector('shiny-chat-input');
+        var input = container.querySelector('.shiny-chat-input');
         var target = input || container;
         setTimeout(function() {
           target.scrollIntoView({ behavior: 'smooth', block: 'end' });
