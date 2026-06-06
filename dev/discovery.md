@@ -1,7 +1,9 @@
 # The Discovery Process
 
 What happens when a user types a prompt in the AI chat -- from natural
-language to configured block.
+language to configured block. The harness is **ellmer tool calling**;
+there is no longer a hand-rolled JSON / "DONE or fix" loop (removed June
+2026 -- see [harness-comparison.md](harness-comparison.md)).
 
 ## The Big Picture
 
@@ -9,163 +11,128 @@ language to configured block.
 User: "only setosa"
   |
   v
-discover_block_args()
+discover_block_args()  ->  discover_via_ellmer_tools()
   |
-  +-- Build system prompt (block type, parameters, examples from registry)
-  +-- Build user message (data preview + task)
+  +-- Build system prompt (block identity, params, registry prompt/examples,
+  |     behavioural rules) and user message (data preview + current config + task)
+  +-- Register two tools on the ellmer client and call client$chat() ONCE:
+  |     - data_tool       : run read-only R against the input data (capped)
+  |     - validate_config : apply a config; returns {ok, effect, preview} or {error}
   |
-  +-- Loop (up to max_iter = 5):
-  |     |
-  |     +-- Send to LLM
-  |     +-- LLM wants to explore data? -> run R code, send result back
-  |     +-- LLM returns JSON? -> validate by applying to block
-  |     |     +-- Error? -> send error back, retry
-  |     |     +-- Success? -> show result preview, ask "DONE or fix?"
-  |     +-- LLM says "DONE"? -> break
-  |     +-- LLM asks a question? -> return question to caller
+  +-- ellmer drives the tool loop:
+  |     explore with data_tool -> propose with validate_config -> read the
+  |     effect -> retry on error or wrong effect -> stop when it matches
   |
   v
-Result: {success, args, result, client}
+Result: {success, args, result, message, error, question, client}
 ```
 
-A typical successful run takes **2 iterations**: the LLM proposes JSON,
-validation succeeds, the LLM sees the result and says DONE.
+The model proposes a configuration **by calling `validate_config`**, not by
+emitting JSON text. The last successful `validate_config` call is the applied
+configuration -- in a live board its `validate` function writes the block's
+reactiveVals, so the block updates in place.
 
-## What the LLM Sees
+## The two tools
 
-### System prompt
+| Tool | Kind | What it does |
+|---|---|---|
+| `data_tool` | read-only | Runs arbitrary R against the input datasets (by name) to inspect columns, types, value ranges, unique levels. Capped at `max_data_probes` (default 8). Built by `new_data_tool()` (`R/tool-data.R`). |
+| `validate_config` | apply + verify | Takes the block's parameters as a JSON object (a `config` string), validates/applies them, and returns `{ok, effect, preview}` or `{ok:false, error}`. Built by `new_validate_tool()` (`R/harness-ellmer.R`). |
 
-Built automatically from the block's **registry metadata**:
+`validate_config` does two things beyond "is it valid":
 
-1. **Block identity**: "You are configuring a Filter Rows (filter_block)."
-2. **Parameter names and descriptions** from the `arguments` registry field
-3. **Block-specific guidance** from the `prompt` attribute (e.g. "values must be strings")
-4. **Example JSON** from the `examples` attribute
-5. **Behavioral rules** (ask back on vague prompts, explain before JSON, etc.)
+- **Effect, not just validity.** A config can be valid yet do nothing (a filter
+  that removes no rows, a transform that adds no column). `validate_config`
+  returns the *effect* via `data_effect()` (`R/effect.R`) -- e.g.
+  `rows: 32 -> 32 (UNCHANGED)` or `columns added: ratio`, and a per-table diff
+  for `dm` results. The prompt tells the model `ok=true` means *valid, not
+  correct* -- it must check the effect matches the request before finishing.
+- **Unknown-key rejection.** Keys the block can't consume are rejected (instead
+  of silently dropped), so a save-format leak (`{state:{...}}`) errors and the
+  model retries with the right shape. `block_name` (the title) is allowed.
 
-The quality of registry metadata directly determines how well the LLM
-performs. See [external-ctrl-guide.md](external-ctrl-guide.md) for how
-to write good `arguments` and `examples`.
+## What the LLM sees
+
+### System prompt (`build_tool_system_prompt`)
+
+Built from the block's **registry metadata**:
+
+1. **Block identity** -- "You are configuring a Filter Rows (filter_block)."
+2. **Parameter names/descriptions** from the `arguments` registry field.
+3. **Block-specific guidance** from the `prompt` attribute.
+4. **Tool usage + behaviour rules** -- when to explore vs apply; that `ok=true`
+   is valid-not-done; ask one clarifying question on vague prompts; don't force
+   an invalid config; only set what was asked.
+
+`validate_config`'s own description carries the per-block parameter docs and an
+example, so the model knows the config shape.
 
 ### User message
 
-The first message includes:
+- **Data preview**: `data_schema()` -- dimensions, column types, 5 sample rows,
+  per-column value summaries. Methods exist for data.frame, `dm`, ggplot, and
+  (via blockr.sandbox) gt/flextable/composer tables. Packages can add methods.
+- **Current configuration** (if any) as JSON, minus `block_name`.
+- **The task**: the user's prompt.
 
-- **Data preview**: dimensions, column types, 5 sample rows, per-column
-  value summaries (unique values or ranges)
-- **Current configuration** (if any): the block's current parameter
-  values as JSON, so the LLM can build on them
-- **The task**: the user's prompt
-
-## How the LLM Understands Data
-
-The LLM gets information about data through three mechanisms, all
-text-based (no image support):
-
-1. **Data preview** (compulsory): the `data_schema()` S3 generic
-   produces a text summary of the input data, included in the first
-   user message. Methods exist for data.frames (dimensions, types,
-   sample rows, value summaries), dm objects (per-table previews), and
-   ggplot objects (layers, geoms, mappings). Packages can register
-   methods for custom types.
-
-2. **Data exploration** (optional): the LLM can run arbitrary R code
-   against the input data to inspect things the preview doesn't show --
-   unique factor levels, computed aggregates, object structure
-   (`str()`, `$layers`, etc.). See the Data Exploration section below.
-
-3. **Output verification** (compulsory): after the LLM proposes args
-   and validation succeeds, the result is summarised using
-   `data_schema()` again and shown to the LLM for confirmation. This
-   uses the same dispatch, so a ggplot result shows its layer/mapping
-   structure rather than just "Plot created successfully."
+Images: an optional `images` list is sent with the first message for
+vision-capable models.
 
 ## Validation
 
-Two modes depending on context:
+The `validate_config` tool wraps a `validate` function:
 
-- **Standalone** (`validate = NULL`): creates a fresh block with the
-  proposed args and evaluates it via `shiny::testServer`. Used in tests
-  and scripts.
-- **Shiny** (live app): writes args into the block's `reactiveVal`
-  objects, evaluates, and rolls back on failure. Used by
-  `ai_ctrl_server`.
+- **Standalone** (`validate = NULL`): builds a fresh block with the proposed args
+  and evaluates it via `shiny::testServer`. Used in tests and scripting.
+- **Shiny** (live app): `ai_ctrl_server` passes a validator that writes the
+  block's `reactiveVal`s and rolls back on failure. So the last successful
+  `validate_config` *is* the apply, and the existing block UI stays in sync.
 
-## Data Exploration
+## Conversation memory
 
-The LLM sees a 5-row preview by default. When the task requires
-information not in the preview (unique factor levels, computed
-aggregates, date formats), the LLM can run R code against the full
-dataset.
-
-| Backend | How it works | When to use |
-|---------|-------------|-------------|
-| `none` | No exploration | Simple tasks where the preview suffices |
-| `manual` | LLM writes `` ```data_query `` code blocks, blockr.ai runs them | Recommended for API models. Fastest. |
-| `tools` | LLM uses ellmer tool calling | Recommended for local/open-source models |
-
-Configure via (in order of precedence):
-
-```r
-discover_block_args(..., data_exploration = "manual")  # per-call
-options(blockr.data_exploration = "manual")             # R option
-# export BLOCKR_DATA_EXPLORATION=manual                 # env var
-```
-
-Probes are limited per call (default 3, set via `BLOCKR_MAX_DATA_PROBES`
-or `blockr.max_data_probes`).
-
-See [benchmark-summary.md](benchmark-summary.md) for backend comparison.
-
-### Custom backends
-
-Any list with `setup(client, data)`, `process(response, data)`, and
-`probes_used()` can be passed as `data_exploration`.
-
-## Conversation Memory
-
-The `client` field in the return value is the ellmer chat client with
-full conversation history. Pass it to subsequent calls to retain context:
+The returned `client` is the ellmer chat client with full history. Pass it to
+subsequent calls to retain context:
 
 ```r
 r1 <- discover_block_args("use iris", new_dataset_block())
 r2 <- discover_block_args("now mtcars", new_dataset_block(), client = r1$client)
 ```
 
-In Shiny, `ai_ctrl_server` keeps a persistent client across chat
-messages automatically. The "Clear" link resets it.
+In Shiny, `ai_ctrl_server` keeps a persistent client across messages; "Clear"
+resets it.
 
-## LLM Configuration
+## Outcomes
+
+| Situation | Result |
+|---|---|
+| `validate_config` succeeded | `success = TRUE`, `args`, `result`, `message` (the model's reply) |
+| Model asked a clarifying question (no config) | `success = FALSE`, `question` set, `error = NULL` |
+| Model produced nothing usable | `success = FALSE`, `error` set |
+| LLM/transport error | `success = FALSE`, `error` set |
+
+## LLM configuration
 
 | Setting | How |
 |---|---|
-| Model | `blockr.ai_model` option or `BLOCKR_AI_MODEL` env var (default: `gpt-4o-mini`) |
-| Custom provider | `options(blockr.chat_function = list("model-name" = function() ellmer::chat_azure(...)))` |
-| API key | `OPENAI_API_KEY` env var (or provider-specific vars) |
+| Model | `blockr.ai_model` option / `BLOCKR_AI_MODEL` env var |
+| Custom provider | `options(blockr.chat_function = list("model" = function() ellmer::chat_*(...)))` |
+| API key | provider env var (e.g. `OPENAI_API_KEY`) |
 
-## Error Handling
-
-| Situation | What happens |
-|---|---|
-| LLM error | Loop breaks, returns failure |
-| No JSON in response | Treated as a clarifying question, returned to caller |
-| Invalid JSON | Error sent back to LLM, retries |
-| Validation failure | Error sent back to LLM with "Please fix" |
-| Max iterations hit | Returns `success = FALSE` with last error |
-
-## Source Files
+## Source files
 
 | File | Key contents |
-|------|----------|
-| `R/discover.R` | `discover_block_args()`, standalone validator |
-| `R/utils-llm.R` | `build_system_prompt()`, `extract_json()`, `data_preview()` |
-| `R/backend-data.R` | Data exploration backends |
-| `R/reporter.R` | Progress reporters (silent, console, shiny) |
+|---|---|
+| `R/discover.R` | `discover_block_args()` (thin wrapper) + standalone validator, `simplify_leaves`, `block_ctor_inputs` |
+| `R/harness-ellmer.R` | `discover_via_ellmer_tools()`, `new_validate_tool()`, `build_tool_system_prompt()` |
+| `R/harness-tools.R` | `build_harness_tools()` -- the shared data + validate tools |
+| `R/effect.R` | `data_effect()` -- the config-effect (rows/cols/per-table diff) |
+| `R/tool-data.R` | `new_data_tool()` -- read-only data exploration |
+| `R/utils-llm.R` | `data_schema()`, `data_preview()`, `llm_client()` |
 | `R/ai-ctrl-block.R` | `ai_ctrl_block()` plugin (Shiny integration) |
 
 ## See Also
 
-- [architecture.md](architecture.md) -- How blockr.ai plugs into blockr.core
-- [external-ctrl-guide.md](external-ctrl-guide.md) -- Writing registry metadata for blocks
-- [debugging.md](debugging.md) -- When discovery doesn't work
-- [benchmark-summary.md](benchmark-summary.md) -- Data exploration benchmark results
+- [architecture.md](architecture.md) -- how blockr.ai plugs into blockr.core
+- [harness-comparison.md](harness-comparison.md) -- why the harness is ellmer
+- [external-ctrl-guide.md](external-ctrl-guide.md) -- writing registry metadata
+- [debugging.md](debugging.md) -- when discovery doesn't work

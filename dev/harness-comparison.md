@@ -95,11 +95,53 @@ treats `ok=true` as valid-not-done, so the model must verify the effect. See
 
 ## Decision
 
-Make **ellmer (A) the default harness**, keep **legacy as a one-flag fallback**
-(`blockr.harness`), and remove legacy later once A is validated across the full
-block set in real use. Not a direct replacement yet — flip default → soak →
-delete. B stays an experiment (it needs a strong Claude model and infra to be
-worth its weight).
+Make **ellmer (A) the harness**. It was first shipped as the default with legacy
+as a one-flag fallback; the **legacy loop and its `backend-data.R` machinery were
+then removed** once ellmer was validated beyond code/function blocks — a
+cross-block smoke test (`benchmarks/eval/smoke-blocks.R`, gpt-5.1) passed on the
+state-wrapper filter, select/summarize/mutate, a non-data.frame ggplot result,
+conversation memory, and a `dm`. B (agent-sdk) stays an experiment on the
+`feat/harness-ellmer-and-agent-sdk` branch (it needs a strong Claude model and a
+sidecar/proxy to be worth its weight).
+
+## Reconciliation with the early-2026 benchmarks
+
+The earlier work ([benchmark-summary.md](benchmark-summary.md)) -- experiments
+run in early 2026 (rounds 1–10, written up February 2026) -- concluded the
+*opposite* of this — "default to the `manual` text backend; ellmer's native
+tool-calling isn't clearly worth it." That is not a contradiction; three things
+changed, and the old data pointed this way:
+
+- **Different question.** Then: which data-exploration *backend* inside the JSON
+  loop (the config was free-text JSON in every arm). Now: the whole *harness* —
+  tool-calling where *validation itself* is a tool. The old `tools` only
+  tool-ified exploration; the new design tool-ifies the entire loop.
+- **Different model.** Then gpt-4o-mini / Qwen-20B; now gpt-5.4-nano / gpt-5.1.
+  The old report itself said *"backend choice is model-dependent; tools is the
+  only viable option on weaker models"* — i.e. it forecast that stronger models
+  flip the result. Its deepest claim (probe activation + prompt + **model**
+  dominate, not format) is exactly the lever that moved.
+- **Different metric.** The new win is largely **reliability of producing a valid
+  config** (legacy 66% vs ellmer 97% success) — legacy wedges. The old benchmark
+  measured exploration-backend correctness, not failure-to-produce-config.
+
+Two design questions from back then, revisited:
+
+- **ellmer vs handcraft → ellmer.** Legacy *was* the handcrafted answer (a
+  hand-rolled loop on `ellmer::chat()`). With ellmer's tool loop matured and
+  frontier models invoking tools reliably, the control bought by handcrafting
+  isn't worth the maintenance — so the handcrafted loop is gone. And the
+  agent-SDK experiment shows "don't handcraft" doesn't mean "go maximal": a
+  heavyweight agent framework *lost* on cheap models. The sweet spot is the
+  middle — a lightweight library (ellmer) that owns the loop.
+- **Structured output → mostly sidestepped, deliberately.** The winning harness
+  uses tool *calling* (structure at the invocation level) but keeps the config
+  payload as **free-text JSON in a `config` string**, not a schema-constrained
+  object — because blockr's config is per-block and partly freeform (the code
+  block is arbitrary R), and the registry carries argument *descriptions*, not
+  types. So the early-2026 "structured isn't a robust win" finding still roughly holds
+  for the payload. Strict structured config output is a viable *future*
+  refinement only if the registry grows real per-argument types.
 
 ## Reproduce
 

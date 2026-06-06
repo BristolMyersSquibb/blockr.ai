@@ -1,5 +1,16 @@
 # Data Exploration Benchmarks — Summary
 
+> **Historical / superseded (June 2026).** These rounds benchmarked the
+> data-exploration *backends* (`none`/`manual`/`tools`/`structured`) **inside the
+> old hand-rolled JSON loop**, on gpt-4o-mini and a local Qwen-20B. That loop and
+> those backends have since been **removed** — the harness is now ellmer tool
+> calling. The "default to `manual`, tools not clearly worth it" conclusion below
+> was correct *for that model and that narrow comparison* and is now superseded;
+> the current verdict (and why the conclusion changed) is in
+> [harness-comparison.md](harness-comparison.md) → *Reconciliation*. Kept as a
+> record of the methodology and the still-valid insight that probe activation,
+> prompt wording, and **model** dominate.
+
 > Six benchmark rounds (5–10) tested data exploration backends on
 > gpt-4o-mini with 8 synthetic filter tests and 9 mixed block tests.
 > This page summarises the key findings. For full details see the
