@@ -2,6 +2,7 @@
 
 S3method(data_effect,data.frame)
 S3method(data_effect,default)
+S3method(data_effect,dm)
 S3method(data_schema,data.frame)
 S3method(data_schema,default)
 S3method(data_schema,ggplot)

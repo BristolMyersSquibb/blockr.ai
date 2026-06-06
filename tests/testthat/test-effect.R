@@ -86,14 +86,40 @@ test_that("non-data.frame result yields no effect summary (graceful)", {
   expect_identical(data_effect(iris, 42), "")
 })
 
-test_that("dm-like result (no method yet) degrades to empty", {
-  fake_dm <- structure(list(), class = "dm")
-  expect_identical(data_effect(iris, fake_dm), "")
+test_that("empty dm result yields empty effect", {
+  expect_identical(data_effect(iris, structure(list(), class = "dm")), "")
 })
 
-test_that("dm-like input + data.frame result describes output (no diff)", {
+test_that("dm input + data.frame result describes output (no per-row diff)", {
   fake_dm <- structure(list(a = iris), class = "dm")
   expect_match(data_effect(fake_dm, iris[1:3, ]), "output: 3 rows x 5 cols")
+})
+
+# --- dm method: per-table row diff (lightweight) ----------------------------
+
+test_that("data_effect.dm reports per-table row changes", {
+  mk <- function(n) data.frame(x = seq_len(n))
+  inp <- structure(list(AE = mk(1200), LB = mk(5000), DM = mk(100)), class = "dm")
+  out <- structure(list(AE = mk(12), LB = mk(40), DM = mk(1)), class = "dm")
+  e <- data_effect(inp, out)
+  expect_match(e, "AE: 1200 -> 12")
+  expect_match(e, "LB: 5000 -> 40")
+  expect_match(e, "DM: 100 -> 1")
+})
+
+test_that("data_effect.dm flags UNCHANGED when no table changed", {
+  mk <- function(n) data.frame(x = seq_len(n))
+  d <- structure(list(AE = mk(10), LB = mk(20)), class = "dm")
+  expect_match(data_effect(d, d), "2 tables, UNCHANGED")
+})
+
+test_that("data_effect.dm notes removed and new tables", {
+  mk <- function(n) data.frame(x = seq_len(n))
+  inp <- structure(list(AE = mk(10), LB = mk(20)), class = "dm")
+  out <- structure(list(AE = mk(10), NEW = mk(5)), class = "dm")
+  e <- data_effect(inp, out)
+  expect_match(e, "NEW: 5 rows \\(new\\)")
+  expect_match(e, "tables removed: LB")
 })
 
 # --- helper -----------------------------------------------------------------

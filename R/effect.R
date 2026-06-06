@@ -75,6 +75,62 @@ data_effect.data.frame <- function(input, result, ...) {
   paste(parts, collapse = "; ")
 }
 
+#' @rdname data_effect
+#' @export
+data_effect.dm <- function(input, result, ...) {
+  out <- effect_tables(result)
+  if (is.null(out)) {
+    return("")
+  }
+  inn <- effect_tables(input)
+
+  parts <- character()
+  for (nm in names(out)) {
+    out_n <- nrow(out[[nm]])
+    in_n <- if (!is.null(inn) && nm %in% names(inn)) nrow(inn[[nm]]) else NA_integer_
+    if (is.na(in_n)) {
+      parts <- c(parts, sprintf("%s: %d rows (new)", nm, out_n))
+    } else if (in_n != out_n) {
+      parts <- c(parts, sprintf("%s: %d -> %d", nm, in_n, out_n))
+    }
+  }
+  removed <- if (!is.null(inn)) setdiff(names(inn), names(out)) else character()
+  if (length(removed)) {
+    parts <- c(parts, paste0("tables removed: ", paste(removed, collapse = ", ")))
+  }
+  if (!length(parts)) {
+    return(sprintf("%d tables, UNCHANGED", length(out)))
+  }
+  paste(parts, collapse = "; ")
+}
+
+#' Extract a named list of tables from a dm (or a named list of data frames).
+#' @noRd
+effect_tables <- function(x) {
+  if (inherits(x, "dm")) {
+    if (requireNamespace("dm", quietly = TRUE)) {
+      t <- tryCatch(dm::dm_get_tables(x),
+                    error = function(e) NULL, warning = function(w) NULL)
+      if (length(t)) {
+        return(t)
+      }
+    }
+    # Fallback for test doubles / plain table lists wearing a dm class.
+    t2 <- Filter(is.data.frame, unclass(x))
+    if (length(t2)) {
+      return(t2)
+    }
+    return(NULL)
+  }
+  if (is.list(x) && !is.null(names(x))) {
+    dfs <- Filter(is.data.frame, x)
+    if (length(dfs)) {
+      return(dfs)
+    }
+  }
+  NULL
+}
+
 #' Pick a single representative input data frame for effect diffing.
 #'
 #' Returns the input itself when it is a data.frame, the sole data.frame in a

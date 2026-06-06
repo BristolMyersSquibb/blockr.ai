@@ -4,6 +4,7 @@
 \alias{data_effect}
 \alias{data_effect.default}
 \alias{data_effect.data.frame}
+\alias{data_effect.dm}
 \title{Describe the effect of applying a configuration to a block's data}
 \usage{
 data_effect(input, result, ...)
@@ -11,6 +12,8 @@ data_effect(input, result, ...)
 \method{data_effect}{default}(input, result, ...)
 
 \method{data_effect}{data.frame}(input, result, ...)
+
+\method{data_effect}{dm}(input, result, ...)
 }
 \arguments{
 \item{input}{The block's input data: a data.frame, a named list of inputs, a

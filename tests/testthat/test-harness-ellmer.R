@@ -101,16 +101,35 @@ test_that("validate tool reports effect: no-op vs real change", {
   no_op <- new_validate_tool(
     function(args) iris, fake_block(), data = iris      # returns all rows
   )
-  r1 <- no_op$invoke('{"x": 1}')
+  r1 <- no_op$invoke('{"value": "x"}')
   expect_true(r1$ok)
   expect_match(r1$effect, "UNCHANGED")
 
   effective <- new_validate_tool(
     function(args) iris[iris$Species == "setosa", ], fake_block(), data = iris
   )
-  r2 <- effective$invoke('{"x": 1}')
+  r2 <- effective$invoke('{"value": "x"}')
   expect_true(r2$ok)
   expect_match(r2$effect, "100 removed")   # 150 -> 50
+})
+
+test_that("validate tool rejects unknown parameter keys", {
+  vt <- new_validate_tool(good_validate, fake_block(), data = NULL)
+
+  # 'block_name' leaked from the save format is not a real parameter
+  r1 <- vt$invoke('{"value": "good", "block_name": "X"}')
+  expect_false(r1$ok)
+  expect_match(r1$error, "Unknown parameter")
+  expect_match(r1$error, "block_name")
+
+  # the wrapped save-format shape is rejected (valid param is 'value')
+  r2 <- vt$invoke('{"state": {"value": "good"}}')
+  expect_false(r2$ok)
+  expect_match(r2$error, "state")
+
+  # a clean flat config still applies
+  r3 <- vt$invoke('{"value": "good"}')
+  expect_true(r3$ok)
 })
 
 test_that("ellmer harness: retries past a bad config and applies the good one", {

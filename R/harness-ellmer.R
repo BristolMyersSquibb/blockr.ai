@@ -63,6 +63,21 @@ new_validate_tool <- function(validate, block, data = NULL) {
                   error = "Config must be a JSON object of block parameters."))
     }
 
+    # Reject unknown keys instead of silently dropping them: a config that the
+    # block can't consume would otherwise apply nothing yet report success.
+    valid <- block_ctor_inputs(block)
+    if (length(valid)) {
+      unknown <- setdiff(names(args), valid)
+      if (length(unknown)) {
+        return(list(ok = FALSE, error = paste0(
+          "Unknown parameter(s): ", paste(unknown, collapse = ", "),
+          ". Valid parameter(s): ", paste(valid, collapse = ", "),
+          ". Pass only these as a flat JSON object -- do not add 'block_name', ",
+          "and do not wrap values in 'state' unless 'state' is listed above."
+        )))
+      }
+    }
+
     res <- tryCatch(validate(args), error = function(e) e)
     if (inherits(res, "error")) {
       return(list(ok = FALSE, error = conditionMessage(res)))
