@@ -154,7 +154,7 @@ css_ai_ctrl <- function() {
         outline: none !important;
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
-        bottom: 8px !important;
+        bottom: 11px !important;
       }
       .blockr-ctrl-body .shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
