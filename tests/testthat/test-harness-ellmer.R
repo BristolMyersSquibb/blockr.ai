@@ -113,19 +113,22 @@ test_that("validate tool reports effect: no-op vs real change", {
   expect_match(r2$effect, "100 removed")   # 150 -> 50
 })
 
-test_that("validate tool rejects unknown parameter keys", {
+test_that("validate tool rejects unknown keys but allows block_name", {
   vt <- new_validate_tool(good_validate, fake_block(), data = NULL)
 
-  # 'block_name' leaked from the save format is not a real parameter
-  r1 <- vt$invoke('{"value": "good", "block_name": "X"}')
-  expect_false(r1$ok)
-  expect_match(r1$error, "Unknown parameter")
-  expect_match(r1$error, "block_name")
+  # block_name is a universal controllable var -> accepted, not rejected
+  r0 <- vt$invoke('{"value": "good", "block_name": "X"}')
+  expect_true(r0$ok)
 
   # the wrapped save-format shape is rejected (valid param is 'value')
   r2 <- vt$invoke('{"state": {"value": "good"}}')
   expect_false(r2$ok)
   expect_match(r2$error, "state")
+
+  # a genuinely unknown key is rejected
+  rb <- vt$invoke('{"bogus": 1}')
+  expect_false(rb$ok)
+  expect_match(rb$error, "Unknown parameter")
 
   # a clean flat config still applies
   r3 <- vt$invoke('{"value": "good"}')

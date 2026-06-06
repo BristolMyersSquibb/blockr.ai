@@ -65,17 +65,17 @@ new_validate_tool <- function(validate, block, data = NULL) {
 
     # Reject unknown keys instead of silently dropping them: a config that the
     # block can't consume would otherwise apply nothing yet report success.
-    valid <- block_ctor_inputs(block)
-    if (length(valid)) {
-      unknown <- setdiff(names(args), valid)
-      if (length(unknown)) {
-        return(list(ok = FALSE, error = paste0(
-          "Unknown parameter(s): ", paste(unknown, collapse = ", "),
-          ". Valid parameter(s): ", paste(valid, collapse = ", "),
-          ". Pass only these as a flat JSON object -- do not add 'block_name', ",
-          "and do not wrap values in 'state' unless 'state' is listed above."
-        )))
-      }
+    # `block_name` (the block title) is a universal controllable var, so it is
+    # valid even though it isn't a constructor argument.
+    valid <- unique(c(block_ctor_inputs(block), "block_name"))
+    unknown <- setdiff(names(args), valid)
+    if (length(unknown)) {
+      return(list(ok = FALSE, error = paste0(
+        "Unknown parameter(s): ", paste(unknown, collapse = ", "),
+        ". Valid parameter(s): ", paste(setdiff(valid, "block_name"), collapse = ", "),
+        ". Pass these as a flat JSON object; do not wrap values in 'state' ",
+        "unless 'state' is listed above."
+      )))
     }
 
     res <- tryCatch(validate(args), error = function(e) e)
@@ -288,7 +288,14 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     result = final_result,
     message = reply_text,
     conversation = conversation,
-    error = if (success) NULL else "Model did not produce a valid configuration",
+    # A non-empty reply with no config is a clarifying question / explanation
+    # (the prompt tells the model to ask back on vague requests) -- that is
+    # expected behaviour, not an error.
+    error = if (!success && !nzchar(reply_text)) {
+      "Model did not produce a valid configuration"
+    } else {
+      NULL
+    },
     question = if (!success && nzchar(reply_text)) reply_text else NULL,
     client = client
   )

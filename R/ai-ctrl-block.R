@@ -451,8 +451,11 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         result
       }
 
-      # Snapshot current state for LLM context
-      current_state <- lapply(vars[ctrl_names], function(v) isolate(v()))
+      # Snapshot current state for LLM context. Exclude block_name (the block
+      # title) -- it isn't a data parameter, and showing it just invites the
+      # model to rename the block.
+      state_names <- setdiff(ctrl_names, "block_name")
+      current_state <- lapply(vars[state_names], function(v) isolate(v()))
 
       rpt <- reporter_shiny("chat", session)
 
