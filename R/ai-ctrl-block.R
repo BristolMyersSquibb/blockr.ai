@@ -468,9 +468,6 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           client = client,
           current_state = current_state,
           verbose = TRUE,
-          data_exploration = blockr.core::blockr_option(
-            "data_exploration", "manual"
-          ),
           reporter = rpt,
           images = images
         ),

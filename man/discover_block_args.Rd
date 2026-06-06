@@ -9,14 +9,11 @@ discover_block_args(
   block,
   data = NULL,
   validate = NULL,
-  max_iter = 5,
   verbose = FALSE,
   client = NULL,
   current_state = NULL,
-  data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
   reporter = NULL,
-  images = NULL,
-  harness = blockr.core::blockr_option("harness", "ellmer")
+  images = NULL
 )
 }
 \arguments{
@@ -29,8 +26,6 @@ discover_block_args(
 \item{validate}{Validation function. If NULL, uses standalone validator
 with testServer (for testing outside of Shiny).}
 
-\item{max_iter}{Maximum LLM iterations (default 5)}
-
 \item{verbose}{If TRUE, print conversation to console}
 
 \item{client}{An existing ellmer chat client to reuse. When NULL (default),
@@ -41,21 +36,12 @@ memory across multiple calls.}
 When non-NULL, a "Current Configuration" section is included in the user
 message so the LLM can see what's already configured.}
 
-\item{data_exploration}{Data exploration strategy passed to
-\code{\link[=data_exploration_backend]{data_exploration_backend()}}. Defaults to
-\code{blockr.core::blockr_option("data_exploration", "manual")}.}
-
 \item{reporter}{A progress reporter list (see \link{reporter_silent},
 \link{reporter_console}, \link{reporter_shiny}). When NULL (default), auto-detects:
 console if interactive, silent otherwise.}
 
 \item{images}{Optional list of base64-encoded images to include with the
 first prompt.}
-
-\item{harness}{Which discovery harness to use: \code{"ellmer"} (default, native
-ellmer tool calling with a \code{validate_config} tool) or \code{"legacy"} (the
-original hand-rolled JSON loop, kept as a fallback). Defaults to
-\code{blockr.core::blockr_option("harness", "ellmer")}.}
 }
 \value{
 List with:

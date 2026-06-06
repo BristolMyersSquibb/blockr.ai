@@ -24,7 +24,6 @@ run_one <- function(case, harness, verbose = FALSE) {
       prompt  = case$prompt,
       block   = case$make_block(),
       data    = case$data,
-      harness = harness,
       verbose = verbose
     ),
     error = function(e) list(success = FALSE, error = conditionMessage(e))

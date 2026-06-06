@@ -188,8 +188,7 @@ test_that("discover_block_args dispatches to the ellmer harness", {
       prompt = "make it good",
       block = fake_block(),
       data = NULL,
-      validate = good_validate,
-      harness = "ellmer"
+      validate = good_validate
     )
   })
 
@@ -218,8 +217,7 @@ test_that("ellmer harness (live): configures the code block (freeform R)", {
   res <- discover_block_args(
     prompt = "return only the first 3 rows",
     block = blk,
-    data = iris,
-    harness = "ellmer"
+    data = iris
   )
 
   expect_true(res$success)
@@ -237,8 +235,7 @@ test_that("ellmer harness (live): configures a filter via tool calls", {
   res <- discover_block_args(
     prompt = "only setosa species",
     block = blk,
-    data = iris,
-    harness = "ellmer"
+    data = iris
   )
 
   expect_true(res$success)

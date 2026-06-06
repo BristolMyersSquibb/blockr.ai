@@ -9,7 +9,6 @@
 #' @param data Input data (data.frame, dm, or NULL for source blocks)
 #' @param validate Validation function. If NULL, uses standalone validator
 #'   with testServer (for testing outside of Shiny).
-#' @param max_iter Maximum LLM iterations (default 5)
 #' @param verbose If TRUE, print conversation to console
 #' @param client An existing ellmer chat client to reuse. When NULL (default),
 #'   a new client is created. Pass a persistent client to retain conversation
@@ -17,18 +16,11 @@
 #' @param current_state Optional plain list of current block parameter values.
 #'   When non-NULL, a "Current Configuration" section is included in the user
 #'   message so the LLM can see what's already configured.
-#' @param data_exploration Data exploration strategy passed to
-#'   [data_exploration_backend()]. Defaults to
-#'   `blockr.core::blockr_option("data_exploration", "manual")`.
 #' @param reporter A progress reporter list (see [reporter_silent],
 #'   [reporter_console], [reporter_shiny]). When NULL (default), auto-detects:
 #'   console if interactive, silent otherwise.
 #' @param images Optional list of base64-encoded images to include with the
 #'   first prompt.
-#' @param harness Which discovery harness to use: `"ellmer"` (default, native
-#'   ellmer tool calling with a `validate_config` tool) or `"legacy"` (the
-#'   original hand-rolled JSON loop, kept as a fallback). Defaults to
-#'   `blockr.core::blockr_option("harness", "ellmer")`.
 #'
 #' @return List with:
 #'   \item{success}{TRUE if args were discovered successfully}
@@ -76,218 +68,17 @@ discover_block_args <- function(
     block,
     data = NULL,
     validate = NULL,
-    max_iter = 5,
     verbose = FALSE,
     client = NULL,
     current_state = NULL,
-    data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
     reporter = NULL,
-    images = NULL,
-    harness = blockr.core::blockr_option("harness", "ellmer")
+    images = NULL
 ) {
   if (is.null(reporter)) reporter <- auto_reporter()
-
-  harness <- match.arg(harness, c("ellmer", "legacy"))
-  if (identical(harness, "ellmer")) {
-    return(discover_via_ellmer_tools(
-      prompt = prompt, block = block, data = data, validate = validate,
-      client = client, current_state = current_state, reporter = reporter,
-      images = images, verbose = verbose
-    ))
-  }
-
-  # Get all constructor input names for the LLM prompt
-  var_names <- block_ctor_inputs(block)
-
-  if (length(var_names) == 0) {
-    return(list(
-      success = FALSE,
-      args = NULL,
-      conversation = NULL,
-      result = NULL,
-      error = "Block has no configurable parameters"
-    ))
-  }
-
-  # Create standalone validator if none provided
-  if (is.null(validate)) {
-    ctor <- attr(block, "ctor")
-    validate <- standalone_validator_internal(ctor, data)
-  }
-
-  conversation <- if (verbose) list() else NULL
-  log_msg <- function(role, content) {
-    if (verbose) {
-      conversation <<- c(conversation, list(list(role = role, content = content)))
-      cat(sprintf("[%s] %s\n\n", toupper(role), substr(content, 1, 500)))
-    }
-  }
-
-  block_name <- class(block)[1]
-
-  backend <- data_exploration_backend(data_exploration)
-
-  # Create new client only if none provided; reuse existing for conversation memory
-  if (is.null(client)) {
-    client <- llm_client()
-    system_prompt <- build_system_prompt(var_names, block)
-
-    # Let backend modify client (register tools) and append to system prompt
-    if (!is.null(data)) {
-      prompt_addition <- backend$setup(client, data)
-      if (!is.null(prompt_addition) && nzchar(prompt_addition)) {
-        system_prompt <- paste0(system_prompt, prompt_addition)
-      }
-    }
-
-    client$set_system_prompt(system_prompt)
-    log_msg("system", system_prompt)
-  }
-
-  state_json <- if (!is.null(current_state) && length(current_state) > 0) {
-    jsonlite::toJSON(current_state, auto_unbox = TRUE)
-  }
-  message("[discover] ", block_name,
-          " | prompt: ", prompt,
-          if (!is.null(state_json)) paste0(" | state: ", state_json) else "")
-
-  # Build initial message
-  msg <- paste0(
-    data_preview(data),
-    format_current_state(current_state),
-    "# Task\n\n", prompt,
-    "\n\nExplain your approach briefly, then provide JSON."
-  )
-
-  last_error <- NULL
-  final_args <- NULL
-  final_result <- NULL
-  prev_args <- NULL
-  last_message <- NULL
-
-  for (i in seq_len(max_iter)) {
-    log_msg("user", msg)
-    message("[discover] \u2192 ", truncate_for_log(msg))
-
-    if (i == 1L) reporter$start_phase("thinking")
-    response <- tryCatch({
-      if (i == 1 && !is.null(images) && length(images) > 0) {
-        img_contents <- lapply(images, function(img) {
-          ellmer::ContentImageInline(type = img$type, data = img$data)
-        })
-        do.call(client$chat, c(list(msg), img_contents))
-      } else {
-        client$chat(msg)
-      }
-    }, error = function(e) {
-      message("[discover] LLM error: ", conditionMessage(e))
-      last_error <<- paste0("LLM error: ", conditionMessage(e))
-      NULL
-    })
-    if (i == 1L) reporter$end_phase("thinking")
-    if (is.null(response)) break
-
-    log_msg("assistant", response)
-    message("[discover] \u2190 ", truncate_for_log(response))
-
-    if (is_done_response(response)) {
-      reporter$end_phase("confirming", result = "\u2713")
-      break
-    }
-
-    # Let backend handle data exploration requests
-    reporter$start_phase("exploring")
-    backend_msg <- backend$process(response, data)
-    if (!is.null(backend_msg)) {
-      msg <- backend_msg
-      next
-    }
-    reporter$end_phase("exploring")
-
-    json_str <- extract_json(response)
-    if (is.null(json_str)) {
-      # LLM is asking a clarifying question — return it to the caller
-      return(list(
-        success = FALSE,
-        args = final_args,
-        conversation = conversation,
-        result = final_result,
-        error = NULL,
-        question = response,
-        client = client
-      ))
-    }
-
-    # Parse JSON to get args
-    new_args <- tryCatch({
-      parsed <- jsonlite::fromJSON(json_str, simplifyVector = FALSE)
-      # Simplify leaf lists (all-scalar) to vectors so they work as
-      # column subscripts and other places expecting atomic vectors.
-      simplify_leaves(parsed)
-    }, error = function(e) {
-      last_error <<- conditionMessage(e)
-      NULL
-    })
-
-    if (is.null(new_args) || !is.list(new_args)) {
-      last_error <- last_error %||% "Invalid JSON"
-      msg <- paste0("Error: ", last_error)
-      next
-    }
-
-    message("[discover] args: ",
-            jsonlite::toJSON(new_args, auto_unbox = TRUE))
-
-    # Detect identical args sent twice — LLM is stuck, accept current result
-    if (!is.null(prev_args) && identical(new_args, prev_args) &&
-        !is.null(final_result)) {
-      message("[discover] identical args repeated, accepting result")
-      last_error <- NULL
-      break
-    }
-    prev_args <- new_args
-
-    # Validate using provided function
-    reporter$start_phase("validating")
-    result <- tryCatch({
-      validate(new_args)
-    }, error = function(e) {
-      last_error <<- conditionMessage(e)
-      NULL
-    })
-
-    if (is.null(result)) {
-      reporter$end_phase("validating")
-      reporter$start_phase("retrying", detail = last_error)
-      message("[discover] validation failed: ", last_error)
-      msg <- paste0("Validation failed: ", last_error, "\nPlease fix.")
-      next
-    }
-
-    reporter$end_phase("validating", result = "\u2713")
-
-    # Success - ask for confirmation
-    final_args <- new_args
-    final_result <- result
-    last_message <- strip_json_block(response)
-    preview <- data_schema(result)
-    message("[discover] validated: ", truncate_for_log(preview))
-    reporter$start_phase("confirming")
-    msg <- paste0("Result:\n```\n", preview, "\n```\nCorrect? Say DONE or fix.")
-    last_error <- NULL
-  }
-
-  message("[discover] done, success: ", is.null(last_error))
-  reporter$done(is.null(last_error), last_error)
-
-  list(
-    success = is.null(last_error),
-    args = final_args,
-    conversation = conversation,
-    result = final_result,
-    error = last_error,
-    message = last_message,
-    client = client
+  discover_via_ellmer_tools(
+    prompt = prompt, block = block, data = data, validate = validate,
+    client = client, current_state = current_state, reporter = reporter,
+    images = images, verbose = verbose
   )
 }
 

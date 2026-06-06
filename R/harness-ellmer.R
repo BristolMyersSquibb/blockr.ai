@@ -128,10 +128,10 @@ new_validate_tool <- function(validate, block, data = NULL) {
 
 #' System prompt for the tool-calling harness
 #'
-#' Like [build_system_prompt()] but instructs the model to use the
-#' `data_tool` / `validate_config` tools rather than emitting JSON + "DONE".
+#' Instructs the model to use the `data_tool` / `validate_config` tools.
 #'
-#' @inheritParams build_system_prompt
+#' @param var_names Names of the block's controllable variables.
+#' @param block Block object, for registry-derived context.
 #' @return Character string.
 #' @noRd
 build_tool_system_prompt <- function(var_names, block) {
