@@ -15,7 +15,8 @@ discover_block_args(
   current_state = NULL,
   data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
   reporter = NULL,
-  images = NULL
+  images = NULL,
+  harness = blockr.core::blockr_option("harness", "ellmer")
 )
 }
 \arguments{
@@ -50,6 +51,11 @@ console if interactive, silent otherwise.}
 
 \item{images}{Optional list of base64-encoded images to include with the
 first prompt.}
+
+\item{harness}{Which discovery harness to use: \code{"ellmer"} (default, native
+ellmer tool calling with a \code{validate_config} tool) or \code{"legacy"} (the
+original hand-rolled JSON loop, kept as a fallback). Defaults to
+\code{blockr.core::blockr_option("harness", "ellmer")}.}
 }
 \value{
 List with:

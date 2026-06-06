@@ -25,6 +25,10 @@
 #'   console if interactive, silent otherwise.
 #' @param images Optional list of base64-encoded images to include with the
 #'   first prompt.
+#' @param harness Which discovery harness to use: `"ellmer"` (default, native
+#'   ellmer tool calling with a `validate_config` tool) or `"legacy"` (the
+#'   original hand-rolled JSON loop, kept as a fallback). Defaults to
+#'   `blockr.core::blockr_option("harness", "ellmer")`.
 #'
 #' @return List with:
 #'   \item{success}{TRUE if args were discovered successfully}
@@ -78,9 +82,19 @@ discover_block_args <- function(
     current_state = NULL,
     data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
     reporter = NULL,
-    images = NULL
+    images = NULL,
+    harness = blockr.core::blockr_option("harness", "ellmer")
 ) {
   if (is.null(reporter)) reporter <- auto_reporter()
+
+  harness <- match.arg(harness, c("ellmer", "legacy"))
+  if (identical(harness, "ellmer")) {
+    return(discover_via_ellmer_tools(
+      prompt = prompt, block = block, data = data, validate = validate,
+      client = client, current_state = current_state, reporter = reporter,
+      images = images, verbose = verbose
+    ))
+  }
 
   # Get all constructor input names for the LLM prompt
   var_names <- block_ctor_inputs(block)
