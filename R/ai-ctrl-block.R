@@ -137,10 +137,16 @@ css_ai_ctrl <- function() {
         overflow-x: hidden;
       }
       .blockr-ctrl-body .shiny-chat-input textarea {
-        border-radius: 6px !important;
-        height: 38px;
-        min-height: 38px !important;
-        max-height: 120px !important;
+        /* Standard bordered input (cf. blockr.dplyr .blockr-input--bordered):
+         * taller + more rounded, with room on the right for the send button. */
+        border-radius: 10px !important;
+        min-height: 46px !important;
+        height: 46px;
+        max-height: 140px !important;
+        padding: 11px 44px 11px 14px !important;
+        background-color: var(--blockr-color-bg-input, #f9fafb) !important;
+        border: 1px solid var(--blockr-color-border, #e5e7eb) !important;
+        font-size: var(--blockr-font-size-base, 0.875rem) !important;
         scrollbar-width: none;
         -ms-overflow-style: none;
         box-shadow: none !important;
@@ -150,11 +156,34 @@ css_ai_ctrl <- function() {
       }
       .blockr-ctrl-body .shiny-chat-input textarea:focus {
         border-color: #7c3aed !important;
-        box-shadow: none !important;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12) !important;
         outline: none !important;
       }
+      /* Prettier send button: soft two-tone violet pill (matches the editor's
+       * Accept/Reject/Run badges), arrow in the accent colour. */
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
-        bottom: 11px !important;
+        bottom: 8px !important;
+        right: 8px !important;
+        width: 30px !important;
+        height: 30px !important;
+        padding: 0 !important;
+        border-radius: 8px !important;
+        background: rgba(124, 58, 237, 0.10) !important;
+        color: #7c3aed !important;
+        border: 1px solid rgba(124, 58, 237, 0.25) !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: background 0.15s ease, border-color 0.15s ease !important;
+      }
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:hover {
+        background: rgba(124, 58, 237, 0.18) !important;
+        border-color: rgba(124, 58, 237, 0.4) !important;
+      }
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send svg {
+        width: 16px !important;
+        height: 16px !important;
+        fill: currentColor !important;
       }
       .blockr-ctrl-body .shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
