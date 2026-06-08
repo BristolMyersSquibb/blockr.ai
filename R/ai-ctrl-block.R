@@ -159,30 +159,36 @@ css_ai_ctrl <- function() {
         box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12) !important;
         outline: none !important;
       }
-      /* Prettier send button: soft two-tone violet pill (matches the editor's
-       * Accept/Reject/Run badges), arrow in the accent colour. */
+      /* Send button: a bare arrow in the accent colour — no background, no
+       * circle, centred. (The arrow-in-circle bootstrap icon is swapped for a
+       * plain arrow by the script below.) */
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
-        bottom: 8px !important;
+        bottom: 9px !important;
         right: 8px !important;
-        width: 30px !important;
-        height: 30px !important;
+        width: 26px !important;
+        height: 26px !important;
         padding: 0 !important;
-        border-radius: 8px !important;
-        background: rgba(124, 58, 237, 0.10) !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
         color: #7c3aed !important;
-        border: 1px solid rgba(124, 58, 237, 0.25) !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        transition: background 0.15s ease, border-color 0.15s ease !important;
+        transition: color 0.15s ease, transform 0.1s ease !important;
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:hover {
-        background: rgba(124, 58, 237, 0.18) !important;
-        border-color: rgba(124, 58, 237, 0.4) !important;
+        color: #6d28d9 !important;
+        transform: translateY(-1px);
+      }
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:disabled {
+        color: var(--blockr-grey-400, #adb5bd) !important;
+        transform: none;
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send svg {
-        width: 16px !important;
-        height: 16px !important;
+        width: 20px !important;
+        height: 20px !important;
         fill: currentColor !important;
       }
       .blockr-ctrl-body .shiny-chat-message[data-role=user] {
@@ -335,14 +341,31 @@ css_ai_ctrl <- function() {
       }",
     "</style>",
     "<script>",
-    "new MutationObserver(function(mutations) {
+    "function blockrSwapSendIcon() {
+      document.querySelectorAll('.blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send svg').forEach(function(svg) {
+        if (svg.getAttribute('data-blockr-arrow')) return;
+        svg.setAttribute('data-blockr-arrow', '1');
+        svg.setAttribute('viewBox', '0 0 16 16');
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 'M8 12a.5.5 0 0 0 .5-.5V3.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5');
+        svg.appendChild(path);
+      });
+    }
+    blockrSwapSendIcon();
+    // The send button is rendered by shinychat's web component after the panel
+    // mutation fires, so the observer can miss it; a cheap guarded poll (the
+    // data-blockr-arrow guard makes repeat calls no-ops) is the robust catch-all.
+    setInterval(blockrSwapSendIcon, 400);
+    new MutationObserver(function(mutations) {
+      blockrSwapSendIcon();
       mutations.forEach(function(m) {
         m.addedNodes.forEach(function(node) {
           if (node.nodeType !== 1) return;
           var ta = node.matches && node.matches('.blockr-ctrl-body .shiny-chat-input textarea')
             ? node
             : node.querySelector && node.querySelector('.blockr-ctrl-body .shiny-chat-input textarea');
-          if (ta) setTimeout(function() { ta.focus(); }, 100);
+          if (ta) setTimeout(function() { ta.focus(); blockrSwapSendIcon(); }, 100);
         });
       });
     }).observe(document.body, { childList: true, subtree: true });
