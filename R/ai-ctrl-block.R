@@ -166,7 +166,10 @@ css_ai_ctrl <- function() {
        * circle, centred. (The arrow-in-circle bootstrap icon is swapped for a
        * plain arrow by the script below.) */
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
-        bottom: 9px !important;
+        /* Vertically centred in the input (height-agnostic), not bottom-pinned. */
+        top: 50% !important;
+        bottom: auto !important;
+        transform: translateY(-50%) !important;
         right: 8px !important;
         width: 26px !important;
         height: 26px !important;
@@ -179,11 +182,10 @@ css_ai_ctrl <- function() {
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        transition: color 0.15s ease, transform 0.1s ease !important;
+        transition: color 0.15s ease !important;
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:hover {
         color: #6d28d9 !important;
-        transform: translateY(-1px);
       }
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:disabled {
         color: var(--blockr-grey-400, #adb5bd) !important;
@@ -344,21 +346,37 @@ css_ai_ctrl <- function() {
       }",
     "</style>",
     "<script>",
-    "function blockrSwapSendIcon() {
-      document.querySelectorAll('.blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send svg').forEach(function(svg) {
-        if (svg.getAttribute('data-blockr-arrow')) return;
-        svg.setAttribute('data-blockr-arrow', '1');
-        svg.setAttribute('viewBox', '0 0 16 16');
-        while (svg.firstChild) svg.removeChild(svg.firstChild);
-        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        path.setAttribute('d', 'M8 12a.5.5 0 0 0 .5-.5V3.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5');
-        svg.appendChild(path);
+    "var BLOCKR_ARROW_D = 'M8 12a.5.5 0 0 0 .5-.5V3.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5';
+    function blockrEnsureArrow(svg) {
+      var path = svg.querySelector('path');
+      if (path && path.getAttribute('d') === BLOCKR_ARROW_D) return; // already plain arrow
+      svg.setAttribute('viewBox', '0 0 16 16');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var np = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      np.setAttribute('d', BLOCKR_ARROW_D);
+      svg.appendChild(np);
+    }
+    function blockrSwapSendIcon() {
+      document.querySelectorAll('.blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send').forEach(function(btn) {
+        var svg = btn.querySelector('svg');
+        if (svg) blockrEnsureArrow(svg);
+        // shinychat re-renders the icon when the input goes enabled/disabled,
+        // which can restore the arrow-in-circle; observe the button so we
+        // re-swap synchronously (no poll flash). Content-based, so an in-place
+        // revert is caught too.
+        if (!btn.getAttribute('data-blockr-obs')) {
+          btn.setAttribute('data-blockr-obs', '1');
+          new MutationObserver(function() {
+            var s = btn.querySelector('svg');
+            if (s) blockrEnsureArrow(s);
+          }).observe(btn, { childList: true, subtree: true, attributes: true });
+        }
       });
     }
     blockrSwapSendIcon();
-    // The send button is rendered by shinychat's web component after the panel
-    // mutation fires, so the observer can miss it; a cheap guarded poll (the
-    // data-blockr-arrow guard makes repeat calls no-ops) is the robust catch-all.
+    // Backstop: the button is rendered by shinychats web component after the
+    // panel mutation fires, so a cheap poll catches newly-appeared buttons (and
+    // attaches their observer); blockrEnsureArrow is a no-op once correct.
     setInterval(blockrSwapSendIcon, 400);
     new MutationObserver(function(mutations) {
       blockrSwapSendIcon();
