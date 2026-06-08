@@ -155,8 +155,11 @@ css_ai_ctrl <- function() {
         display: none;
       }
       .blockr-ctrl-body .shiny-chat-input textarea:focus {
+        /* Border-only focus (like blockr.dplyr's standard input). No box-shadow
+         * ring: the parent .shiny-chat-input has overflow-x:hidden/overflow-y:auto,
+         * which clips the ring into an asymmetric shadow + a corner artifact. */
         border-color: #7c3aed !important;
-        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12) !important;
+        box-shadow: none !important;
         outline: none !important;
       }
       /* Send button: a bare arrow in the accent colour — no background, no
