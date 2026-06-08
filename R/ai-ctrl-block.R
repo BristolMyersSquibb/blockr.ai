@@ -127,6 +127,13 @@ css_ai_ctrl <- function() {
         min-height: 0;
         padding-bottom: 0;
       }
+      /* The dock wraps each section in a bordered accordion-body; the AI
+       * section sitting above the params shows a doubled divider (its own
+       * bottom border + the next section's top border). Drop this section's
+       * bottom border so a single divider remains. */
+      .accordion-body:has(> .blockr-ctrl-body) {
+        border-bottom: 0 !important;
+      }
       .blockr-ctrl-body .shiny-chat-messages {
         --_chat-container-padding: 0;
         --shiny-chat-messages-padding-bottom: 0;
