@@ -26,6 +26,17 @@ registry and status. This doc is the **methodology + lessons**.
 4. **The tool interface matters more than wording.** The biggest composer blocker
    was that the model couldn't hand-serialize a big R function into a JSON-string
    `config`. Fixed by a typed schema (native args), not by prompting.
+5. **The AI surface IS the full set of block arguments — always.** There is no
+   "expose this to the assistant or not" decision. If something is a block
+   argument (configurable state the user can choose), the assistant gets it; the
+   only real question is whether it should be a block argument at all (a
+   block-DESIGN decision). Don't selectively hide args from the AI; instead shape
+   the block's args so the whole surface is clean and writable (flat where
+   possible, strings/arrays-of-records over nested ASTs/data-keyed maps). The
+   model block proved this: its formula was a nested AST the model could never
+   produce (0/5). Making `formula` a plain string and lifting `weights`/`offset`
+   to their own top-level args — nothing dropped from the surface — took it to
+   5/5.
 
 ---
 
@@ -200,5 +211,6 @@ NOT work — populating/fixing the registry `examples` did.
 | drilldown table | D | 3/3 (after example fix) | populated `examples` (value_cols/label_col/drill) |
 | crossfilter | B/D | 3/3 | already fine; "control issue" flag was unfounded |
 | topline flextable | B | columns 3/3; row-filter refusal unsolved | example-preference (arrays); refusal open |
+| stats model | B | 0 → 5/5 | reshaped block: formula AST → string + weights/offset as top-level args |
 
 Keep this and `ai-eval-cases.md` updated as more blocks are tested.
