@@ -56,6 +56,44 @@ test_that("rows and columns change together", {
   expect_match(e, "columns removed: ")
 })
 
+# --- data.frame method: in-place column changes -----------------------------
+
+test_that("in-place type change is reported, not UNCHANGED", {
+  out <- iris
+  out$Species <- as.character(out$Species)
+  e <- data_effect(iris, out)
+  expect_match(e, "columns modified: Species: type factor -> character")
+  expect_no_match(e, "no rows or columns changed")
+})
+
+test_that("in-place value change (mutate) is reported", {
+  out <- iris
+  out$Sepal.Length <- out$Sepal.Length * 2
+  e <- data_effect(iris, out)
+  expect_match(e, "Sepal.Length: values changed")
+  expect_no_match(e, "no rows or columns changed")
+})
+
+test_that("a genuinely identical frame still reads UNCHANGED", {
+  e <- data_effect(iris, iris)
+  expect_match(e, "no rows or columns changed")
+  expect_no_match(e, "columns modified")
+})
+
+test_that("in-place change is not inspected when row count differs", {
+  # filter then mutate: the row-delta is the signal; no spurious 'values changed'
+  out <- iris[iris$Species == "setosa", ]
+  out$Sepal.Length <- out$Sepal.Length * 2
+  e <- data_effect(iris, out)
+  expect_match(e, "100 removed")
+  expect_no_match(e, "columns modified")
+})
+
+# Note: composer/gt/flextable result methods live in blockr.sandbox
+# (composer-ai-view.R), which owns composer; dm methods live in blockr.dm. Both
+# register onto these generics at load. blockr.ai keeps only the data.frame / dm
+# / default methods.
+
 # --- input shapes -----------------------------------------------------------
 
 test_that("NULL input (source block) describes the output", {

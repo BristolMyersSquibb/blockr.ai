@@ -130,6 +130,7 @@ standalone_validator_internal <- function(ctor, data) {
     test_block <- eval(call_expr)
 
     result <- NULL
+    block_errs <- character()
 
     # Determine if block needs data input (arity > 0)
     arity <- blockr.core::block_arity(test_block)
@@ -144,16 +145,47 @@ standalone_validator_internal <- function(ctor, data) {
       {
         session$flushReact()
         result <<- session$returned$result()
+        # A block that errors evaluating its expr returns a NULL result and
+        # stashes the real condition in `cond` -- capture it so the model gets
+        # the actual error ("column X doesn't exist") instead of a blank NULL.
+        block_errs <<- collect_block_errors(session$returned$cond)
       },
       args = server_args
     )
 
     if (is.null(result)) {
+      if (length(block_errs)) {
+        stop("Block evaluation failed: ",
+             paste(unique(block_errs), collapse = " | "))
+      }
       stop("Block evaluation returned NULL")
     }
 
     result
   }
+}
+
+#' Pull error messages out of a block's `cond` reactiveValues (stages
+#' data/state/eval/render/block, each with `$error`/`$warning` lists).
+#' @noRd
+collect_block_errors <- function(cond) {
+  if (is.null(cond)) return(character())
+  stages <- tryCatch(names(cond), error = function(e) character())
+  msgs <- character()
+  for (st in stages) {
+    errs <- tryCatch(cond[[st]]$error, error = function(e) NULL)
+    for (e in errs) {
+      # blockr `block_cnd` errors are character vectors with a class, not
+      # standard conditions, so conditionMessage() has no method -- fall back to
+      # the raw character content.
+      m <- tryCatch(conditionMessage(e),
+                    error = function(x) paste(as.character(e), collapse = " "))
+      if (length(m) && any(nzchar(m))) {
+        msgs <- c(msgs, gsub("\\s+", " ", substr(paste(m, collapse = " "), 1, 400)))
+      }
+    }
+  }
+  unique(msgs)
 }
 
 

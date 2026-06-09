@@ -34,7 +34,13 @@ make_fake_chat <- function(configs = character(), final_text = "Done.") {
     chat = function(msg, ...) {
       vt <- Find(function(td) isTRUE(td@name == "validate_config"), tools)
       for (cfg in configs) {
-        if (!is.null(vt)) vt(config = cfg)
+        if (!is.null(vt)) {
+          # Mimic the model: validate_config now takes the block's params as
+          # native arguments, so decode the JSON config and call with them.
+          args <- tryCatch(jsonlite::fromJSON(cfg, simplifyVector = FALSE),
+                           error = function(e) NULL)
+          if (is.list(args) && length(args)) do.call(vt, args) else vt(config = cfg)
+        }
       }
       final_text
     }

@@ -47,17 +47,17 @@ new_validate_tool <- function(validate, block, data = NULL) {
 
   last_ok <- NULL
   last_result <- NULL
+  last_effect <- NULL
 
-  run <- function(config) {
-    args <- tryCatch(
-      simplify_leaves(jsonlite::fromJSON(config, simplifyVector = FALSE)),
-      error = function(e) e
-    )
-    if (inherits(args, "error")) {
-      return(list(ok = FALSE,
-                  error = paste0("Could not parse config as JSON: ",
-                                 conditionMessage(args))))
-    }
+  # Typed path: expose the block's params as a native ellmer schema so the model
+  # emits structured arguments (the API escapes them) instead of hand-building a
+  # JSON-object string. Falls back to the single `config` JSON string when no
+  # params can be inferred.
+  types <- tryCatch(block_param_types(block), error = function(e) NULL)
+  use_typed <- !is.null(types) && length(types) > 0
+
+  # Shared validation core: takes an already-parsed named list of block params.
+  core_run <- function(args) {
     if (!is.list(args)) {
       return(list(ok = FALSE,
                   error = "Config must be a JSON object of block parameters."))
@@ -86,16 +86,57 @@ new_validate_tool <- function(validate, block, data = NULL) {
     last_ok <<- args
     last_result <<- res
     preview <- tryCatch(data_schema(res), error = function(e) "(no preview)")
-    effect <- tryCatch(data_effect(data, res), error = function(e) "")
+    # Control/viz blocks (drilldown, patient profile) pass their data through, so
+    # the data effect is blind/no-op -- prefer a config-described effect when the
+    # block provides one.
+    effect <- tryCatch(config_effect(block, args, data), error = function(e) NULL)
+    if (is.null(effect)) {
+      effect <- tryCatch(data_effect(data, res), error = function(e) "")
+    }
+    last_effect <<- effect
     list(ok = TRUE, effect = effect, preview = preview)
   }
 
+  # JSON-string entry point: used by the standalone/test `$invoke()` interface and
+  # by the fallback (untyped) tool path.
+  json_run <- function(config) {
+    parsed <- tryCatch(jsonlite::fromJSON(config, simplifyVector = FALSE),
+                       error = function(e) e)
+    if (inherits(parsed, "error")) {
+      return(list(ok = FALSE,
+                  error = paste0("Could not parse config as JSON: ",
+                                 conditionMessage(parsed))))
+    }
+    core_run(tryCatch(simplify_leaves(parsed), error = function(e) parsed))
+  }
+
+  # Typed entry point: a function whose formals ARE the block's param names, so
+  # ellmer can pass native structured arguments. Re-parse any JSON-string leaves
+  # (the polymorphic-array fallbacks) before validating.
+  typed_run <- if (use_typed) {
+    build_arg_collector(names(types), function(args) {
+      core_run(tryCatch(simplify_leaves(reparse_json_strings(args)),
+                        error = function(e) args))
+    })
+  } else {
+    NULL
+  }
+
+  call_intro <- if (use_typed) {
+    paste0("Validate and apply a configuration for this block. Pass the block's ",
+           "parameters directly as the tool arguments (write any R code as a ",
+           "plain argument value -- do NOT wrap the parameters in a JSON string). ")
+  } else {
+    paste0("Validate and apply a configuration for this block. Call with the ",
+           "block's parameters as a single JSON object (the `config` argument, ",
+           "a JSON string). ")
+  }
+
   tool <- new_llm_tool(
-    run,
+    if (use_typed) typed_run else json_run,
     name = "validate_config",
     description = paste0(
-      "Validate and apply a configuration for this block. Call with the block's ",
-      "parameters as a single JSON object (the `config` argument, a JSON string). ",
+      call_intro,
       "Returns {ok:true, effect, preview} when the configuration is VALID, or ",
       "{ok:false, error} when it fails (read the error, fix, call again). You ",
       "must call this tool to apply any change; the last valid call is what takes ",
@@ -111,18 +152,33 @@ new_validate_tool <- function(validate, block, data = NULL) {
       param_text,
       example_text
     ),
-    arguments = list(
-      config = ellmer::type_string(
+    arguments = if (use_typed) {
+      types
+    } else {
+      list(config = ellmer::type_string(
         paste0("A JSON object string of the block's parameters, e.g. ",
                example %||% "{\"param\": \"value\"}", ".")
-      )
-    )
+      ))
+    }
   )
 
-  tool$invoke <- run
+  tool$invoke <- json_run
   tool$last_ok <- function() last_ok
   tool$last_result <- function() last_result
+  tool$last_effect <- function() last_effect
   tool
+}
+
+#' Does an effect string indicate the config did nothing meaningful?
+#'
+#' Matches the explicit no-op signals only -- a data.frame that changed no rows
+#' or columns, or a composer/gt table still showing format placeholders ("NOT
+#' populated"). Deliberately does NOT match a bare "UNCHANGED" row count, since a
+#' same-row transform that adds/modifies a column is effective.
+#' @noRd
+effect_is_noop <- function(effect) {
+  if (is.null(effect) || !nzchar(effect)) return(FALSE)
+  grepl("not populated|no rows or columns changed", effect, ignore.case = TRUE)
 }
 
 
@@ -167,6 +223,14 @@ build_tool_system_prompt <- function(var_names, block) {
     block_prompt,
     helper_text,
     "HOW TO WORK:\n",
+    "- To change the block you MUST call `validate_config`. Writing the ",
+    "configuration in your text reply does NOT apply it -- the user cannot copy ",
+    "or paste it and will see no change. There is no 'here is a config you can ",
+    "paste'. If you have decided on a config, call `validate_config` with it; do ",
+    "not describe it in prose instead.\n",
+    "- 'Adjust / populate / configure / set this to the data' is an ACTION, not ",
+    "a question: explore with `data_tool` if needed, then call `validate_config`. ",
+    "Do not answer it in plain language and stop.\n",
     "- You have two tools. Use `data_tool` to run R against the input data when ",
     "you need to inspect columns, types, value ranges or unique levels. Use ",
     "`validate_config` to apply a configuration; it returns ok + the EFFECT on ",
@@ -251,17 +315,59 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   log_msg("user", msg)
   message("[discover] ", block_name, " | harness: ellmer | prompt: ", prompt)
 
+  do_chat <- function(message_text, with_images = FALSE) {
+    tryCatch({
+      if (with_images && !is.null(images) && length(images) > 0) {
+        img_contents <- lapply(images, function(img) {
+          ellmer::ContentImageInline(type = img$type, data = img$data)
+        })
+        do.call(client$chat, c(list(message_text), img_contents))
+      } else {
+        client$chat(message_text)
+      }
+    }, error = function(e) e)
+  }
+
   reporter$start_phase("thinking")
-  reply <- tryCatch({
-    if (!is.null(images) && length(images) > 0) {
-      img_contents <- lapply(images, function(img) {
-        ellmer::ContentImageInline(type = img$type, data = img$data)
-      })
-      do.call(client$chat, c(list(msg), img_contents))
+  reply <- do_chat(msg, with_images = TRUE)
+  # Models frequently DESCRIBE a config in prose ("here is a config you can
+  # paste") instead of calling validate_config, so the change never lands. If no
+  # config was applied, nudge once or twice to call the tool. Genuine clarifying
+  # questions survive: the model can simply re-ask, and an honest "this block
+  # cannot do it" reply ends the same way (success=FALSE) as before.
+  nudges <- 0L
+  repeat {
+    if (inherits(reply, "error")) break
+    no_config <- is.null(validate_tool$last_ok())
+    noop <- !no_config && effect_is_noop(validate_tool$last_effect())
+    # Stop once we have a config that actually did something, or we've nudged
+    # enough. Genuine clarifying questions / honest "can't do it" survive: the
+    # model just re-replies in text and we exit on the nudge cap.
+    if ((!no_config && !noop) || nudges >= 3L) break
+    nudges <- nudges + 1L
+    reply <- do_chat(if (no_config) {
+      paste0(
+        "You have not applied any configuration (no successful validate_config ",
+        "call yet). Writing the config in your reply does NOT apply it -- the ",
+        "user sees no change. If you have a configuration ready, call ",
+        "validate_config NOW with it (fix and retry if it errors). Reply in plain ",
+        "text ONLY to ask one specific clarifying question, or to say the block ",
+        "genuinely cannot do this."
+      )
     } else {
-      client$chat(msg)
-    }
-  }, error = function(e) e)
+      paste0(
+        "Your last validate_config was VALID but had NO real effect (effect: ",
+        validate_tool$last_effect(), "). Usually that means it is not done: a ",
+        "composer table still showing 'xx.x' placeholders needs real data wired ",
+        "in (add `data =` to table() and `denominator = make_denom(...)`); a ",
+        "filter that removed 0 rows has the wrong condition. Fix it and call ",
+        "validate_config again. BUT if a no-op is genuinely what the request ",
+        "wants -- e.g. you exposed a selector that defaults to showing everything ",
+        "-- keep the config and reply in text saying so. Or say the block ",
+        "genuinely cannot do this."
+      )
+    })
+  }
   reporter$end_phase("thinking")
 
   if (inherits(reply, "error")) {

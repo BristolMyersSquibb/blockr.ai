@@ -137,41 +137,45 @@ format_df_preview <- function(df) {
 
 #' Format per-column summaries showing unique values
 #'
-#' For columns with few unique values (<= 50), lists all unique values.
-#' For high-cardinality columns, shows count and range.
+#' For columns with few unique values (<= `max_unique`), lists all of them.
+#' For high-cardinality columns the push stays small and the model is expected
+#' to pull exact values with `data_tool` when it needs them: numeric columns get
+#' a distribution summary (min/p25/median/p75/max, mean, sd) and categorical
+#' columns get the most frequent values with their counts. The cap is
+#' deliberately low (10) -- a short preview to orient on, not the full set.
 #'
 #' @param df A data.frame
-#' @param max_unique Maximum unique values to list per column (default 50)
+#' @param max_unique Maximum unique values to list in full per column
 #' @return Character string with summary section, or ""
 #' @noRd
-format_column_summaries <- function(df, max_unique = 50L) {
+format_column_summaries <- function(df, max_unique = 10L) {
   if (ncol(df) == 0L || nrow(df) == 0L) return("")
 
   lines <- vapply(names(df), function(nm) {
     vals <- df[[nm]]
-    uvals <- unique(vals[!is.na(vals)])
+    present <- vals[!is.na(vals)]
+    uvals <- unique(present)
     n_unique <- length(uvals)
     n_na <- sum(is.na(vals))
-
-    if (is.numeric(uvals)) {
-      uvals <- sort(uvals)
-    } else {
-      uvals <- sort(as.character(uvals))
-    }
-
     na_note <- if (n_na > 0L) paste0(" (", n_na, " NA)") else ""
+    head <- paste0("  ", nm, ": ", n_unique, " unique", na_note)
 
     if (n_unique <= max_unique) {
-      val_str <- paste(uvals, collapse = ", ")
-      paste0("  ", nm, ": ", n_unique, " unique", na_note, ": ", val_str)
+      uvals <- if (is.numeric(uvals)) sort(uvals) else sort(as.character(uvals))
+      return(paste0(head, ": ", paste(uvals, collapse = ", ")))
+    }
+
+    if (is.numeric(present)) {
+      q <- stats::quantile(present, probs = c(0, .25, .5, .75, 1), names = FALSE)
+      paste0(head, ", min/p25/median/p75/max = ",
+             paste(signif(q, 4), collapse = "/"),
+             ", mean ", signif(mean(present), 4),
+             ", sd ", signif(stats::sd(present), 4))
     } else {
-      rng <- if (is.numeric(uvals)) {
-        paste0("range ", min(uvals), " to ", max(uvals))
-      } else {
-        ""
-      }
-      paste0("  ", nm, ": ", n_unique, " unique", na_note,
-             if (nzchar(rng)) paste0(", ", rng) else "")
+      counts <- sort(table(as.character(present)), decreasing = TRUE)
+      top <- utils::head(counts, max_unique)
+      top_str <- paste0(names(top), " (", as.integer(top), ")", collapse = ", ")
+      paste0(head, ", top: ", top_str)
     }
   }, character(1))
 
