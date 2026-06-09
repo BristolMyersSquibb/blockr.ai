@@ -45,6 +45,23 @@ block_param_types <- function(block) {
       error = function(e) ellmer::type_string(desc, required = FALSE)
     )
   }
+
+  # State-unwrap. blockr's `state = list(...)` convention wraps a block's whole
+  # config in one nested object. When `state` is the ONLY param, expose its
+  # first-order children as the AI's top-level arguments -- the model never sees
+  # (or has to correctly nest under) the `state` wrapper. The validate tool
+  # re-wraps them under `state` before applying (read via attr `wrap_key`). This
+  # lets blocks keep their natural `state` design instead of being flattened to
+  # suit the assistant.
+  if (identical(nms, "state") &&
+      inherits(types[["state"]], "ellmer::TypeObject")) {
+    children <- tryCatch(types[["state"]]@properties, error = function(e) NULL)
+    if (length(children)) {
+      attr(children, "wrap_key") <- "state"
+      return(children)
+    }
+  }
+
   types
 }
 
