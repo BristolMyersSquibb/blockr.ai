@@ -75,16 +75,42 @@ ellmer_type_from_default <- function(default, desc = "") {
 }
 
 #' @noRd
-ellmer_type_from_value <- function(val, desc = "") {
+#' @param nested TRUE when typing a value INSIDE another object (vs a top-level
+#'   param). Top-level objects (notably `state`) must stay structs so they can be
+#'   unwrapped; the arbitrary-key-map heuristic only applies to nested values.
+ellmer_type_from_value <- function(val, desc = "", nested = FALSE) {
   if (is.null(val) || is.data.frame(val)) {
     return(ellmer::type_string(desc, required = FALSE))
   }
   if (is.list(val)) {
     nm <- names(val)
     if (!is.null(nm) && length(nm) && all(nzchar(nm))) {
+      # FALLBACK for blocks that key an object by DATA (a map -- e.g. col->value).
+      # A type_object would bake the example's keys in as fixed fields, so the
+      # model copies them verbatim. When all values are scalars (a string/number/
+      # bool map), pass it as a JSON-object string (arbitrary keys), re-parsed by
+      # the tool. Only for NESTED values -- a top-level all-scalar object (e.g.
+      # bind_rows state = {id_name}) is a struct that must stay unwrappable.
+      # NOTE: the proper fix is in the BLOCK -- collections should be arrays of
+      # fixed-field records (see mutate/summarize/rename), not data-keyed maps;
+      # this heuristic only catches blocks that haven't been reshaped.
+      if (nested && all(vapply(val, function(v) is.atomic(v) && length(v) == 1L,
+                     logical(1)))) {
+        ex <- tryCatch(as.character(jsonlite::toJSON(val, auto_unbox = TRUE)),
+                       error = function(e) NULL)
+        d <- if (!is.null(ex)) {
+          paste0(desc, " -- a JSON object of key->value pairs, e.g. ", ex,
+                 " (replace BOTH keys and values with the data's actual names)")
+        } else {
+          paste0(desc, " (a JSON object of key->value pairs)")
+        }
+        return(ellmer::type_string(d, required = FALSE))
+      }
       # Named list -> nested object (recurse). Forces correct `state` nesting.
       fields <- list()
-      for (i in seq_along(val)) fields[[nm[i]]] <- ellmer_type_from_value(val[[i]], nm[i])
+      for (i in seq_along(val)) {
+        fields[[nm[i]]] <- ellmer_type_from_value(val[[i]], nm[i], nested = TRUE)
+      }
       return(do.call(
         ellmer::type_object,
         c(list(.description = desc, .required = FALSE), fields)
@@ -101,7 +127,7 @@ ellmer_type_from_value <- function(val, desc = "") {
       return(ellmer::type_string(d, required = FALSE))
     }
     if (length(val)) {
-      return(ellmer::type_array(ellmer_type_from_value(val[[1L]], ""),
+      return(ellmer::type_array(ellmer_type_from_value(val[[1L]], "", nested = TRUE),
                                 description = desc, required = FALSE))
     }
     return(ellmer::type_string(paste0(desc, " (a JSON array string)"), required = FALSE))
