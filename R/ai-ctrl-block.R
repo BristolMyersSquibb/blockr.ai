@@ -127,53 +127,110 @@ css_ai_ctrl <- function() {
         min-height: 0;
         padding-bottom: 0;
       }
-      .blockr-ctrl-body shiny-chat-container {
+      /* The dock wraps each section in a bordered accordion-body; the AI
+       * section sitting above the params shows a doubled divider (its own
+       * bottom border + the next section's top border). Drop this section's
+       * bottom border so a single divider remains. */
+      .accordion-body:has(> .blockr-ctrl-body) {
+        border-bottom: 0 !important;
+      }
+      .blockr-ctrl-body .shiny-chat-messages {
         --_chat-container-padding: 0;
+        --shiny-chat-messages-padding-bottom: 0;
         min-height: 0;
         overflow-y: auto;
       }
-      .blockr-ctrl-body shiny-chat-input {
+      .blockr-ctrl-body .shiny-chat-input {
         overflow-x: hidden;
       }
-      .blockr-ctrl-body shiny-chat-input textarea {
-        border-radius: 6px !important;
-        height: 38px;
-        min-height: 38px !important;
-        max-height: 120px !important;
+      .blockr-ctrl-body .shiny-chat-input textarea {
+        /* Standard bordered input (cf. blockr.dplyr .blockr-input--bordered):
+         * taller + more rounded, with room on the right for the send button. */
+        border-radius: 10px !important;
+        min-height: 46px !important;
+        height: 46px;
+        max-height: 140px !important;
+        padding: 11px 44px 11px 14px !important;
+        background-color: var(--blockr-color-bg-input, #f9fafb) !important;
+        border: 1px solid var(--blockr-color-border, #e5e7eb) !important;
+        font-size: var(--blockr-font-size-base, 0.875rem) !important;
         scrollbar-width: none;
         -ms-overflow-style: none;
         box-shadow: none !important;
       }
-      .blockr-ctrl-body shiny-chat-input textarea::-webkit-scrollbar {
+      .blockr-ctrl-body .shiny-chat-input textarea::-webkit-scrollbar {
         display: none;
       }
-      .blockr-ctrl-body shiny-chat-input textarea:focus {
+      .blockr-ctrl-body .shiny-chat-input textarea:focus {
+        /* Border-only focus (like blockr.dplyr's standard input). No box-shadow
+         * ring: the parent .shiny-chat-input has overflow-x:hidden/overflow-y:auto,
+         * which clips the ring into an asymmetric shadow + a corner artifact. */
         border-color: #7c3aed !important;
         box-shadow: none !important;
         outline: none !important;
       }
-      .blockr-ctrl-body shiny-chat-input .shiny-chat-btn-send {
-        bottom: 7px !important;
+      /* Send button: a bare arrow in the accent colour — no background, no
+       * circle, centred. (The arrow-in-circle bootstrap icon is swapped for a
+       * plain arrow by the script below.) */
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
+        /* Vertically centred in the input (height-agnostic), not bottom-pinned. */
+        top: 50% !important;
+        bottom: auto !important;
+        transform: translateY(-50%) !important;
+        right: 8px !important;
+        width: 26px !important;
+        height: 26px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        color: #7c3aed !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: color 0.15s ease !important;
       }
-      .blockr-ctrl-body shiny-chat-message[data-role=user] {
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:hover {
+        color: #6d28d9 !important;
+      }
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send:disabled {
+        color: var(--blockr-grey-400, #adb5bd) !important;
+        transform: none;
+      }
+      .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send svg {
+        width: 20px !important;
+        height: 20px !important;
+        fill: currentColor !important;
+      }
+      .blockr-ctrl-body .shiny-chat-message[data-role=user] {
         border-radius: 6px !important;
         background-color: var(--blockr-grey-50, #f9fafb) !important;
         color: var(--blockr-color-text-muted, #6b7280) !important;
         padding: 6px 12px !important;
         font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
-      .blockr-ctrl-body shiny-chat-message[data-role=assistant] {
+      .blockr-ctrl-body .shiny-chat-message[data-role=assistant] {
         border-radius: 6px !important;
         color: var(--blockr-color-text-muted, #6b7280) !important;
         font-size: var(--blockr-font-size-sm, 0.8125rem);
       }
-      .blockr-ctrl-body shiny-chat-message .message-icon {
+      .blockr-ctrl-body .shiny-chat-message .message-icon {
         border: none;
         border-radius: 0;
         color: #7c3aed;
       }
-      .blockr-ctrl-body shiny-chat-message:has(.blockr-ai-status-empty) {
+      .blockr-ctrl-body .shiny-chat-message:has(.blockr-ai-status-empty) {
         display: none !important;
+      }
+      /* shinychat 0.4 shows a default pulsing dot while a response streams; we
+         already have our own Analyzing badge, so hide it in the message stream
+         (but keep any dot inside our own status badge). */
+      .blockr-ctrl-body .markdown-stream-dot {
+        display: none !important;
+      }
+      .blockr-ctrl-body .blockr-ai-status .markdown-stream-dot {
+        display: inline-block !important;
       }
       .blockr-report-wrapper {
         display: flex;
@@ -255,15 +312,15 @@ css_ai_ctrl <- function() {
         0%, 100% { opacity: 0.5; transform: scale(0.8); }
         50% { opacity: 1; transform: scale(1.2); }
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-main {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-main {
         animation: sparkle-rotate 3s ease-in-out infinite;
         transform-origin: center;
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-1 {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-sm-1 {
         animation: sparkle-twinkle 2s ease-in-out 0.3s infinite;
         transform-origin: center;
       }
-      .blockr-ctrl-body.ai-working shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
+      .blockr-ctrl-body.ai-working .shiny-chat-message:last-of-type .message-icon .sparkle-sm-2 {
         animation: sparkle-twinkle 2s ease-in-out 0.8s infinite;
         transform-origin: center;
       }
@@ -296,14 +353,47 @@ css_ai_ctrl <- function() {
       }",
     "</style>",
     "<script>",
-    "new MutationObserver(function(mutations) {
+    "var BLOCKR_ARROW_D = 'M8 12a.5.5 0 0 0 .5-.5V3.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 3.707V11.5a.5.5 0 0 0 .5.5';
+    function blockrEnsureArrow(svg) {
+      var path = svg.querySelector('path');
+      if (path && path.getAttribute('d') === BLOCKR_ARROW_D) return; // already plain arrow
+      svg.setAttribute('viewBox', '0 0 16 16');
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var np = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      np.setAttribute('d', BLOCKR_ARROW_D);
+      svg.appendChild(np);
+    }
+    function blockrSwapSendIcon() {
+      document.querySelectorAll('.blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send').forEach(function(btn) {
+        var svg = btn.querySelector('svg');
+        if (svg) blockrEnsureArrow(svg);
+        // shinychat re-renders the icon when the input goes enabled/disabled,
+        // which can restore the arrow-in-circle; observe the button so we
+        // re-swap synchronously (no poll flash). Content-based, so an in-place
+        // revert is caught too.
+        if (!btn.getAttribute('data-blockr-obs')) {
+          btn.setAttribute('data-blockr-obs', '1');
+          new MutationObserver(function() {
+            var s = btn.querySelector('svg');
+            if (s) blockrEnsureArrow(s);
+          }).observe(btn, { childList: true, subtree: true, attributes: true });
+        }
+      });
+    }
+    blockrSwapSendIcon();
+    // Backstop: the button is rendered by shinychats web component after the
+    // panel mutation fires, so a cheap poll catches newly-appeared buttons (and
+    // attaches their observer); blockrEnsureArrow is a no-op once correct.
+    setInterval(blockrSwapSendIcon, 400);
+    new MutationObserver(function(mutations) {
+      blockrSwapSendIcon();
       mutations.forEach(function(m) {
         m.addedNodes.forEach(function(node) {
           if (node.nodeType !== 1) return;
-          var ta = node.matches && node.matches('.blockr-ctrl-body shiny-chat-input textarea')
+          var ta = node.matches && node.matches('.blockr-ctrl-body .shiny-chat-input textarea')
             ? node
-            : node.querySelector && node.querySelector('.blockr-ctrl-body shiny-chat-input textarea');
-          if (ta) setTimeout(function() { ta.focus(); }, 100);
+            : node.querySelector && node.querySelector('.blockr-ctrl-body .shiny-chat-input textarea');
+          if (ta) setTimeout(function() { ta.focus(); blockrSwapSendIcon(); }, 100);
         });
       });
     }).observe(document.body, { childList: true, subtree: true });
@@ -325,7 +415,7 @@ css_ai_ctrl <- function() {
       if (sidebar) {
         setTimeout(function() { sidebar.scrollTop = sidebar.scrollHeight; }, 100);
       } else {
-        var input = container.querySelector('shiny-chat-input');
+        var input = container.querySelector('.shiny-chat-input');
         var target = input || container;
         setTimeout(function() {
           target.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -441,8 +531,11 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         result
       }
 
-      # Snapshot current state for LLM context
-      current_state <- lapply(vars[ctrl_names], function(v) isolate(v()))
+      # Snapshot current state for LLM context. Exclude block_name (the block
+      # title) -- it isn't a data parameter, and showing it just invites the
+      # model to rename the block.
+      state_names <- setdiff(ctrl_names, "block_name")
+      current_state <- lapply(vars[state_names], function(v) isolate(v()))
 
       rpt <- reporter_shiny("chat", session)
 
@@ -455,9 +548,6 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           client = client,
           current_state = current_state,
           verbose = TRUE,
-          data_exploration = blockr.core::blockr_option(
-            "data_exploration", "manual"
-          ),
           reporter = rpt,
           images = images
         ),

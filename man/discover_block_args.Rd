@@ -9,11 +9,9 @@ discover_block_args(
   block,
   data = NULL,
   validate = NULL,
-  max_iter = 5,
   verbose = FALSE,
   client = NULL,
   current_state = NULL,
-  data_exploration = blockr.core::blockr_option("data_exploration", "manual"),
   reporter = NULL,
   images = NULL
 )
@@ -28,8 +26,6 @@ discover_block_args(
 \item{validate}{Validation function. If NULL, uses standalone validator
 with testServer (for testing outside of Shiny).}
 
-\item{max_iter}{Maximum LLM iterations (default 5)}
-
 \item{verbose}{If TRUE, print conversation to console}
 
 \item{client}{An existing ellmer chat client to reuse. When NULL (default),
@@ -39,10 +35,6 @@ memory across multiple calls.}
 \item{current_state}{Optional plain list of current block parameter values.
 When non-NULL, a "Current Configuration" section is included in the user
 message so the LLM can see what's already configured.}
-
-\item{data_exploration}{Data exploration strategy passed to
-\code{\link[=data_exploration_backend]{data_exploration_backend()}}. Defaults to
-\code{blockr.core::blockr_option("data_exploration", "manual")}.}
 
 \item{reporter}{A progress reporter list (see \link{reporter_silent},
 \link{reporter_console}, \link{reporter_shiny}). When NULL (default), auto-detects:

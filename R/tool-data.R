@@ -66,3 +66,25 @@ new_data_tool <- function(x, datasets,
 
   tool
 }
+
+
+#' Shared preamble for the data-exploration tool prompt.
+#' @return Character string.
+#' @noRd
+data_exploration_preamble <- function() {
+  paste0(
+    "DATA EXPLORATION:\n",
+    "You have a data exploration capability that lets you run R code against ",
+    "the input data before answering. Use it to inspect column names, data ",
+    "types, value ranges, unique levels, or anything else you need to ",
+    "understand the data well enough to configure this block correctly.\n\n",
+    "If the 5-row preview already contains the information you need, go ahead ",
+    "and answer directly -- exploration is not required for every task.\n\n",
+    "IMPORTANT: keep probes SMALL and TARGETED. Query only the specific ",
+    "columns you need (e.g. 5-8 columns at a time, not 20). If a probe result ",
+    "looks truncated, your next action MUST be either another, more targeted ",
+    "data probe (fewer columns, fewer rows), or applying a configuration with ",
+    "`validate_config`. Do not output a plain-text complaint about truncation ",
+    "-- act on it."
+  )
+}

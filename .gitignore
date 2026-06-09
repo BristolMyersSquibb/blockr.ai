@@ -1,3 +1,6 @@
 README.html
 .DS_Store
 .Rproj.user
+
+# Local Claude Code settings (per-user; may contain secrets)
+.claude/settings.local.json

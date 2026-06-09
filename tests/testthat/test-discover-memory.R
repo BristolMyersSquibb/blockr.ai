@@ -7,7 +7,7 @@
 make_client <- function(block) {
   client <- blockr.ai:::llm_client()
   var_names <- blockr.ai:::block_ctor_inputs(block)
-  sp <- blockr.ai:::build_system_prompt(var_names, block)
+  sp <- blockr.ai:::build_tool_system_prompt(var_names, block)
   client$set_system_prompt(sp)
   client
 }

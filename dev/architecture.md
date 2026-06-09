@@ -46,10 +46,13 @@ control panel (text inputs) with a shinychat chat widget.
 
 The plugin receives the block's **state as writable `reactiveVal`
 objects** (for blocks with `external_ctrl` enabled). When the user sends
-a chat message, the plugin runs `discover_block_args()`, which queries
-an LLM for JSON parameter values, validates them by writing to the
-reactiveVals, and confirms the result. If validation fails, it rolls
-back and lets the LLM retry.
+a chat message, the plugin runs `discover_block_args()`, which drives an
+LLM **tool-calling** loop: the model explores the input data with a
+read-only `data_tool` and applies a configuration by calling a
+`validate_config` tool. `validate_config` writes the parameters to the
+reactiveVals and returns whether it was valid, **what changed** (the
+effect), and a preview. If validation fails the model sees the error and
+retries; it stops once the effect matches the request.
 
 A **gate** (`reactiveVal(TRUE/FALSE)`) pauses downstream rendering
 while the LLM loop runs, so intermediate states don't flicker.
@@ -66,7 +69,8 @@ the LLM loop itself, see [discovery.md](discovery.md).
 | **board** | A collection of blocks connected by links, rendered as a Shiny app via `serve()`. |
 | **ctrl_block** | A plugin slot in blockr.core for controlling a block externally. `ai_ctrl_block()` replaces the default with a chat interface. |
 | **external_ctrl** | A block attribute declaring which constructor parameters can be set externally (by the ctrl_block plugin). |
-| **discover_block_args** | The core function in blockr.ai: prompt -> LLM -> JSON -> validate -> DONE/retry. |
+| **discover_block_args** | The core function in blockr.ai: drives an ellmer tool-calling loop (`data_tool` + `validate_config`) that proposes, validates, and applies a block configuration. |
+| **validate_config** | The tool the model calls to apply a config; returns `{ok, effect, preview}` or an error. The last valid call is the apply. |
 
 ## See Also
 
