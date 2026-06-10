@@ -284,6 +284,13 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
                                       max_turns = 12L) {
   if (is.null(reporter)) reporter <- auto_reporter()
 
+  # First turn = no prior conversation. On a follow-up turn the system prompt and
+  # the data preview are already in the chat history, so only the first turn needs
+  # the full schema dump. A caller may pre-create the client (the eval harness,
+  # tests, or any embedder), so "client is NULL" alone is not the signal -- a
+  # passed-in client with no turns yet is still a first turn.
+  first_turn <- is.null(client) || length(client$get_turns()) == 0
+
   var_names <- block_ctor_inputs(block)
   if (length(var_names) == 0) {
     return(list(success = FALSE, args = NULL, conversation = NULL,
@@ -322,8 +329,31 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   if (!is.null(data_tool)) tools <- c(list(get_tool(data_tool)), tools)
   client$set_tools(tools)
 
+  # Send the full data schema on the first turn, and again whenever the upstream
+  # data has CHANGED since we last sent it (the user may rewire the input between
+  # turns). On an unchanged follow-up the schema is already in the chat history,
+  # so re-dumping it (every table, every column) is the dominant multi-turn token
+  # cost on wide ADaM data; send a one-line pointer instead. The model can still
+  # pull exact columns/values with `data_tool` (`data_query`). We remember the
+  # last schema we sent on the client itself (it is reused across turns).
+  schema <- data_preview(data)
+  prev_schema <- attr(client, "blockr_ai_last_schema")
+  data_unchanged <- !first_turn && !is.null(prev_schema) && identical(prev_schema, schema)
+  data_block <- if (!data_unchanged) {
+    schema
+  } else if (nzchar(schema)) {
+    paste0(
+      "# Input Data\n\n",
+      "(unchanged from earlier in this conversation -- use data_query to inspect ",
+      "any table or column)\n\n"
+    )
+  } else {
+    ""
+  }
+  attr(client, "blockr_ai_last_schema") <- schema
+
   msg <- paste0(
-    data_preview(data),
+    data_block,
     format_current_state(current_state),
     "# Task\n\n", prompt
   )
