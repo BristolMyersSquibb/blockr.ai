@@ -39,7 +39,7 @@ cases <- list(
 cat("================= DRILLDOWN CHART EVAL (gpt-5.1) =================\n")
 for (i in seq_along(cases)) {
   cs <- cases[[i]]
-  blk <- new_drilldown_chart_block()
+  blk <- new_chart_block()
   client <- ellmer::chat_openai(model = MODEL, echo = "none")
   res <- tryCatch(discover_block_args(prompt = cs$ask, block = blk, data = sales, client = client),
                   error = function(e) list(success = FALSE, error = conditionMessage(e)))

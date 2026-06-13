@@ -212,5 +212,21 @@ NOT work — populating/fixing the registry `examples` did.
 | crossfilter | B/D | 3/3 | already fine; "control issue" flag was unfounded |
 | topline flextable | B | columns 3/3; row-filter refusal unsolved | example-preference (arrays); refusal open |
 | stats model | B | 0 → 5/5 | reshaped block: formula AST → string + weights/offset as top-level args |
+| summary table | B | 3/5 → 5/5 (4 runs) | example carried only 6 of 9 `state` keys → `id_var`/`indent_details`/`nest_hierarchies` were INVISIBLE (state-unwrap exposes only example keys); added all 9 + sections-nesting + id_var-gating prose |
 
 Keep this and `ai-eval-cases.md` updated as more blocks are tested.
+
+### Summary-table lesson: the state-unwrap exposes ONLY the example's keys
+For a `state = list(...)` block, `block_param_types` builds the state object type
+from the registry **example**, then unwraps its children as the AI's top-level
+args. A constructor field that is absent from `examples$state` is therefore
+absent from the AI schema entirely — the model cannot set it however you prompt.
+The summary table's `id_var` (distinct-subject counts — a core pharma feature),
+`indent_details`, and `nest_hierarchies` were all missing from the example and so
+unreachable. Fix = put EVERY settable field in the example (use the EXCEPTION
+value, e.g. `id_var = ""`, not a populated one, to avoid over-triggering — a
+populated `id_var = "USUBJID"` made the model set it on every table). Two
+gating rules then carried the rest: (1) outer-categorical-goes-in-`sections`
+when one var nests in another (SOC>PT), and (2) set `id_var` only on an EXPLICIT
+distinct-patient request, never just because a USUBJID column exists.
+Eval script: `dev/summary-table-eval-live.R`.
