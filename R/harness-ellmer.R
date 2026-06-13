@@ -271,6 +271,116 @@ build_tool_system_prompt <- function(var_names, block) {
 }
 
 
+#' Collapse a code probe to a one-line summary for a badge.
+#' @noRd
+summarize_probe_code <- function(code) {
+  code <- paste(code, collapse = " ")
+  code <- gsub("\\s+", " ", trimws(code))
+  truncate_summary(code, 64L)
+}
+
+#' Truncate a summary string with an ellipsis.
+#' @noRd
+truncate_summary <- function(x, n = 80L) {
+  if (is.null(x)) return("")
+  x <- gsub("\\s+", " ", trimws(as.character(x)))
+  if (length(x) != 1L) x <- paste(x, collapse = " ")
+  if (nchar(x) > n) paste0(substr(x, 1L, n - 1L), "…") else x
+}
+
+#' Build a reporter `tool_event` payload from an ellmer tool *request*.
+#'
+#' Fires when the model asks to call a tool, before it runs -- so the badge can
+#' appear immediately with a spinner and (for `data_tool`) the code it is about
+#' to run.
+#' @noRd
+tool_request_event <- function(request) {
+  name <- request@name
+  args <- request@arguments
+  if (identical(name, "data_tool")) {
+    list(id = request@id, phase = "exploring", label = "Exploring data",
+         summary = summarize_probe_code(args$code %||% ""), code = TRUE,
+         status = "active")
+  } else if (identical(name, "validate_config")) {
+    list(id = request@id, phase = "validating", label = "Applying configuration",
+         summary = NULL, code = FALSE, status = "active")
+  } else {
+    list(id = request@id, phase = "exploring", label = name, summary = NULL,
+         code = FALSE, status = "active")
+  }
+}
+
+#' Build a reporter `tool_event` payload from an ellmer tool *result*.
+#'
+#' Fires after the tool returns. Surfaces the genuinely useful content: for
+#' `validate_config`, the `effect` the config had (e.g. "rows 1200 -> 340") on
+#' success, or the validation error on failure. A thrown tool error (e.g. the
+#' data-probe budget being exceeded) lands in `@error`.
+#' @noRd
+tool_result_event <- function(result) {
+  request <- result@request
+  name <- request@name
+
+  if (!is.null(result@error) && nzchar(result@error %||% "")) {
+    return(list(id = request@id, phase = "retrying", label = "Fixing",
+                summary = truncate_summary(result@error), code = FALSE,
+                status = "error"))
+  }
+
+  value <- result@value
+  if (identical(name, "data_tool")) {
+    return(list(id = request@id, phase = "exploring", label = "Explored data",
+                summary = summarize_probe_code(request@arguments$code %||% ""),
+                code = TRUE, status = "done"))
+  }
+  if (identical(name, "validate_config")) {
+    ok <- is.list(value) && isTRUE(value$ok)
+    if (ok) {
+      return(list(id = request@id, phase = "confirming", label = "Applied config",
+                  summary = truncate_summary(value$effect %||% ""), code = FALSE,
+                  status = "done"))
+    }
+    err <- if (is.list(value)) value$error else NULL
+    return(list(id = request@id, phase = "retrying", label = "Fixing",
+                summary = truncate_summary(err %||% "invalid configuration"),
+                code = FALSE, status = "error"))
+  }
+  list(id = request@id, phase = "exploring", label = name, summary = NULL,
+       code = FALSE, status = "done")
+}
+
+#' Wire ellmer tool-call callbacks to a reporter.
+#'
+#' Registers request/result callbacks on the client so every tool call becomes a
+#' badge. Returns an unregister function (call it when the turn ends so a reused
+#' client does not accumulate callbacks bound to a stale reporter).
+#' @noRd
+register_tool_reporter <- function(client, reporter) {
+  noop <- function() invisible()
+  # Test/fake clients may not implement the tool-callback API; degrade quietly.
+  if (!is.function(client$on_tool_request) ||
+      !is.function(client$on_tool_result)) {
+    return(noop)
+  }
+  emit <- function(ev) {
+    if (!is.null(reporter$tool_event)) {
+      reporter$tool_event(ev$id, ev$phase, ev$label, ev$summary, ev$code,
+                          ev$status)
+    }
+  }
+  unreg_req <- client$on_tool_request(function(request) {
+    tryCatch(emit(tool_request_event(request)), error = function(e) NULL)
+  })
+  unreg_res <- client$on_tool_result(function(result) {
+    tryCatch(emit(tool_result_event(result)), error = function(e) NULL)
+  })
+  function() {
+    tryCatch(unreg_req(), error = function(e) NULL)
+    tryCatch(unreg_res(), error = function(e) NULL)
+  }
+}
+
+
 #' Discover block args via ellmer tool calling (Design A harness)
 #'
 #' @inheritParams discover_block_args
@@ -328,6 +438,11 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   tools <- list(get_tool(validate_tool))
   if (!is.null(data_tool)) tools <- c(list(get_tool(data_tool)), tools)
   client$set_tools(tools)
+
+  # Surface every tool call as a reporter badge (the client is reused across
+  # turns, so unregister on exit to avoid stacking callbacks on a stale reporter).
+  unregister_reporter <- register_tool_reporter(client, reporter)
+  on.exit(unregister_reporter(), add = TRUE)
 
   # Send the full data schema on the first turn, and again whenever the upstream
   # data has CHANGED since we last sent it (the user may rewire the input between

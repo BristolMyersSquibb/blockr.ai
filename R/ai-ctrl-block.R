@@ -298,6 +298,44 @@ css_ai_ctrl <- function() {
       .blockr-ai-status-badge.phase-retrying {
         background-color: #fffbeb; border-color: #fde68a; color: #d97706;
       }
+      /* stack of per-tool-call badges (one per call, option A) */
+      .blockr-ai-status-stack {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+      }
+      /* the one-line summary appended after a badge label */
+      .blockr-ai-status-summary {
+        font-weight: 400;
+        opacity: 0.85;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 240px;
+      }
+      .blockr-ai-status-summary code {
+        font-size: 0.92em;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 0 3px;
+        border-radius: 3px;
+      }
+      .blockr-ai-status-sep { opacity: 0.45; }
+      .blockr-ai-status-icon svg { display: block; }
+      /* completed badge: drop the colour wash, go quiet/grey, keep the trace */
+      .blockr-ai-status-badge.is-done {
+        background-color: #fff;
+        border-color: #ececf0;
+        color: #9ca3af;
+      }
+      .blockr-ai-status-badge.is-done .blockr-ai-status-summary code {
+        background: var(--blockr-grey-100, #f3f4f6);
+      }
+      .blockr-ai-status-badge.is-done .blockr-ai-status-icon { color: #22c55e; }
+      .blockr-ai-status-badge.is-done.is-error {
+        background-color: #fffbeb;
+        border-color: #fde68a;
+        color: #b45309;
+      }
+      .blockr-ai-status-badge.is-error .blockr-ai-status-icon { color: #d97706; }
       .blockr-ai-status .markdown-stream-dot {
         display: none;
       }

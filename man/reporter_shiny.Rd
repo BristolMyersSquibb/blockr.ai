@@ -16,7 +16,15 @@ A reporter list
 }
 \description{
 Uses shinychat's chunk protocol to show live progress in the chat widget.
-Opens a single streaming assistant message and shows one active badge at a
-time using \code{operation = "replace"}. When \code{done()} is called the message is
-closed.
+Opens a single streaming assistant message and maintains an ordered \emph{stack}
+of badges: a transient "Analyzing" badge while the model reasons, plus one
+content-rich badge per tool call (appended as each call fires -- option A).
+Each tool badge shows the tool's action and a one-line summary (the R snippet
+it ran, or the effect a config had). When the turn finishes the transient
+phase badges are dropped and the tool-call trace is left persisted in the
+transcript as a record of what the AI did.
+}
+\details{
+To switch to a single rolling badge (option B) instead of a stack, keep only
+the most recent tool item in \code{upsert()} -- the event plumbing is identical.
 }
