@@ -1,4 +1,4 @@
-# LIVE eval of the drilldown CHART block (blockr.bi) on gpt-5.1. Class D
+# LIVE eval of the drilldown CHART block (blockr.viz) on gpt-5.1. Class D
 # observability: result is a passthrough filter, so the artifact is the CHART
 # CONFIG. We score res$args (chart_type + column bindings) and print the new
 # config_effect feedback the model now receives.
@@ -7,9 +7,9 @@ readRenviron("/workspace/.Renviron")
 .libPaths("/workspace/blockr.dev/.devcontainer/.library")
 suppressMessages({
   pkgload::load_all("/workspace/blockr.ai", quiet = TRUE)   # ai first so bi's .onLoad can register config_effect
-  pkgload::load_all("/workspace/blockr.bi", quiet = TRUE)
+  pkgload::load_all("/workspace/blockr.viz", quiet = TRUE)
 })
-blockr.bi:::register_drilldown_ai_effect()
+blockr.viz:::register_drilldown_ai_effect()
 MODEL <- "gpt-5.1"
 `%||%` <- function(a, b) if (is.null(a) || (length(a) == 1 && !nzchar(as.character(a)))) b else a
 

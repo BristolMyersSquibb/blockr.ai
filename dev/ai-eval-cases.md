@@ -97,7 +97,7 @@ The cases split into three distinct problems; one fix does not solve all.
   Refinement: nudge to include each named domain as its own viz.
 
 ### D. OBSERVABILITY — output is not the meaningful artifact
-- **D1. drilldown block (blockr.bi)** — HARDEST. The block returns a **filtered
+- **D1. drilldown block (blockr.viz)** — HARDEST. The block returns a **filtered
   expr / passthrough data**, not the chart; the meaningful artifact (chart +
   drill bindings) lives in the JS CONTROL, not the R result
   (set_block_visibility(control=FALSE) hides it). So `data_effect` on the result
@@ -109,15 +109,15 @@ The cases split into three distinct problems; one fix does not solve all.
   representative drill and measure the downstream filtered data (data_effect on
   the applied filter); (c) image feedback — render the chart via the block's
   render path / Playwright and pass to `discover_block_args(images=)`.
-- **D2. crossfilter block (blockr.bi)** — reported CONTROL/wiring issues, "more
+- **D2. crossfilter block (blockr.viz)** — reported CONTROL/wiring issues, "more
   technical than prompting". Likely block-side, not the AI. Needs investigation
   before writing AI cases; may be a prerequisite bug, not a prompt-tuning target.
 - **Status:** DONE. drilldown 5/5 config GOOD from its rich registry prompt;
   built the OBSERVABILITY MECHANISM `config_effect(block, args, data)` (blockr.ai
-  effect.R generic; type-owner methods in blockr.bi/R/drilldown-ai-effect.R) —
+  effect.R generic; type-owner methods in blockr.viz/R/drilldown-ai-effect.R) —
   describes the chart spec + flags invalid column bindings + drill OFF; the
   validate tool uses it instead of the blind data effect. crossfilter (in
-  blockr.dm, not blockr.bi) 3/3 GOOD — the "control issue" flag was unfounded;
+  blockr.dm, not blockr.viz) 3/3 GOOD — the "control issue" flag was unfounded;
   its output IS the filtered data so data_effect works directly; model produces
   the correct nested per-table filter structure. ALL roster classes now covered.
 

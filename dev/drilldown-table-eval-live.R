@@ -1,4 +1,4 @@
-# LIVE eval of the drilldown TABLE block (blockr.bi) on gpt-5.1 -- the "badly
+# LIVE eval of the drilldown TABLE block (blockr.viz) on gpt-5.1 -- the "badly
 # tested" sibling of the drilldown chart. Class D observability: result is a
 # passthrough filter (row click filters downstream), so the artifact is the
 # CONFIG (label_col / value_cols / drill / transform). We score res$args and show
@@ -8,9 +8,9 @@ readRenviron("/workspace/.Renviron")
 .libPaths("/workspace/blockr.dev/.devcontainer/.library")
 suppressMessages({
   pkgload::load_all("/workspace/blockr.ai", quiet = TRUE)   # ai first so bi's .onLoad registers config_effect
-  pkgload::load_all("/workspace/blockr.bi", quiet = TRUE)
+  pkgload::load_all("/workspace/blockr.viz", quiet = TRUE)
 })
-blockr.bi:::register_drilldown_ai_effect()
+blockr.viz:::register_drilldown_ai_effect()
 MODEL <- "gpt-5.1"
 `%||%` <- function(a, b) if (is.null(a) || (length(a) == 1 && !nzchar(as.character(a)))) b else a
 

@@ -1,4 +1,4 @@
-# LIVE eval of the summary table block (blockr.bi) on gpt-5.1. Class B/D: the
+# LIVE eval of the summary table block (blockr.viz) on gpt-5.1. Class B/D: the
 # RESULT is a real tibble (the display-shaped summary), so we can score res$args
 # AND inspect the produced data frame. This is the "list of variables by Y"
 # (Table 1 / demographics, AE counts) block. The constructor takes a single
@@ -9,9 +9,9 @@ readRenviron("/workspace/.Renviron")
 .libPaths("/workspace/blockr.dev/.devcontainer/.library")
 suppressMessages({
   pkgload::load_all("/workspace/blockr.ai", quiet = TRUE)   # ai first
-  pkgload::load_all("/workspace/blockr.bi", quiet = TRUE)
+  pkgload::load_all("/workspace/blockr.viz", quiet = TRUE)
 })
-blockr.bi::register_bi_blocks()
+blockr.viz::register_viz_blocks()
 MODEL <- "gpt-5.1"
 `%||%` <- function(a, b) if (is.null(a) || (length(a) == 1 && !nzchar(as.character(a)))) b else a
 

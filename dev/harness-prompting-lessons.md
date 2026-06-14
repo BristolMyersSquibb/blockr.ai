@@ -46,7 +46,7 @@ registry and status. This doc is the **methodology + lessons**.
   hijacks `pkgload`). `--vanilla` skips `.Renviron`, so load the key explicitly:
   `readRenviron("/workspace/.Renviron")` (has `OPENAI_API_KEY`).
 - **Set the lib:** `.libPaths("/workspace/blockr.dev/.devcontainer/.library")`.
-- **Load order matters:** `blockr.extra` → `blockr.dm` → `blockr.sandbox`/`blockr.bi`
+- **Load order matters:** `blockr.extra` → `blockr.dm` → `blockr.sandbox`/`blockr.viz`
   → **`blockr.ai` last is wrong for runtime S3 registration**; load `blockr.ai`
   BEFORE the type-owner package whose `.onLoad` registers methods onto blockr.ai's
   generics (composer-ai-view, drilldown-ai-effect). When in doubt, call the
@@ -123,7 +123,7 @@ All in blockr.ai unless noted. Type-owner packages extend the generics.
 - **`config_effect(block, args, data)`** (`R/effect.R`): the OBSERVABILITY seam.
   For passthrough/control blocks, describe the CONFIG (and flag invalid column
   bindings) instead of the blind data effect; the validate tool uses it when
-  non-NULL. Type owners implement it (e.g. blockr.bi `drilldown-ai-effect.R`).
+  non-NULL. Type owners implement it (e.g. blockr.viz `drilldown-ai-effect.R`).
 - **Real error surfacing** (`R/discover.R`, `collect_block_errors`): a block that
   errors evaluating its expr returns NULL with the real error in
   `session$returned$cond$<stage>$error` (a `block_cnd` = a CHARACTER vector with a
