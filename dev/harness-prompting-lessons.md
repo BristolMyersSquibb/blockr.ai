@@ -230,3 +230,26 @@ gating rules then carried the rest: (1) outer-categorical-goes-in-`sections`
 when one var nests in another (SOC>PT), and (2) set `id_var` only on an EXPLICIT
 distinct-patient request, never just because a USUBJID column exists.
 Eval script: `dev/summary-table-eval-live.R`.
+
+### Flat-args migration: re-key the registry `arguments`/`examples` to match
+When a block drops its single `state = list(...)` constructor argument for FLAT
+per-field args (blockr.dplyr 0.3.0 did this for all 13 blocks), the registry
+assistant metadata has to follow. `block_param_types` looks up `examples[[nm]]`
+and `docs[[nm]]` by the FORMAL name; if the registry still nests everything
+under `examples$state` / `c(state = "...")`, every lookup misses and:
+- the canonical example SHAPE (the single highest-leverage lever) is silently
+  dropped — polymorphic-array params (`conditions`, `summaries`, `keys`,
+  arrange `columns`) fall back to a bare "a JSON array string" leaf with no shape;
+- the tool description's `Parameters:`/`Example config:` prose still advertises a
+  `state` wrapper that no longer exists, contradicting the flat typed tool args.
+gpt-5.1 is robust enough to paper over this (filter/select/arrange/mutate/
+summarize all still passed 2/2 on the stale registry — the state-unwrap removal
+in `param-schema.R` plus the flat formals carry it), so the regression is latent,
+not loud. The fix is mechanical: flatten each `structure(c(state=...), examples=
+list(state=list(...)), prompt=...)` to `structure(c(field1=..., field2=...),
+examples=list(field1=..., field2=...), prompt=...)`, splitting the old
+"Object with: ..." blob into one description per field. The `prompt` prose is
+per-block and stays as-is. After flattening, `block_param_types` re-bakes the
+example shape into each array param's description (verify with
+`generate_example_json` + `block_param_types`). Eval: `dev/dplyr-eval-full.R`
+(filter-multi, filter-values, arrange-multi, mutate-grouped, summarize-grouped).
