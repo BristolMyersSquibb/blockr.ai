@@ -169,7 +169,7 @@ css_ai_ctrl <- function() {
         box-shadow: none !important;
         outline: none !important;
       }
-      /* Send button: a bare arrow in the accent colour — no background, no
+      /* Send button: a bare arrow in the accent colour -- no background, no
        * circle, centred. (The arrow-in-circle bootstrap icon is swapped for a
        * plain arrow by the script below.) */
       .blockr-ctrl-body .shiny-chat-input .shiny-chat-btn-send {
@@ -487,7 +487,7 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
     # Gate controls downstream evaluation
     gate <- reactiveVal(TRUE)
 
-    # Persistent client — created on first prompt, reused for conversation memory
+    # Persistent client -- created on first prompt, reused for conversation memory
     client <- NULL
 
     # Server-side report data accumulator
@@ -611,7 +611,7 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         reply <- if (nzchar(result$message %||% "")) result$message else "Done!"
         shinychat::chat_append("chat", reply, session = session)
       } else if (!is.null(result$question)) {
-        # LLM asked a clarifying question — show it in chat
+        # LLM asked a clarifying question -- show it in chat
         shinychat::chat_append("chat", result$question, session = session)
       } else {
         shinychat::chat_append(

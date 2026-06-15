@@ -57,7 +57,7 @@ phase_label <- function(phase, detail = NULL) {
 reporter_console <- function() {
   list(
     start_phase = function(phase, detail = NULL) {
-      cat(paste0("→ ", phase_label(phase, detail), "...\n"))
+      cat(paste0("\u2192 ", phase_label(phase, detail), "...\n"))
     },
     update = function(text) {
       cat(paste0("  ", text, "\n"))
@@ -67,9 +67,9 @@ reporter_console <- function() {
       # Only the resolved event is worth printing on the console (the request is
       # immediately followed by its result in the synchronous loop).
       if (identical(status, "active")) return(invisible())
-      mark <- if (identical(status, "error")) "✗" else "✓"
+      mark <- if (identical(status, "error")) "\u2717" else "\u2713"
       line <- paste0("  ", mark, " ", label)
-      if (!is.null(summary) && nzchar(summary)) line <- paste0(line, " · ", summary)
+      if (!is.null(summary) && nzchar(summary)) line <- paste0(line, " \u00b7 ", summary)
       cat(line, "\n")
     },
     end_phase = function(phase, result = NULL) {
@@ -77,10 +77,10 @@ reporter_console <- function() {
     },
     done = function(success, message = NULL) {
       if (success) {
-        cat("✓ Done\n")
+        cat("\u2713 Done\n")
       } else {
         cat(paste0(
-          "✗ Failed",
+          "\u2717 Failed",
           if (!is.null(message)) paste0(": ", message),
           "\n"
         ))
@@ -173,7 +173,7 @@ reporter_shiny <- function(chat_id, session) {
     if (!is.null(spec$summary) && nzchar(spec$summary)) {
       summ <- if (isTRUE(spec$code)) shiny::tags$code(spec$summary) else spec$summary
       children <- c(children, list(
-        shiny::tags$span(class = "blockr-ai-status-sep", "·"),
+        shiny::tags$span(class = "blockr-ai-status-sep", "\u00b7"),
         shiny::tags$span(class = "blockr-ai-status-summary", summ)
       ))
     }

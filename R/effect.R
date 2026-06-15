@@ -1,4 +1,4 @@
-# The "effect" of applying a configuration — distinct, testable infrastructure.
+# The "effect" of applying a configuration -- distinct, testable infrastructure.
 #
 # Validity ("does the block still evaluate?") is not the same as goodness ("did
 # the config do what was asked?"). A valid config can do nothing: a filter that
