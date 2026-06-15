@@ -16,17 +16,15 @@ test_that("external state change propagates through block_server (filter)", {
       # Initial: no conditions, all 150 rows
       expect_equal(nrow(session$returned$result()), 150)
 
-      # Simulate what AI ctrl does: set state externally
+      # Simulate what AI ctrl does: set state externally (per-field reactiveVals)
       state <- session$returned$state
-      state$state(list(
-        conditions = list(
-          list(
-            type = "values", column = "Species",
-            values = c("virginica"), mode = "include"
-          )
-        ),
-        operator = "&"
+      state$conditions(list(
+        list(
+          type = "values", column = "Species",
+          values = c("virginica"), mode = "include"
+        )
       ))
+      state$operator("&")
       session$flushReact()
 
       # Should now be 50 rows — if not, the bug is reproduced
@@ -48,15 +46,13 @@ test_that("external state change with exclude mode (filter)", {
       expect_equal(nrow(session$returned$result()), 150)
 
       state <- session$returned$state
-      state$state(list(
-        conditions = list(
-          list(
-            type = "values", column = "Species",
-            values = c("setosa"), mode = "exclude"
-          )
-        ),
-        operator = "&"
+      state$conditions(list(
+        list(
+          type = "values", column = "Species",
+          values = c("setosa"), mode = "exclude"
+        )
       ))
+      state$operator("&")
       session$flushReact()
 
       result <- session$returned$result()
@@ -79,12 +75,10 @@ test_that("external state change with numeric values (filter)", {
       expect_equal(nrow(session$returned$result()), 32)
 
       state <- session$returned$state
-      state$state(list(
-        conditions = list(
-          list(type = "numeric", column = "cyl", op = "is", value = 4)
-        ),
-        operator = "&"
+      state$conditions(list(
+        list(type = "numeric", column = "cyl", op = "is", value = 4)
       ))
+      state$operator("&")
       session$flushReact()
 
       result <- session$returned$result()

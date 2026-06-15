@@ -55,19 +55,6 @@ new_validate_tool <- function(validate, block, data = NULL) {
   # params can be inferred.
   types <- tryCatch(block_param_types(block), error = function(e) NULL)
   use_typed <- !is.null(types) && length(types) > 0
-  # When the schema unwrapped a `state = list(...)` block, the model is given
-  # state's children as flat args; re-wrap them under this key before validating.
-  wrap_key <- if (use_typed) attr(types, "wrap_key") else NULL
-  if (!is.null(wrap_key)) {
-    # Show the example unwrapped too, so it matches the flat schema.
-    child_ex <- tryCatch(attr(param_docs, "examples")[[wrap_key]],
-                         error = function(e) NULL)
-    if (!is.null(child_ex)) {
-      example_text <- paste0("\n\nExample config: ",
-        tryCatch(as.character(jsonlite::toJSON(child_ex, auto_unbox = TRUE)),
-                 error = function(e) ""))
-    }
-  }
 
   # Shared validation core: takes an already-parsed named list of block params.
   core_run <- function(args) {
@@ -128,8 +115,6 @@ new_validate_tool <- function(validate, block, data = NULL) {
   # (the polymorphic-array fallbacks) before validating.
   typed_run <- if (use_typed) {
     build_arg_collector(names(types), function(args) {
-      # Re-wrap state's children back under `state` (state-unwrap, see above).
-      if (!is.null(wrap_key)) args <- stats::setNames(list(args), wrap_key)
       core_run(tryCatch(simplify_leaves(reparse_json_strings(args)),
                         error = function(e) args))
     })

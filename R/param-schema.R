@@ -46,22 +46,6 @@ block_param_types <- function(block) {
     )
   }
 
-  # State-unwrap. blockr's `state = list(...)` convention wraps a block's whole
-  # config in one nested object. When `state` is the ONLY param, expose its
-  # first-order children as the AI's top-level arguments -- the model never sees
-  # (or has to correctly nest under) the `state` wrapper. The validate tool
-  # re-wraps them under `state` before applying (read via attr `wrap_key`). This
-  # lets blocks keep their natural `state` design instead of being flattened to
-  # suit the assistant.
-  if (identical(nms, "state") &&
-      inherits(types[["state"]], "ellmer::TypeObject")) {
-    children <- tryCatch(types[["state"]]@properties, error = function(e) NULL)
-    if (length(children)) {
-      attr(children, "wrap_key") <- "state"
-      return(children)
-    }
-  }
-
   types
 }
 
@@ -76,8 +60,8 @@ ellmer_type_from_default <- function(default, desc = "") {
 
 #' @noRd
 #' @param nested TRUE when typing a value INSIDE another object (vs a top-level
-#'   param). Top-level objects (notably `state`) must stay structs so they can be
-#'   unwrapped; the arbitrary-key-map heuristic only applies to nested values.
+#'   param). Top-level objects stay typed structs; the arbitrary-key-map
+#'   heuristic only applies to nested values.
 ellmer_type_from_value <- function(val, desc = "", nested = FALSE) {
   if (is.null(val) || is.data.frame(val)) {
     return(ellmer::type_string(desc, required = FALSE))
@@ -89,8 +73,8 @@ ellmer_type_from_value <- function(val, desc = "", nested = FALSE) {
       # A type_object would bake the example's keys in as fixed fields, so the
       # model copies them verbatim. When all values are scalars (a string/number/
       # bool map), pass it as a JSON-object string (arbitrary keys), re-parsed by
-      # the tool. Only for NESTED values -- a top-level all-scalar object (e.g.
-      # bind_rows state = {id_name}) is a struct that must stay unwrappable.
+      # the tool. Only for NESTED values -- a top-level all-scalar object is
+      # kept as a typed struct.
       # NOTE: the proper fix is in the BLOCK -- collections should be arrays of
       # fixed-field records (see mutate/summarize/rename), not data-keyed maps;
       # this heuristic only catches blocks that haven't been reshaped.
