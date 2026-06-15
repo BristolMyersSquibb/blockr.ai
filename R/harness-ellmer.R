@@ -270,7 +270,7 @@ truncate_summary <- function(x, n = 80L) {
   if (is.null(x)) return("")
   x <- gsub("\\s+", " ", trimws(as.character(x)))
   if (length(x) != 1L) x <- paste(x, collapse = " ")
-  if (nchar(x) > n) paste0(substr(x, 1L, n - 1L), "…") else x
+  if (nchar(x) > n) paste0(substr(x, 1L, n - 1L), "\u2026") else x
 }
 
 #' Build a reporter `tool_event` payload from an ellmer tool *request*.

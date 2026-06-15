@@ -119,6 +119,7 @@ test_that("tibble result dispatches to the data.frame method", {
 # --- default method: non-data.frame results --------------------------------
 
 test_that("non-data.frame result yields no effect summary (graceful)", {
+  skip_if_not_installed("ggplot2")
   expect_identical(data_effect(iris, ggplot2::ggplot(iris)), "")
   expect_identical(data_effect(iris, list(1, 2, 3)), "")
   expect_identical(data_effect(iris, 42), "")

@@ -85,7 +85,7 @@ discover_block_args <- function(
 
 # Recursively simplify leaf lists to atomic vectors.
 # A "leaf list" is a list where every element is a scalar (length-1 atomic).
-# Named lists (JSON objects) always recurse — only unnamed lists (JSON arrays)
+# Named lists (JSON objects) always recurse -- only unnamed lists (JSON arrays)
 # are collapsed to vectors. This preserves the top-level dict structure for
 # single-parameter blocks like function_block ({"fn": "..."}).
 simplify_leaves <- function(x) {
