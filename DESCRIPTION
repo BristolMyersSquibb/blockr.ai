@@ -33,7 +33,10 @@ Imports:
     evaluate
 Suggests:
     testthat (>= 3.0.0),
-    blockr.dplyr
+    blockr.dplyr,
+    ggplot2,
+    tibble,
+    withr
 Remotes:
     BristolMyersSquibb/blockr.core,
     BristolMyersSquibb/blockr.dplyr,
