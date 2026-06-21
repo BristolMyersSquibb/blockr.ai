@@ -49,6 +49,37 @@ data_schema.data.frame <- function(x, ...) {
 
 #' @rdname data_schema
 #' @export
+data_schema.dm <- function(x, ...) {
+  # A dm is a relational set of tables, not one data frame. Describe each table
+  # (name + columns/types) and state the access rule, so the model can pick the
+  # right table/columns and knows a dm table must be pulled before use. Mirrors
+  # the dm handling in `data_effect.dm` (reuses `effect_tables()`).
+  tables <- effect_tables(x)
+  if (is.null(tables) || !length(tables)) {
+    return(NextMethod())
+  }
+  header <- sprintf(
+    paste(
+      "dm with %d tables. A dm table is NOT a data frame until extracted",
+      "(pull it first). Tables and columns:"
+    ),
+    length(tables)
+  )
+  lines <- vapply(names(tables), function(nm) {
+    tbl <- tables[[nm]]
+    types <- vapply(tbl, function(col) class(col)[1L], character(1))
+    cols <- paste0(names(tbl), " (", types, ")")
+    if (length(cols) > 60L) {
+      cols <- c(cols[seq_len(60L)], sprintf("...(+%d)", length(cols) - 60L))
+    }
+    sprintf("- %s: %d rows x %d cols: %s",
+            nm, nrow(tbl), ncol(tbl), paste(cols, collapse = ", "))
+  }, character(1))
+  paste(c(header, lines), collapse = "\n")
+}
+
+#' @rdname data_schema
+#' @export
 data_schema.default <- function(x, ...) {
   cls <- paste(class(x), collapse = ", ")
   summary <- tryCatch({
