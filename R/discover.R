@@ -158,31 +158,53 @@ standalone_validator_internal <- function(ctor, data) {
         stop("Block evaluation failed: ",
              paste(unique(block_errs), collapse = " | "))
       }
-      stop("Block evaluation returned NULL")
+      # No condition was raised -- the code ran but produced NULL. Tell the model
+      # what to check instead of a content-free "returned NULL".
+      stop("Block evaluation produced no result: the code ran without error but ",
+           "returned NULL. Make sure the function returns its result object (the ",
+           "data frame, table, or plot as the last expression), and that ",
+           "parameter defaults do not reduce the output to nothing.")
     }
 
     result
   }
 }
 
-#' Pull error messages out of a block's `cond` reactiveValues (stages
-#' data/state/eval/render/block, each with `$error`/`$warning` lists).
+#' Pull error messages out of a block's `cond`.
+#'
+#' `session$returned$cond` is a REACTIVE, so it must be called to get a value;
+#' the current blockr.core shape is a data frame of conditions with `phase`,
+#' `severity` and `message` columns (one row per condition). An older shape -- a
+#' list / reactiveValues of stages each with an `$error` list -- is still
+#' handled as a fallback. Returns the messages of the error/fatal conditions.
 #' @noRd
 collect_block_errors <- function(cond) {
+  # `cond` may be the reactive itself (call it) or an already-resolved value.
+  if (is.function(cond)) {
+    cond <- tryCatch(cond(), error = function(e) NULL)
+  }
   if (is.null(cond)) return(character())
-  stages <- tryCatch(names(cond), error = function(e) character())
+
+  trim <- function(x) unique(gsub("\\s+", " ", substr(x[nzchar(x)], 1, 400)))
+
+  # Current shape: a data frame of conditions.
+  if (is.data.frame(cond)) {
+    if (!nrow(cond) || !all(c("severity", "message") %in% names(cond))) {
+      return(character())
+    }
+    return(trim(as.character(cond$message[cond$severity %in% c("error", "fatal")])))
+  }
+
+  # Legacy shape: stages, each with an `$error` list. blockr `block_cnd` errors
+  # are classed character vectors, so conditionMessage() may have no method --
+  # fall back to the raw character content.
   msgs <- character()
-  for (st in stages) {
+  for (st in tryCatch(names(cond), error = function(e) character())) {
     errs <- tryCatch(cond[[st]]$error, error = function(e) NULL)
     for (e in errs) {
-      # blockr `block_cnd` errors are character vectors with a class, not
-      # standard conditions, so conditionMessage() has no method -- fall back to
-      # the raw character content.
       m <- tryCatch(conditionMessage(e),
                     error = function(x) paste(as.character(e), collapse = " "))
-      if (length(m) && any(nzchar(m))) {
-        msgs <- c(msgs, gsub("\\s+", " ", substr(paste(m, collapse = " "), 1, 400)))
-      }
+      if (length(m) && any(nzchar(m))) msgs <- c(msgs, trim(paste(m, collapse = " ")))
     }
   }
   unique(msgs)
