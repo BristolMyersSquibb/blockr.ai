@@ -190,7 +190,8 @@ effect_is_noop <- function(effect) {
 #' @param block Block object, for registry-derived context.
 #' @return Character string.
 #' @noRd
-build_tool_system_prompt <- function(var_names, block) {
+build_tool_system_prompt <- function(var_names, block,
+                                      skills = skills_for_block(block)) {
   block_name <- class(block)[1]
   reg_info <- get_block_registry_info(block_name)
 
@@ -221,6 +222,7 @@ build_tool_system_prompt <- function(var_names, block) {
     block_context,
     "Parameters: ", paste(var_names, collapse = ", "), "\n\n",
     block_prompt,
+    skill_catalog_text(skills),
     helper_text,
     "HOW TO WORK:\n",
     "- To change the block you MUST call `validate_config`. Writing the ",
@@ -231,7 +233,7 @@ build_tool_system_prompt <- function(var_names, block) {
     "- 'Adjust / populate / configure / set this to the data' is an ACTION, not ",
     "a question: explore with `data_tool` if needed, then call `validate_config`. ",
     "Do not answer it in plain language and stop.\n",
-    "- You have two tools. Use `data_tool` to run R against the input data when ",
+    "- Use `data_tool` to run R against the input data when ",
     "you need to inspect columns, types, value ranges or unique levels. Use ",
     "`validate_config` to apply a configuration; it returns ok + the EFFECT on ",
     "the data + a preview, or an error to fix.\n",
@@ -289,10 +291,26 @@ tool_request_event <- function(request) {
   } else if (identical(name, "validate_config")) {
     list(id = request@id, phase = "validating", label = "Applying configuration",
          summary = NULL, code = FALSE, status = "active")
+  } else if (identical(name, "read_skill")) {
+    list(id = request@id, phase = "exploring", label = "Reading skill",
+         summary = truncate_summary(args$name %||% ""), code = FALSE,
+         status = "active")
+  } else if (identical(name, "read_skill_file")) {
+    list(id = request@id, phase = "exploring", label = "Reading skill file",
+         summary = truncate_summary(skill_file_summary(args)), code = FALSE,
+         status = "active")
   } else {
     list(id = request@id, phase = "exploring", label = name, summary = NULL,
          code = FALSE, status = "active")
   }
+}
+
+#' One-line "skill/path" summary for a read_skill_file badge.
+#' @noRd
+skill_file_summary <- function(args) {
+  path <- args$path %||% ""
+  nm <- args$name %||% ""
+  if (nzchar(nm) && nzchar(path)) paste0(nm, "/", path) else paste0(nm, path)
 }
 
 #' Build a reporter `tool_event` payload from an ellmer tool *result*.
@@ -329,6 +347,16 @@ tool_result_event <- function(result) {
     return(list(id = request@id, phase = "retrying", label = "Fixing",
                 summary = truncate_summary(err %||% "invalid configuration"),
                 code = FALSE, status = "error"))
+  }
+  if (identical(name, "read_skill")) {
+    return(list(id = request@id, phase = "exploring", label = "Read skill",
+                summary = truncate_summary(request@arguments$name %||% ""),
+                code = FALSE, status = "done"))
+  }
+  if (identical(name, "read_skill_file")) {
+    return(list(id = request@id, phase = "exploring", label = "Read skill file",
+                summary = truncate_summary(skill_file_summary(request@arguments)),
+                code = FALSE, status = "done"))
   }
   list(id = request@id, phase = "exploring", label = name, summary = NULL,
        code = FALSE, status = "done")
@@ -409,7 +437,7 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
 
   if (is.null(client)) {
     client <- llm_client()
-    system_prompt <- build_tool_system_prompt(var_names, block)
+    system_prompt <- build_tool_system_prompt(var_names, block, tool_set$skills)
     if (!is.null(data_tool)) {
       tp <- get_prompt(data_tool)
       if (length(tp) > 0L && any(nzchar(tp))) {
@@ -422,6 +450,9 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
 
   tools <- list(get_tool(validate_tool))
   if (!is.null(data_tool)) tools <- c(list(get_tool(data_tool)), tools)
+  if (length(tool_set$skill_tools)) {
+    tools <- c(tools, lapply(tool_set$skill_tools, get_tool))
+  }
   client$set_tools(tools)
 
   # Surface every tool call as a reporter badge (the client is reused across

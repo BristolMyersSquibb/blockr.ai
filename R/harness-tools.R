@@ -31,9 +31,17 @@ build_harness_tools <- function(block, data, validate = NULL) {
     NULL
   }
 
+  # Skills targeting this block, plus the read tools for them (empty when no
+  # library is configured or none match). Built here, in the shared harness
+  # contract, so the other consumer harnesses pick them up by construction.
+  skills <- skills_for_block(block)
+  skill_tools <- new_skill_tools(skills)
+
   list(
     data = data_tool,
     validate = new_validate_tool(validate, block, data = data),
-    validate_fn = validate
+    validate_fn = validate,
+    skills = skills,
+    skill_tools = skill_tools
   )
 }
