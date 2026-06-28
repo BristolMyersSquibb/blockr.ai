@@ -3,7 +3,6 @@
 \name{data_schema}
 \alias{data_schema}
 \alias{data_schema.data.frame}
-\alias{data_schema.dm}
 \alias{data_schema.default}
 \alias{data_schema.ggplot}
 \title{Produce a text schema of a data object for LLM consumption}
@@ -11,8 +10,6 @@
 data_schema(x, ...)
 
 \method{data_schema}{data.frame}(x, ...)
-
-\method{data_schema}{dm}(x, ...)
 
 \method{data_schema}{default}(x, ...)
 

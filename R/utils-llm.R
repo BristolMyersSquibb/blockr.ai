@@ -47,36 +47,23 @@ data_schema.data.frame <- function(x, ...) {
   format_df_preview(x)
 }
 
-#' @rdname data_schema
-#' @export
-data_schema.dm <- function(x, ...) {
-  # A dm is a relational set of tables, not one data frame. Describe each table
-  # (name + columns/types) and state the access rule, so the model can pick the
-  # right table/columns and knows a dm table must be pulled before use. Mirrors
-  # the dm handling in `data_effect.dm` (reuses `effect_tables()`).
-  tables <- effect_tables(x)
-  if (is.null(tables) || !length(tables)) {
-    return(NextMethod())
-  }
-  header <- sprintf(
-    paste(
-      "dm with %d tables. A dm table is NOT a data frame until extracted",
-      "(pull it first). Tables and columns:"
-    ),
-    length(tables)
-  )
-  lines <- vapply(names(tables), function(nm) {
-    tbl <- tables[[nm]]
-    types <- vapply(tbl, function(col) class(col)[1L], character(1))
-    cols <- paste0(names(tbl), " (", types, ")")
-    if (length(cols) > 60L) {
-      cols <- c(cols[seq_len(60L)], sprintf("...(+%d)", length(cols) - 60L))
-    }
-    sprintf("- %s: %d rows x %d cols: %s",
-            nm, nrow(tbl), ncol(tbl), paste(cols, collapse = ", "))
-  }, character(1))
-  paste(c(header, lines), collapse = "\n")
-}
+# =============================================================================
+# NO `data_schema` METHOD FOR `dm` (OR ANY OTHER PACKAGE'S TYPE) BELONGS HERE.
+# -----------------------------------------------------------------------------
+# `data_schema` is a generic. A method for a type belongs in the package that
+# OWNS that type, where it is registered onto this generic via S3method():
+#   - dm                      -> blockr.dm   (R/data-schema.R)   <- canonical
+#   - gt_tbl / flextable / composed_*  -> blockr.sandbox (R/composer-ai-view.R)
+# blockr.ai itself carries ONLY data.frame / default / ggplot (below).
+#
+# WHY THIS MATTERS (this was a real bug — see #85): if you ALSO define
+# `data_schema.dm` here, BOTH packages call `S3method(data_schema, dm)` and the
+# winner is whichever namespace loaded LAST. In a deployed app blockr.dm loads
+# after blockr.ai, so blockr.ai's copy is silently shadowed and its edits do
+# NOTHING; under `load_all()` the order can flip, so the two copies diverge and
+# behaviour depends on load order. One generic, one method per type, one home.
+# Do not re-add a dm method here. Fix blockr.dm/R/data-schema.R instead.
+# =============================================================================
 
 #' @rdname data_schema
 #' @export
