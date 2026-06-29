@@ -30,7 +30,8 @@ Imports:
     jsonlite,
     utils,
     shinychat (>= 0.2.0.9000),
-    evaluate
+    evaluate,
+    yaml
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr,

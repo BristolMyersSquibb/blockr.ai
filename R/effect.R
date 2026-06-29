@@ -36,6 +36,11 @@ data_effect <- function(input, result, ...) {
 #' @rdname data_effect
 #' @export
 data_effect.default <- function(input, result, ...) {
+  # `effect` describes what CHANGED (a diff); it is intentionally empty for a
+  # non-diffable result. The model is not left blind: the validate tool also
+  # returns `preview` (`data_schema()`), and `data_schema.default` always
+  # describes the object (class + structure). So an un-methoded result type is
+  # still surfaced -- via the preview, not the effect.
   ""
 }
 

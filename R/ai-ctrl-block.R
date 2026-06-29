@@ -102,7 +102,10 @@ ai_ctrl_ui <- structure(
           target = "_blank",
           download = "",
           "Report"
-        )
+        ),
+        # Subtle, hover-revealed list of skills the assistant can use here
+        # (only rendered when a skill library targets this block).
+        skills_footer_ui(x)
       )
     )
   },
@@ -113,6 +116,44 @@ ai_ctrl_ui <- structure(
   ctrl_class   = "blockr-sparkle-btn",
   ctrl_tooltip = "AI Assistant"
 )
+
+#' Footer "Skills" affordance for the assistant panel.
+#'
+#' A grey "Skills" word (matching Clear / Report) that reveals a compact popover
+#' on hover/focus, listing the skills the assistant can consult for this block
+#' plus how to invoke them. Returns `NULL` when no skill targets the block, so it
+#' is invisible unless relevant. Intentionally compact -- the skill's templates
+#' are NOT dumped here; the model lists them on demand.
+#' @noRd
+skills_footer_ui <- function(x) {
+  skills <- tryCatch(block_skills(x), error = function(e) list())
+  if (!length(skills)) {
+    return(NULL)
+  }
+
+  items <- lapply(skills, function(s) {
+    desc <- truncate_summary(s$description %||% "", 64)
+    tags$li(
+      tags$span(class = "blockr-skills-name", s$name),
+      if (nzchar(desc)) tags$span(class = "blockr-skills-desc", paste0(" — ", desc))
+    )
+  })
+  first <- skills[[1]]$name
+
+  tagList(
+    tags$span(class = "blockr-action-sep", "·"),
+    tags$span(
+      class = "blockr-skills-link", tabindex = "0",
+      "Skills",
+      tags$span(
+        class = "blockr-skills-pop",
+        tags$ul(class = "blockr-skills-pop-list", items),
+        tags$div(class = "blockr-skills-pop-hint",
+                 sprintf("e.g. “use the %s skill to …”", first))
+      )
+    )
+  )
+}
 
 css_ai_ctrl <- function() {
   htmltools::htmlDependency(
@@ -254,6 +295,44 @@ css_ai_ctrl <- function() {
       .blockr-report-conversation:hover {
         color: #7c3aed;
       }
+      .blockr-skills-link {
+        font-size: 0.75em;
+        color: #adb5bd;
+        cursor: default;
+        position: relative;
+      }
+      .blockr-skills-link:hover,
+      .blockr-skills-link:focus-within { color: #7c3aed; }
+      .blockr-skills-pop {
+        display: none;
+        position: absolute;
+        right: 0;
+        bottom: 1.7em;            /* open upward, above the footer */
+        z-index: 1000;
+        width: 280px;
+        max-width: 80vw;
+        padding: 7px 9px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fff;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+        color: #374151;
+        font-size: 12px;
+        line-height: 1.35;
+        text-align: left;
+        cursor: default;
+      }
+      .blockr-skills-link:hover .blockr-skills-pop,
+      .blockr-skills-link:focus-within .blockr-skills-pop { display: block; }
+      .blockr-skills-pop-list {
+        margin: 0; padding: 0; list-style: none;
+      }
+      .blockr-skills-pop-list li {
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      }
+      .blockr-skills-name { font-weight: 600; }
+      .blockr-skills-desc { opacity: 0.8; }
+      .blockr-skills-pop-hint { margin-top: 5px; opacity: 0.75; font-style: italic; }
       .blockr-ai-status {
         display: flex;
         margin: 2px 0;
