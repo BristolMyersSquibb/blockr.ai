@@ -135,13 +135,13 @@ skills_footer_ui <- function(x) {
     desc <- truncate_summary(s$description %||% "", 64)
     tags$li(
       tags$span(class = "blockr-skills-name", s$name),
-      if (nzchar(desc)) tags$span(class = "blockr-skills-desc", paste0(" — ", desc))
+      if (nzchar(desc)) tags$span(class = "blockr-skills-desc", paste0(" \u2014 ", desc))
     )
   })
   first <- skills[[1]]$name
 
   tagList(
-    tags$span(class = "blockr-action-sep", "·"),
+    tags$span(class = "blockr-action-sep", "\u00b7"),
     tags$span(
       class = "blockr-skills-link", tabindex = "0",
       "Skills",
@@ -149,7 +149,7 @@ skills_footer_ui <- function(x) {
         class = "blockr-skills-pop",
         tags$ul(class = "blockr-skills-pop-list", items),
         tags$div(class = "blockr-skills-pop-hint",
-                 sprintf("e.g. “use the %s skill to …”", first))
+                 sprintf("e.g. \u201cuse the %s skill to \u2026\u201d", first))
       )
     )
   )

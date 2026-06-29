@@ -56,7 +56,7 @@ data_schema.data.frame <- function(x, ...) {
 #   - gt_tbl / flextable / composed_*  -> blockr.sandbox (R/composer-ai-view.R)
 # blockr.ai itself carries ONLY data.frame / default / ggplot (below).
 #
-# WHY THIS MATTERS (this was a real bug — see #85): if you ALSO define
+# WHY THIS MATTERS (this was a real bug -- see #85): if you ALSO define
 # `data_schema.dm` here, BOTH packages call `S3method(data_schema, dm)` and the
 # winner is whichever namespace loaded LAST. In a deployed app blockr.dm loads
 # after blockr.ai, so blockr.ai's copy is silently shadowed and its edits do
