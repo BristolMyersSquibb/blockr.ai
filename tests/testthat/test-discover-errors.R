@@ -14,10 +14,12 @@ test_that("collect_block_errors reads the data-frame condition shape", {
 })
 
 test_that("collect_block_errors calls a reactive and tolerates empty/NULL", {
-  reactive_like <- function() data.frame(
-    phase = "eval", severity = "error", message = "undefined columns selected",
-    stringsAsFactors = FALSE
-  )
+  reactive_like <- function() {
+    data.frame(
+      phase = "eval", severity = "error", message = "undefined columns selected",
+      stringsAsFactors = FALSE
+    )
+  }
   expect_equal(collect_block_errors(reactive_like), "undefined columns selected")
 
   expect_equal(collect_block_errors(NULL), character())
