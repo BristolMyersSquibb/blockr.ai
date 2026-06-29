@@ -202,13 +202,8 @@ build_tool_system_prompt <- function(var_names, block,
     paste0("You are configuring a ", block_name, ".\n\n")
   }
 
-  param_docs_raw <- get_block_param_docs_raw(block_name)
-  block_prompt <- if (!is.null(param_docs_raw)) {
-    p <- attr(param_docs_raw, "prompt")
-    if (!is.null(p)) paste0(p, "\n\n") else ""
-  } else {
-    ""
-  }
+  guidance <- get_block_guidance(block_name)
+  block_prompt <- if (!is.null(guidance)) paste0(guidance, "\n\n") else ""
 
   helper_fns <- getOption("blockr.dplyr.summary_functions")
   helper_text <- if (!is.null(helper_fns) && length(helper_fns) > 0) {

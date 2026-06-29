@@ -22,12 +22,18 @@ block_param_types <- function(block) {
   nms <- setdiff(names(fmls), "...")
   if (!length(nms)) return(NULL)
 
-  docs <- tryCatch(get_block_param_docs_raw(class(block)[1]), error = function(e) NULL)
+  block_name <- class(block)[1]
+  docs <- tryCatch(get_block_param_docs_raw(block_name), error = function(e) NULL)
   # The registry `examples` carry the author's canonical SHAPE for each param --
   # crucial when the formal default is uninformative (NULL, character(), list())
   # or ambiguous (an unnamed vector that is really a multi-value array, not enum
   # choices). Prefer the example's shape when present; fall back to the default.
   examples <- tryCatch(attr(docs, "examples"), error = function(e) NULL)
+  # The block author's DECLARED machine-readable type (core's `arg_*()`
+  # descriptor), when present, is authoritative -- it captures enums and
+  # arrays-of-records (the polymorphic fields example-inference can only
+  # approximate as a JSON string). Prefer it; fall back to inference otherwise.
+  spec <- tryCatch(get_block_arg_spec(block_name), error = function(e) NULL)
 
   types <- list()
   for (nm in nms) {
@@ -36,8 +42,15 @@ block_param_types <- function(block) {
     } else {
       nm
     }
+    declared <- if (!is.null(spec) && nm %in% names(spec)) {
+      tryCatch(blockr.core::block_arg_type(spec[[nm]]), error = function(e) NULL)
+    } else {
+      NULL
+    }
     types[[nm]] <- tryCatch(
-      if (!is.null(examples) && nm %in% names(examples) && !is.null(examples[[nm]])) {
+      if (!is.null(declared)) {
+        ellmer_type_from_descriptor(declared, desc)
+      } else if (!is.null(examples) && nm %in% names(examples) && !is.null(examples[[nm]])) {
         ellmer_type_from_value(examples[[nm]], desc)
       } else {
         ellmer_type_from_default(fmls[[nm]], desc)
@@ -47,6 +60,23 @@ block_param_types <- function(block) {
   }
 
   types
+}
+
+#' Bind a core `arg_*()` type descriptor (a JSON-Schema-subset list) to an ellmer
+#' type via `ellmer::type_from_schema()`. The descriptor is serialised to JSON
+#' text (the form `type_from_schema()` consumes); `desc` is attached and the
+#' field is marked optional so the model may omit it (partial configs are valid).
+#' @noRd
+ellmer_type_from_descriptor <- function(descriptor, desc = "") {
+  json <- as.character(
+    jsonlite::toJSON(descriptor, auto_unbox = TRUE, null = "null")
+  )
+  type <- ellmer::type_from_schema(text = json)
+  type@required <- FALSE
+  if (nzchar(desc)) {
+    type@description <- desc
+  }
+  type
 }
 
 #' @noRd

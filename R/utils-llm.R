@@ -252,12 +252,13 @@ data_schema.ggplot <- function(x, ...) {
 get_block_registry_info <- function(block_name) {
   tryCatch(
     {
-      meta <- blockr.core::registry_metadata(block_name,
+      meta <- blockr.core::block_metadata(block_name,
         fields = c("name", "description", "category"))
+      na_to_null <- function(x) if (length(x) && is.na(x[[1L]])) NULL else x[[1L]]
       list(
-        name = meta$name,
-        description = meta$description,
-        category = meta$category
+        name = na_to_null(meta$name),
+        description = na_to_null(meta$description),
+        category = na_to_null(meta$category)
       )
     },
     error = function(e) list(name = NULL, description = NULL, category = NULL)
@@ -265,25 +266,91 @@ get_block_registry_info <- function(block_name) {
 }
 
 
+#' Get the structured argument spec for a block type
+#'
+#' Returns the `block_args` object registered by the block author (via core's
+#' `block_meta_arguments()`), or `NULL`. Core normalizes legacy registrations
+#' (the old `structure(., examples=, prompt=)` form) into the same `block_args`
+#' shape, so this works for not-yet-migrated producers too.
+#'
+#' @param block_name Name of the block class
+#' @return A `block_args` object (possibly empty), or `NULL` on error
+#' @noRd
+get_block_arg_spec <- function(block_name) {
+  tryCatch(
+    blockr.core::block_meta_arguments(block_name),
+    error = function(e) NULL
+  )
+}
+
+
+#' Get the author's guidance (free-text construction hints) for a block type
+#'
+#' Replaces the legacy `attr(arguments, "prompt")` side-channel.
+#'
+#' @param block_name Name of the block class
+#' @return A guidance string, or NULL when none is registered
+#' @noRd
+get_block_guidance <- function(block_name) {
+  g <- tryCatch(
+    blockr.core::block_meta_guidance(block_name),
+    error = function(e) NULL
+  )
+  if (is.null(g) || length(g) == 0L || is.na(g[[1L]]) || !nzchar(g[[1L]])) {
+    return(NULL)
+  }
+  as.character(g[[1L]])
+}
+
+
+#' Get the assembled worked example for a block type
+#'
+#' Returns the first registered whole-block example configuration (a named list
+#' keyed by argument name), reconstructed from core's `block_meta_examples()`.
+#' This is the per-argument `example` assembly the block author registered.
+#'
+#' @param block_name Name of the block class
+#' @return A named list of example argument values, or NULL when none exist
+#' @noRd
+get_block_example <- function(block_name) {
+  ex <- tryCatch(
+    blockr.core::block_meta_examples(block_name),
+    error = function(e) NULL
+  )
+  if (is.null(ex) || length(ex) == 0L) return(NULL)
+  ex[[1L]]
+}
+
+
 #' Get raw parameter documentation vector for a block type
 #'
-#' Returns the named character vector from the registry with attributes intact,
-#' so that `generate_example_json()` can extract `example` attributes.
+#' Returns a named character vector of per-argument descriptions, carrying the
+#' worked `examples` (named list) and `prompt` (guidance) as attributes for the
+#' legacy call sites. Built from core's structured accessors, so no deprecated
+#' `registry_metadata()` call is made.
 #'
 #' @param block_name Name of the block
 #' @return Named character vector (with attributes) or NULL
 #' @noRd
 get_block_param_docs_raw <- function(block_name) {
-  args <- tryCatch(
-    blockr.core::registry_metadata(block_name, "arguments"),
-    error = function(e) NULL
-  )
-  # registry_metadata returns list(value) for list-type fields
-  if (is.list(args) && length(args) == 1L) args <- args[[1L]]
-  if (is.null(args) || length(args) == 0 || is.null(names(args))) {
+  args <- get_block_arg_spec(block_name)
+  if (is.null(args) || length(args) == 0L || is.null(names(args))) {
     return(NULL)
   }
-  args
+  nms <- names(args)
+  desc <- vapply(
+    nms,
+    function(nm) {
+      d <- blockr.core::block_arg_description(args[[nm]])
+      if (is.null(d)) "" else as.character(d)
+    },
+    character(1)
+  )
+  structure(
+    stats::setNames(desc, nms),
+    examples = get_block_example(block_name),
+    prompt = get_block_guidance(block_name)
+  )
 }
 
 
