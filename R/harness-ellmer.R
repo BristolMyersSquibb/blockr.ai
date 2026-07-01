@@ -588,6 +588,13 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   final_result <- validate_tool$last_result()
   success <- !is.null(final_args)
 
+  # A config can be applied (success) yet have had no real effect -- the model
+  # may legitimately keep a no-op (e.g. a selector defaulting to "everything"),
+  # so success stays TRUE. But callers must be able to SEE that the effect was a
+  # no-op instead of trusting success alone, so both are part of the result.
+  final_effect <- if (success) validate_tool$last_effect() else NULL
+  final_noop <- success && effect_is_noop(final_effect)
+
   # The ACTUAL blocker (the last validation error) when the model failed. It was
   # previously discarded -- the model saw it in the tool loop but the result
   # reported NULL, so the user only got "cannot do this". Surface it now. It is
@@ -605,6 +612,8 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     success = success,
     args = final_args,
     result = final_result,
+    effect = final_effect,
+    noop = final_noop,
     message = reply_text,
     conversation = conversation,
     # When the model failed, surface the real validation error (the blocker) --

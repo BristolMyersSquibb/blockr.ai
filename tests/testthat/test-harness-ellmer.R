@@ -189,6 +189,57 @@ test_that("ellmer harness: retries past a bad config and applies the good one", 
   expect_null(res$error)
 })
 
+test_that("ellmer harness: result carries the effect and flags a persistent no-op", {
+  # Validator returns the input unchanged -> every applied config is a no-op.
+  # The fake chat never "fixes" it, so the nudge cap is hit and the result must
+  # say so: success (a config IS applied) but noop=TRUE with the effect visible.
+  chat <- make_fake_chat(
+    configs = '{"value": "good"}',
+    final_text = "Applied."
+  )
+
+  res <- with_fake_chat(chat, {
+    discover_via_ellmer_tools(
+      prompt = "do nothing much",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris
+    )
+  })
+
+  expect_true(res$success)
+  expect_true(res$noop)
+  expect_match(res$effect, "no rows or columns changed")
+
+  # An effective config reports its effect and noop=FALSE.
+  chat2 <- make_fake_chat(configs = '{"value": "good"}', final_text = "Done.")
+  res2 <- with_fake_chat(chat2, {
+    discover_via_ellmer_tools(
+      prompt = "setosa only",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris[iris$Species == "setosa", ]
+    )
+  })
+  expect_true(res2$success)
+  expect_false(res2$noop)
+  expect_match(res2$effect, "100 removed")
+
+  # No config applied -> effect NULL, noop FALSE.
+  chat3 <- make_fake_chat(configs = character(), final_text = "Which column?")
+  res3 <- with_fake_chat(chat3, {
+    discover_via_ellmer_tools(
+      prompt = "fix it",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris
+    )
+  })
+  expect_false(res3$success)
+  expect_null(res3$effect)
+  expect_false(res3$noop)
+})
+
 test_that("ellmer harness: no validate call -> failure with the reply as question", {
   chat <- make_fake_chat(
     configs = character(),
