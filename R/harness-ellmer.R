@@ -48,6 +48,38 @@ new_validate_tool <- function(validate, block, data = NULL) {
   last_ok <- NULL
   last_result <- NULL
   last_effect <- NULL
+  last_error <- NULL
+  consec_fail <- 0L
+
+  # Record a failed validation: remember the raw error (so the harness can
+  # surface the ACTUAL blocker to the user instead of a bare "cannot do this"),
+  # count consecutive failures, and -- once the model is clearly stuck -- append
+  # generic, error-agnostic guidance. It tells the model to DEBUG the value the
+  # error names (this block can return any R object) rather than re-submit a
+  # similar config, and to escalate to the user with specifics rather than quit.
+  record_fail <- function(err) {
+    consec_fail <<- consec_fail + 1L
+    last_error <<- err
+    if (consec_fail >= 2L) {
+      err <- paste0(
+        err,
+        "\n\n[harness] You have hit a validation error ", consec_fail,
+        " times. Do NOT re-submit a similar configuration. This block can ",
+        "return ANY R object, so DEBUG: return or `str()`/`print()` the exact ",
+        "value(s) the error names (return that intermediate object, or inspect ",
+        "it with the data tool) to see its real type/length/names, then fix ",
+        "precisely what the error names. If you cannot make ANY configuration ",
+        "pass -- even a minimal one -- do NOT say the block 'cannot do this': ",
+        "reply in text with the exact error verbatim, what you tried, and one ",
+        "specific question for the user."
+      )
+    }
+    list(ok = FALSE, error = err)
+  }
+  clear_fail <- function() {
+    consec_fail <<- 0L
+    last_error <<- NULL
+  }
 
   # Typed path: expose the block's params as a native ellmer schema so the model
   # emits structured arguments (the API escapes them) instead of hand-building a
@@ -59,8 +91,7 @@ new_validate_tool <- function(validate, block, data = NULL) {
   # Shared validation core: takes an already-parsed named list of block params.
   core_run <- function(args) {
     if (!is.list(args)) {
-      return(list(ok = FALSE,
-                  error = "Config must be a JSON object of block parameters."))
+      return(record_fail("Config must be a JSON object of block parameters."))
     }
 
     # Reject unknown keys instead of silently dropping them: a config that the
@@ -70,7 +101,7 @@ new_validate_tool <- function(validate, block, data = NULL) {
     valid <- unique(c(block_ctor_inputs(block), "block_name"))
     unknown <- setdiff(names(args), valid)
     if (length(unknown)) {
-      return(list(ok = FALSE, error = paste0(
+      return(record_fail(paste0(
         "Unknown parameter(s): ", paste(unknown, collapse = ", "),
         ". Valid parameter(s): ", paste(setdiff(valid, "block_name"), collapse = ", "),
         ". Pass these as a flat JSON object; do not wrap values in 'state' ",
@@ -80,9 +111,10 @@ new_validate_tool <- function(validate, block, data = NULL) {
 
     res <- tryCatch(validate(args), error = function(e) e)
     if (inherits(res, "error")) {
-      return(list(ok = FALSE, error = conditionMessage(res)))
+      return(record_fail(conditionMessage(res)))
     }
 
+    clear_fail()
     last_ok <<- args
     last_result <<- res
     preview <- tryCatch(data_schema(res), error = function(e) "(no preview)")
@@ -103,9 +135,8 @@ new_validate_tool <- function(validate, block, data = NULL) {
     parsed <- tryCatch(jsonlite::fromJSON(config, simplifyVector = FALSE),
                        error = function(e) e)
     if (inherits(parsed, "error")) {
-      return(list(ok = FALSE,
-                  error = paste0("Could not parse config as JSON: ",
-                                 conditionMessage(parsed))))
+      return(record_fail(paste0("Could not parse config as JSON: ",
+                                conditionMessage(parsed))))
     }
     core_run(tryCatch(simplify_leaves(parsed), error = function(e) parsed))
   }
@@ -166,6 +197,7 @@ new_validate_tool <- function(validate, block, data = NULL) {
   tool$last_ok <- function() last_ok
   tool$last_result <- function() last_result
   tool$last_effect <- function() last_effect
+  tool$last_error <- function() last_error
   tool
 }
 
@@ -556,7 +588,17 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   final_result <- validate_tool$last_result()
   success <- !is.null(final_args)
 
-  reporter$done(success, if (success) NULL else "no valid configuration produced")
+  # The ACTUAL blocker (the last validation error) when the model failed. It was
+  # previously discarded -- the model saw it in the tool loop but the result
+  # reported NULL, so the user only got "cannot do this". Surface it now. It is
+  # NULL when the model never failed a validation (a genuine clarifying question
+  # / explanation, which the prompt invites on vague requests).
+  final_error <- validate_tool$last_error()
+
+  reporter$done(
+    success,
+    if (success) NULL else (final_error %||% "no valid configuration produced")
+  )
   message("[discover] done, success: ", success)
 
   list(
@@ -565,13 +607,14 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     result = final_result,
     message = reply_text,
     conversation = conversation,
-    # A non-empty reply with no config is a clarifying question / explanation
-    # (the prompt tells the model to ask back on vague requests) -- that is
-    # expected behaviour, not an error.
-    error = if (!success && !nzchar(reply_text)) {
-      "Model did not produce a valid configuration"
-    } else {
+    # When the model failed, surface the real validation error (the blocker) --
+    # even if it also replied in text. Only NULL when it never failed a
+    # validation (then a non-empty reply is a clarifying question / explanation).
+    error = if (success) {
       NULL
+    } else {
+      final_error %||%
+        (if (!nzchar(reply_text)) "Model did not produce a valid configuration" else NULL)
     },
     question = if (!success && nzchar(reply_text)) reply_text else NULL,
     client = client
