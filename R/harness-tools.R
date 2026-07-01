@@ -22,6 +22,16 @@ build_harness_tools <- function(block, data, validate = NULL) {
   }
 
   datasets <- normalize_datasets(data)
+  # Also expose the WHOLE input under `data`, mirroring the block's fn (which
+  # receives the entire input as `data`). Without this, a dm input binds only
+  # the per-table names, so the model's natural probe -- `data[["adeftm"]]`,
+  # `str(data)`, `data$adeftm`, exactly as it must write the fn -- errors with
+  # "object 'data' not found". For a bare data.frame `normalize_datasets`
+  # already yields a single `data` entry, so only add it when absent (and never
+  # clobber a table literally named "data").
+  if (!is.null(data) && !"data" %in% names(datasets)) {
+    datasets <- c(list(data = data), datasets)
+  }
   data_tool <- if (length(datasets) > 0L) {
     new_data_tool(
       NULL, datasets,
