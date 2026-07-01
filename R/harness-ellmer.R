@@ -203,14 +203,20 @@ new_validate_tool <- function(validate, block, data = NULL) {
 
 #' Does an effect string indicate the config did nothing meaningful?
 #'
-#' Matches the explicit no-op signals only -- a data.frame that changed no rows
-#' or columns, or a composer/gt table still showing format placeholders ("NOT
-#' populated"). Deliberately does NOT match a bare "UNCHANGED" row count, since a
-#' same-row transform that adds/modifies a column is effective.
+#' Matches the explicit signals only -- a data.frame that changed no rows or
+#' columns, a table still showing format placeholders ("not populated"), or a
+#' result a [data_effect()] method marked "DEGENERATE" (computed but semantically
+#' empty, e.g. every value zero). Type-owning packages opt results into the noop
+#' nudge by putting one of these markers -- typically "DEGENERATE" -- in their
+#' effect string, ideally with a "hint:" naming the likely cause; the harness
+#' quotes the effect verbatim in the nudge. Deliberately does NOT match a bare
+#' "UNCHANGED" row count, since a same-row transform that adds/modifies a column
+#' is effective.
 #' @noRd
 effect_is_noop <- function(effect) {
   if (is.null(effect) || !nzchar(effect)) return(FALSE)
-  grepl("not populated|no rows or columns changed", effect, ignore.case = TRUE)
+  grepl("not populated|no rows or columns changed|degenerate", effect,
+        ignore.case = TRUE)
 }
 
 
@@ -559,15 +565,16 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
       )
     } else {
       paste0(
-        "Your last validate_config was VALID but had NO real effect (effect: ",
-        validate_tool$last_effect(), "). Usually that means it is not done: a ",
-        "composer table still showing 'xx.x' placeholders needs real data wired ",
-        "in (add `data =` to table() and `denominator = make_denom(...)`); a ",
-        "filter that removed 0 rows has the wrong condition. Fix it and call ",
-        "validate_config again. BUT if a no-op is genuinely what the request ",
-        "wants -- e.g. you exposed a selector that defaults to showing everything ",
-        "-- keep the config and reply in text saying so. Or say the block ",
-        "genuinely cannot do this."
+        "Your last validate_config was VALID but its effect signals a problem ",
+        "(effect: ", validate_tool$last_effect(), "). Usually that means it is ",
+        "not done: read the effect above -- if it names a cause or carries a ",
+        "hint, follow it; a skill for this block may also cover the failure ",
+        "mode. Diagnose with data_tool if needed, fix the config, and call ",
+        "validate_config again. BUT if this outcome is genuinely what the ",
+        "request wants -- e.g. you exposed a selector that defaults to showing ",
+        "everything, or the data really contains no such records -- keep the ",
+        "config and reply in text saying so. Or say the block genuinely cannot ",
+        "do this."
       )
     })
   }
