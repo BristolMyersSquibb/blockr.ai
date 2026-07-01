@@ -580,12 +580,16 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   }
   reporter$end_phase("thinking")
 
+  n_probes <- if (!is.null(data_tool)) data_tool$probes_used() else NULL
+
   if (inherits(reply, "error")) {
     err <- paste0("LLM error: ", conditionMessage(reply))
     message("[discover] ", err)
     reporter$done(FALSE, err)
-    return(list(success = FALSE, args = NULL, conversation = conversation,
-                result = NULL, error = err, client = client))
+    res <- list(success = FALSE, args = NULL, conversation = conversation,
+                result = NULL, error = err, client = client)
+    log_discover_run(block_name, prompt, res, nudges = nudges, probes = n_probes)
+    return(res)
   }
 
   reply_text <- tryCatch(as.character(reply), error = function(e) "")
@@ -615,7 +619,7 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   )
   message("[discover] done, success: ", success)
 
-  list(
+  res <- list(
     success = success,
     args = final_args,
     result = final_result,
@@ -635,4 +639,6 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     question = if (!success && nzchar(reply_text)) reply_text else NULL,
     client = client
   )
+  log_discover_run(block_name, prompt, res, nudges = nudges, probes = n_probes)
+  res
 }
