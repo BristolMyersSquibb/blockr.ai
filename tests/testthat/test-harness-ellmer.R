@@ -90,6 +90,32 @@ test_that("new_validate_tool: last_ok reflects the last successful call", {
   expect_equal(vt$last_ok(), list(value = "good"))
 })
 
+test_that("new_validate_tool: records last_error and clears it on success", {
+  vt <- new_validate_tool(good_validate, fake_block())
+  expect_null(vt$last_error())
+  vt$invoke('{"value": "bad"}')                    # fails
+  expect_match(vt$last_error(), "must be 'good'")
+  vt$invoke('{"value": "good"}')                   # succeeds -> clears
+  expect_null(vt$last_error())
+})
+
+test_that("new_validate_tool: appends escalation guidance after repeated failures", {
+  vt <- new_validate_tool(good_validate, fake_block())
+
+  r1 <- vt$invoke('{"value": "bad"}')              # 1st failure: raw error only
+  expect_false(r1$ok)
+  expect_false(grepl("[harness]", r1$error, fixed = TRUE))
+
+  r2 <- vt$invoke('{"value": "bad"}')              # 2nd failure: guidance appended
+  expect_true(grepl("[harness]", r2$error, fixed = TRUE))
+  expect_true(grepl("cannot do this", r2$error, fixed = TRUE))  # escalate, don't quit
+  expect_match(r2$error, "must be 'good'")                      # still carries the real error
+
+  vt$invoke('{"value": "good"}')                   # success resets the streak
+  r4 <- vt$invoke('{"value": "bad"}')              # back to a 1st failure -> no guidance
+  expect_false(grepl("[harness]", r4$error, fixed = TRUE))
+})
+
 
 test_that("build_harness_tools: returns shared validate (+data) tools", {
   ts <- build_harness_tools(fake_block(), data = iris, validate = good_validate)
@@ -181,6 +207,28 @@ test_that("ellmer harness: no validate call -> failure with the reply as questio
   expect_false(res$success)
   expect_null(res$args)
   expect_equal(res$question, "Which column did you mean?")
+})
+
+test_that("ellmer harness: surfaces the last validation error when the model gives up", {
+  # model tries a bad config (fails validation) then replies "cannot do this".
+  chat <- make_fake_chat(
+    configs = '{"value": "bad"}',
+    final_text = "This block genuinely cannot do this."
+  )
+
+  res <- with_fake_chat(chat, {
+    discover_via_ellmer_tools(
+      prompt = "make it good",
+      block = fake_block(),
+      data = NULL,
+      validate = good_validate
+    )
+  })
+
+  expect_false(res$success)
+  # the ACTUAL blocker is surfaced (previously this was NULL / a generic string)
+  expect_false(is.null(res$error))
+  expect_match(res$error, "must be 'good'")
 })
 
 test_that("discover_block_args dispatches to the ellmer harness", {
