@@ -681,6 +681,8 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         prompt = prompt,
         success = result$success,
         args = if (!is.null(result$args)) jsonlite::toJSON(result$args, auto_unbox = TRUE) else NULL,
+        effect = result$effect,
+        noop = result$noop,
         error = result$error,
         conversation = lapply(result$conversation %||% list(), function(m) {
           list(role = m$role, content = m$content)

@@ -5,54 +5,8 @@
 # `blockr.chat_function` option hook, so the whole tool-call loop is
 # deterministic.
 
-# A minimal block-like object: discover only needs attr(.,"ctor") for var names
-# and class() for (best-effort, NULL-tolerant) registry lookups.
-fake_block <- function(ctor = function(value = "x", ...) NULL) {
-  structure(list(), class = c("fake_block", "block"), ctor = ctor)
-}
-
-# A validate function independent of any real block/testServer: "good" succeeds
-# and returns a data.frame; anything else throws.
-good_validate <- function(args) {
-  if (identical(args$value, "good")) {
-    return(data.frame(a = 1:3, b = letters[1:3]))
-  }
-  stop("value must be 'good', got: ", args$value %||% "NULL")
-}
-
-# Fake ellmer chat client: replays a sequence of validate_config calls, then
-# returns final text. Implements only the methods the harness uses.
-make_fake_chat <- function(configs = character(), final_text = "Done.") {
-  tools <- NULL
-  list(
-    set_system_prompt = function(p) invisible(NULL),
-    set_tools = function(t) {
-      tools <<- t
-      invisible(NULL)
-    },
-    get_tools = function() tools,
-    chat = function(msg, ...) {
-      vt <- Find(function(td) isTRUE(td@name == "validate_config"), tools)
-      for (cfg in configs) {
-        if (!is.null(vt)) {
-          # Mimic the model: validate_config now takes the block's params as
-          # native arguments, so decode the JSON config and call with them.
-          args <- tryCatch(jsonlite::fromJSON(cfg, simplifyVector = FALSE),
-                           error = function(e) NULL)
-          if (is.list(args) && length(args)) do.call(vt, args) else vt(config = cfg)
-        }
-      }
-      final_text
-    }
-  )
-}
-
-with_fake_chat <- function(chat, expr) {
-  withr::with_options(
-    list(blockr.chat_function = list("gpt-4o-mini" = function() chat)),
-    expr
-  )
-}
+# fake_block / good_validate / make_fake_chat / with_fake_chat live in
+# helper-fakes.R (shared with test-run-log.R).
 
 
 test_that("new_validate_tool: valid config returns ok + preview and records args", {
@@ -187,6 +141,57 @@ test_that("ellmer harness: retries past a bad config and applies the good one", 
   expect_s3_class(res$result, "data.frame")
   expect_equal(res$message, "Set value to good.")
   expect_null(res$error)
+})
+
+test_that("ellmer harness: result carries the effect and flags a persistent no-op", {
+  # Validator returns the input unchanged -> every applied config is a no-op.
+  # The fake chat never "fixes" it, so the nudge cap is hit and the result must
+  # say so: success (a config IS applied) but noop=TRUE with the effect visible.
+  chat <- make_fake_chat(
+    configs = '{"value": "good"}',
+    final_text = "Applied."
+  )
+
+  res <- with_fake_chat(chat, {
+    discover_via_ellmer_tools(
+      prompt = "do nothing much",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris
+    )
+  })
+
+  expect_true(res$success)
+  expect_true(res$noop)
+  expect_match(res$effect, "no rows or columns changed")
+
+  # An effective config reports its effect and noop=FALSE.
+  chat2 <- make_fake_chat(configs = '{"value": "good"}', final_text = "Done.")
+  res2 <- with_fake_chat(chat2, {
+    discover_via_ellmer_tools(
+      prompt = "setosa only",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris[iris$Species == "setosa", ]
+    )
+  })
+  expect_true(res2$success)
+  expect_false(res2$noop)
+  expect_match(res2$effect, "100 removed")
+
+  # No config applied -> effect NULL, noop FALSE.
+  chat3 <- make_fake_chat(configs = character(), final_text = "Which column?")
+  res3 <- with_fake_chat(chat3, {
+    discover_via_ellmer_tools(
+      prompt = "fix it",
+      block = fake_block(),
+      data = iris,
+      validate = function(args) iris
+    )
+  })
+  expect_false(res3$success)
+  expect_null(res3$effect)
+  expect_false(res3$noop)
 })
 
 test_that("ellmer harness: no validate call -> failure with the reply as question", {

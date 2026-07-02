@@ -170,3 +170,21 @@ test_that("effect_primary_df picks the right input", {
   expect_null(effect_primary_df(structure(list(), class = "dm")))
   expect_null(effect_primary_df(NULL))
 })
+
+# --- noop detection (drives the harness nudge loop) ---------------------------
+
+test_that("effect_is_noop matches the explicit no-op and degeneracy markers", {
+  # data.frame no-op and unpopulated-table signals
+  expect_true(effect_is_noop("rows: 32 -> 32 (UNCHANGED); no rows or columns changed"))
+  expect_true(effect_is_noop("NOT populated: 4 cell(s) still show format placeholders"))
+  # a data_effect method can opt a computed-but-empty result into the nudge
+  expect_true(effect_is_noop(
+    "populated but DEGENERATE: every numeric value is zero; hint: check factors"
+  ))
+
+  # a bare UNCHANGED row count is NOT a no-op (a same-row mutate is effective)
+  expect_false(effect_is_noop("rows: 32 -> 32 (UNCHANGED); columns modified: mpg"))
+  expect_false(effect_is_noop("populated: real numbers present (12 of 20 non-empty cells)"))
+  expect_false(effect_is_noop(NULL))
+  expect_false(effect_is_noop(""))
+})
