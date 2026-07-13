@@ -36,7 +36,17 @@ new_data_tool <- function(x, datasets,
     prompt <- options(prompt = "> ")
     on.exit(options(prompt))
 
-    utils::capture.output(evaluate::replay(res))
+    out <- utils::capture.output(evaluate::replay(res))
+
+    # The model consumes the raw output (`value`); the chat widget renders a
+    # native tool card showing the probe that was run.
+    ellmer::ContentToolResult(
+      value = out,
+      extra = list(display = list(
+        title = "Explored data",
+        markdown = paste0("```r\n", code, "\n```")
+      ))
+    )
   }
 
   tool <- new_llm_tool(
@@ -47,6 +57,7 @@ new_data_tool <- function(x, datasets,
       max_probes, "times."
     ),
     name = "data_tool",
+    annotations = ellmer::tool_annotations(title = "Exploring data"),
     prompt = paste0(
       data_exploration_preamble(), "\n\n",
       "Use the \"data_tool\" to run R code that refers to datasets by name: ",

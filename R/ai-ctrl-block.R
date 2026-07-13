@@ -261,17 +261,19 @@ css_ai_ctrl <- function() {
         border-radius: 0;
         color: #7c3aed;
       }
-      .blockr-ctrl-body .shiny-chat-message:has(.blockr-ai-status-empty) {
-        display: none !important;
-      }
-      /* shinychat 0.4 shows a default pulsing dot while a response streams; we
-         already have our own Analyzing badge, so hide it in the message stream
-         (but keep any dot inside our own status badge). */
-      .blockr-ctrl-body .markdown-stream-dot {
-        display: none !important;
-      }
-      .blockr-ctrl-body .blockr-ai-status .markdown-stream-dot {
-        display: inline-block !important;
+      /* Native shinychat tool cards (the React runtime renders them as
+         div.shiny-tool-result > .shiny-tool-card), restyled to the compact,
+         quiet badge look the panel had before. The rendered DOM carries no
+         success/error marker, so per-status colouring needs a shinychat hook
+         and is left for a follow-up. */
+      .blockr-ctrl-body .shiny-tool-request .shiny-tool-card,
+      .blockr-ctrl-body .shiny-tool-result .shiny-tool-card {
+        font-size: 0.72rem;
+        border-radius: 6px;
+        border-color: #ececf0;
+        box-shadow: none;
+        margin-block: 2px;
+        color: var(--blockr-color-text-muted, #6b7280);
       }
       .blockr-report-wrapper {
         display: flex;
@@ -333,91 +335,6 @@ css_ai_ctrl <- function() {
       .blockr-skills-name { font-weight: 600; }
       .blockr-skills-desc { opacity: 0.8; }
       .blockr-skills-pop-hint { margin-top: 5px; opacity: 0.75; font-style: italic; }
-      .blockr-ai-status {
-        display: flex;
-        margin: 2px 0;
-      }
-      .blockr-ai-status:empty {
-        display: none;
-      }
-      .blockr-ai-status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 0.625rem;
-        padding: 2px 8px;
-        border-radius: 4px;
-        background-color: var(--blockr-grey-100, #f3f4f6);
-        border: 1px solid var(--blockr-color-border, #e5e7eb);
-        color: var(--blockr-color-text-muted, #6b7280);
-        white-space: nowrap;
-      }
-      .blockr-ai-status-icon {
-        display: inline-flex;
-        align-items: center;
-      }
-      .blockr-ai-status-badge .spinner-border {
-        width: 9px;
-        height: 9px;
-        border-width: 1.5px;
-        color: inherit;
-      }
-      .blockr-ai-status-badge.phase-thinking {
-        background-color: #f0fdfa; border-color: #99f6e4; color: #14b8a6;
-      }
-      .blockr-ai-status-badge.phase-exploring {
-        background-color: #eff6ff; border-color: #bfdbfe; color: #3b82f6;
-      }
-      .blockr-ai-status-badge.phase-validating {
-        background-color: #f5f3ff; border-color: #c4b5fd; color: #7c3aed;
-      }
-      .blockr-ai-status-badge.phase-confirming {
-        background-color: #f0fdf4; border-color: #bbf7d0; color: #22c55e;
-      }
-      .blockr-ai-status-badge.phase-retrying {
-        background-color: #fffbeb; border-color: #fde68a; color: #d97706;
-      }
-      /* stack of per-tool-call badges (one per call, option A) */
-      .blockr-ai-status-stack {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 3px;
-      }
-      /* the one-line summary appended after a badge label */
-      .blockr-ai-status-summary {
-        font-weight: 400;
-        opacity: 0.85;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 240px;
-      }
-      .blockr-ai-status-summary code {
-        font-size: 0.92em;
-        background: rgba(0, 0, 0, 0.05);
-        padding: 0 3px;
-        border-radius: 3px;
-      }
-      .blockr-ai-status-sep { opacity: 0.45; }
-      .blockr-ai-status-icon svg { display: block; }
-      /* completed badge: drop the colour wash, go quiet/grey, keep the trace */
-      .blockr-ai-status-badge.is-done {
-        background-color: #fff;
-        border-color: #ececf0;
-        color: #9ca3af;
-      }
-      .blockr-ai-status-badge.is-done .blockr-ai-status-summary code {
-        background: var(--blockr-grey-100, #f3f4f6);
-      }
-      .blockr-ai-status-badge.is-done .blockr-ai-status-icon { color: #22c55e; }
-      .blockr-ai-status-badge.is-done.is-error {
-        background-color: #fffbeb;
-        border-color: #fde68a;
-        color: #b45309;
-      }
-      .blockr-ai-status-badge.is-error .blockr-ai-status-icon { color: #d97706; }
-      .blockr-ai-status .markdown-stream-dot {
-        display: none;
-      }
       @keyframes sparkle-rotate {
         0%   { transform: rotate(0deg) scale(1); }
         25%  { transform: rotate(5deg) scale(1.1); }
@@ -688,12 +605,22 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
           list(role = m$role, content = m$content)
         })
       )
+      # The streaming path renders the reply (text + tool cards) into the chat
+      # as it arrives, so only append what did NOT stream: a "Done!" backstop
+      # when the model went straight to tool calls with no closing text, and
+      # hard failures (LLM errors never reach the widget).
+      streamed <- isTRUE(result$streamed)
       if (result$success) {
-        reply <- if (nzchar(result$message %||% "")) result$message else "Done!"
-        shinychat::chat_append("chat", reply, session = session)
+        if (!nzchar(result$message %||% "")) {
+          shinychat::chat_append("chat", "Done!", session = session)
+        } else if (!streamed) {
+          shinychat::chat_append("chat", result$message, session = session)
+        }
       } else if (!is.null(result$question)) {
         # LLM asked a clarifying question -- show it in chat
-        shinychat::chat_append("chat", result$question, session = session)
+        if (!streamed) {
+          shinychat::chat_append("chat", result$question, session = session)
+        }
       } else {
         shinychat::chat_append(
           "chat",

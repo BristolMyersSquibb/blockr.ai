@@ -1,6 +1,6 @@
 Package: blockr.ai
 Title: AI-Powered Blocks for 'blockr.core'
-Version: 0.0.11
+Version: 0.0.12
 Authors@R:
     c(person(given = "Nicolas",
              family = "Bennett",
@@ -29,7 +29,9 @@ Imports:
     htmltools,
     jsonlite,
     utils,
-    shinychat (>= 0.2.0.9000),
+    shinychat (>= 0.4.0),
+    coro,
+    S7,
     evaluate,
     yaml
 Suggests:

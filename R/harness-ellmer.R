@@ -141,13 +141,38 @@ new_validate_tool <- function(validate, block, data = NULL) {
     core_run(tryCatch(simplify_leaves(parsed), error = function(e) parsed))
   }
 
+  # Wrap the model-facing return value with shinychat display metadata: the
+  # model still sees the raw {ok, effect/error, ...} list (the `value`), while
+  # the chat widget renders a native tool card titled with the outcome and the
+  # one-line effect (or the validation error, stripped of the harness nudge).
+  display_wrap <- function(res) {
+    display <- if (isTRUE(res$ok)) {
+      effect <- res$effect %||% ""
+      list(
+        title = "Applied configuration",
+        markdown = if (nzchar(effect)) effect else "Configuration applied."
+      )
+    } else {
+      err <- strip_ansi(
+        sub("\n\\[harness\\].*$", "", res$error %||% "invalid configuration")
+      )
+      list(
+        title = "Configuration failed",
+        markdown = truncate_summary(err, 200L)
+      )
+    }
+    ellmer::ContentToolResult(value = res, extra = list(display = display))
+  }
+
   # Typed entry point: a function whose formals ARE the block's param names, so
   # ellmer can pass native structured arguments. Re-parse any JSON-string leaves
   # (the polymorphic-array fallbacks) before validating.
   typed_run <- if (use_typed) {
     build_arg_collector(names(types), function(args) {
-      core_run(tryCatch(simplify_leaves(reparse_json_strings(args)),
-                        error = function(e) args))
+      display_wrap(
+        core_run(tryCatch(simplify_leaves(reparse_json_strings(args)),
+                          error = function(e) args))
+      )
     })
   } else {
     NULL
@@ -164,8 +189,9 @@ new_validate_tool <- function(validate, block, data = NULL) {
   }
 
   tool <- new_llm_tool(
-    if (use_typed) typed_run else json_run,
+    if (use_typed) typed_run else function(config) display_wrap(json_run(config)),
     name = "validate_config",
+    annotations = ellmer::tool_annotations(title = "Applying configuration"),
     description = paste0(
       call_intro,
       "Returns {ok:true, effect, preview} when the configuration is VALID, or ",
@@ -297,6 +323,16 @@ summarize_probe_code <- function(code) {
   code <- paste(code, collapse = " ")
   code <- gsub("\\s+", " ", trimws(code))
   truncate_summary(code, 64L)
+}
+
+#' Strip ANSI SGR escape codes from a string.
+#'
+#' httr2/cli decorate error messages (e.g. the HTTP 400 body) with terminal
+#' colour codes, which render as tofu when the message lands in the chat
+#' widget or the run log.
+#' @noRd
+strip_ansi <- function(x) {
+  gsub("\033\\[[0-9;]*m", "", x)
 }
 
 #' Truncate a summary string with an ellipsis.
@@ -488,9 +524,17 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   }
   client$set_tools(tools)
 
-  # Surface every tool call as a reporter badge (the client is reused across
-  # turns, so unregister on exit to avoid stacking callbacks on a stale reporter).
-  unregister_reporter <- register_tool_reporter(client, reporter)
+  # Live-board path: the reporter carries a shinychat sink, and the turn is
+  # rendered natively by streaming ellmer content into the widget (tool cards
+  # included) -- no reporter callbacks needed. Console/silent reporters keep
+  # the callback wiring (the client is reused across turns, so unregister on
+  # exit to avoid stacking callbacks on a stale reporter).
+  chat_sink <- reporter$chat_sink
+  unregister_reporter <- if (is.null(chat_sink)) {
+    register_tool_reporter(client, reporter)
+  } else {
+    function() invisible()
+  }
   on.exit(unregister_reporter(), add = TRUE)
 
   # Send the full data schema on the first turn, and again whenever the upstream
@@ -526,13 +570,16 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
 
   do_chat <- function(message_text, with_images = FALSE) {
     tryCatch({
+      inputs <- list(message_text)
       if (with_images && !is.null(images) && length(images) > 0) {
-        img_contents <- lapply(images, function(img) {
+        inputs <- c(inputs, lapply(images, function(img) {
           ellmer::ContentImageInline(type = img$type, data = img$data)
-        })
-        do.call(client$chat, c(list(message_text), img_contents))
+        }))
+      }
+      if (!is.null(chat_sink)) {
+        chat_with_cards(client, inputs, chat_sink$id, chat_sink$session)
       } else {
-        client$chat(message_text)
+        do.call(client$chat, inputs)
       }
     }, error = function(e) e)
   }
@@ -583,11 +630,12 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
   n_probes <- if (!is.null(data_tool)) data_tool$probes_used() else NULL
 
   if (inherits(reply, "error")) {
-    err <- paste0("LLM error: ", conditionMessage(reply))
+    err <- paste0("LLM error: ", strip_ansi(conditionMessage(reply)))
     message("[discover] ", err)
     reporter$done(FALSE, err)
     res <- list(success = FALSE, args = NULL, conversation = conversation,
-                result = NULL, error = err, client = client)
+                result = NULL, error = err, client = client,
+                streamed = !is.null(chat_sink))
     log_discover_run(block_name, prompt, res, nudges = nudges, probes = n_probes)
     return(res)
   }
@@ -637,7 +685,10 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
         (if (!nzchar(reply_text)) "Model did not produce a valid configuration" else NULL)
     },
     question = if (!success && nzchar(reply_text)) reply_text else NULL,
-    client = client
+    client = client,
+    # TRUE when the reply (text + tool cards) was already rendered into the
+    # chat widget by the streaming path -- callers must not append it again.
+    streamed = !is.null(chat_sink)
   )
   log_discover_run(block_name, prompt, res, nudges = nudges, probes = n_probes)
   res

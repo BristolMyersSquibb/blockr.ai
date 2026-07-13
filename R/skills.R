@@ -313,6 +313,7 @@ new_skill_tools <- function(skills) {
     new_llm_tool(
       read_skill,
       name = "read_skill",
+      annotations = ellmer::tool_annotations(title = "Reading skill"),
       description = paste(
         "Read a skill's full guidance by name. Use when the request touches a",
         "skill listed in the catalog."
@@ -324,6 +325,7 @@ new_skill_tools <- function(skills) {
     new_llm_tool(
       read_skill_file,
       name = "read_skill_file",
+      annotations = ellmer::tool_annotations(title = "Reading skill file"),
       description = paste(
         "Read a file bundled with a skill (e.g. a template). Paths are relative",
         "to the skill directory."
