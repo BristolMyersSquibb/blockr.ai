@@ -483,6 +483,17 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
     # Gate controls downstream evaluation
     gate <- reactiveVal(TRUE)
 
+    # Last good input snapshot. Under deferred evaluation (dock 304+),
+    # `data()` is gated by an upstream-visibility req(): once the upstream
+    # block's view is hidden, pulling it throws shiny.silent.error even
+    # though it evaluated fine before. The block's own UI survives this by
+    # funnelling `data()` through a reactiveVal that keeps the last value --
+    # do the same here, so the assistant can answer about the data the user
+    # is looking at. The observer fails silently while the gate is closed
+    # and refreshes the cache whenever the input is pullable again.
+    r_last_data <- reactiveVal(NULL)
+    observe(r_last_data(data()))
+
     # Persistent client -- created on first prompt, reused for conversation memory
     client <- NULL
 
@@ -537,7 +548,28 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         chatId = session$ns("chat"), working = FALSE
       )), add = TRUE)
 
-      dat_snapshot <- shiny::isolate(data())
+      # Pulling the upstream result can fail with a shiny.silent.error: under
+      # deferred evaluation (dock 304+), an upstream block on a hidden view is
+      # gated by a visibility req(), and observeEvent swallows silent errors --
+      # the user would see the chat's loading dots forever, with no tools and
+      # no error. Fall back to the cached snapshot (what the block itself is
+      # showing); only give up when the upstream never produced data at all.
+      dat_snapshot <- tryCatch(shiny::isolate(data()), error = function(e) NULL)
+      if (is.null(dat_snapshot)) {
+        dat_snapshot <- shiny::isolate(r_last_data())
+      }
+      if (is.null(dat_snapshot)) {
+        shinychat::chat_append(
+          "chat",
+          paste0(
+            "I can't reach this block's input data -- its upstream block ",
+            "hasn't produced a result yet. Make sure the upstream block has ",
+            "run (open its view once), then ask again."
+          ),
+          session = session
+        )
+        return()
+      }
       input_data <- if (inherits(dat_snapshot, "dm")) {
         dat_snapshot
       } else if (is.list(dat_snapshot) && !is.data.frame(dat_snapshot) &&
