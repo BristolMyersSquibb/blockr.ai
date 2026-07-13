@@ -66,10 +66,16 @@ block_param_types <- function(block) {
 #' type via `ellmer::type_from_schema()`. The descriptor is serialised to JSON
 #' text (the form `type_from_schema()` consumes); `desc` is attached and the
 #' field is marked optional so the model may omit it (partial configs are valid).
+#'
+#' The descriptor is strictified first: ellmer sends `type_from_schema()` JSON
+#' to the provider VERBATIM (unlike its native types, which it rewrites for
+#' OpenAI strict mode), and OpenAI rejects any object schema whose `required`
+#' does not list every property. See [strictify_schema()].
 #' @noRd
 ellmer_type_from_descriptor <- function(descriptor, desc = "") {
   json <- as.character(
-    jsonlite::toJSON(descriptor, auto_unbox = TRUE, null = "null")
+    jsonlite::toJSON(strictify_schema(descriptor), auto_unbox = TRUE,
+                     null = "null")
   )
   type <- ellmer::type_from_schema(text = json)
   type@required <- FALSE
@@ -77,6 +83,44 @@ ellmer_type_from_descriptor <- function(descriptor, desc = "") {
     type@description <- desc
   }
   type
+}
+
+#' Rewrite a JSON-Schema-subset descriptor for OpenAI strict mode.
+#'
+#' Strict function calling requires every object's `required` array to list
+#' EVERY property; optionality is expressed by making the property's type
+#' nullable instead. ellmer applies this rewrite to its native types but sends
+#' `type_from_schema()` JSON verbatim, so declared block descriptors (core's
+#' `arg_*()` specs, e.g. filter `conditions` / summarize `summaries` records
+#' with genuinely optional fields) 400 without it. Mirrors ellmer's own
+#' transform: originally-optional properties get `"null"` added to their type
+#' (and to their enum, when present); `required` is expanded to all keys.
+#' @noRd
+strictify_schema <- function(x) {
+  if (!is.list(x)) {
+    return(x)
+  }
+  if (identical(x$type, "object") && length(x$properties)) {
+    optional <- setdiff(names(x$properties), unlist(x$required))
+    x$properties <- lapply(
+      stats::setNames(nm = names(x$properties)),
+      function(nm) {
+        p <- strictify_schema(x$properties[[nm]])
+        if (nm %in% optional && !is.null(p$type) && !"null" %in% p$type) {
+          p$type <- c(unlist(p$type), "null")
+          if (!is.null(p$enum)) {
+            p$enum <- c(p$enum, list(NULL))
+          }
+        }
+        p
+      }
+    )
+    x$required <- as.list(names(x$properties))
+    x$additionalProperties <- FALSE
+  } else if (identical(x$type, "array") && is.list(x$items)) {
+    x$items <- strictify_schema(x$items)
+  }
+  x
 }
 
 #' @noRd
@@ -173,6 +217,22 @@ build_arg_collector <- function(arg_names, handler) {
     rep(list(NULL), length(arg_names)), arg_names
   )
   collector
+}
+
+#' Drop NULL leaves from nested argument lists.
+#'
+#' Strict-mode nullable fields (see [strictify_schema()]) make the model send
+#' explicit `null` for unused record members (e.g. `expr` in a "simple"
+#' summary); ellmer converts those to `NULL`s inside the parsed lists. Blocks
+#' expect absent members, not NULL ones -- prune them. Top-level NULLs are
+#' already dropped by [build_arg_collector()].
+#' @noRd
+drop_null_leaves <- function(x) {
+  if (!is.list(x)) {
+    return(x)
+  }
+  x <- lapply(x, drop_null_leaves)
+  x[!vapply(x, is.null, logical(1))]
 }
 
 #' Re-parse JSON-string leaves back into R lists (for the polymorphic-array

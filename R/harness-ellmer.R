@@ -170,8 +170,10 @@ new_validate_tool <- function(validate, block, data = NULL) {
   typed_run <- if (use_typed) {
     build_arg_collector(names(types), function(args) {
       display_wrap(
-        core_run(tryCatch(simplify_leaves(reparse_json_strings(args)),
-                          error = function(e) args))
+        core_run(tryCatch(
+          simplify_leaves(reparse_json_strings(drop_null_leaves(args))),
+          error = function(e) args
+        ))
       )
     })
   } else {
