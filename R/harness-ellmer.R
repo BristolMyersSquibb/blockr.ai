@@ -294,6 +294,17 @@ build_tool_system_prompt <- function(var_names, block,
     "- 'Adjust / populate / configure / set this to the data' is an ACTION, not ",
     "a question: explore with `data_tool` if needed, then call `validate_config`. ",
     "Do not answer it in plain language and stop.\n",
+    # The one exception, and it needs saying HERE rather than only in the
+    # block's guidance above: this section is later in the prompt, so without
+    # this carve-out the "always configure" rule overrides a block that has
+    # declared the request out of scope, and the model applies the nearest
+    # approximation instead -- silently answering a different question.
+    "- EXCEPTION: if this block's guidance above says the request is OUT OF ",
+    "SCOPE for this block, that beats every instruction in this section. Do ",
+    "NOT call `validate_config`, and do NOT apply the closest approximation ",
+    "with a caveat -- a near-miss config reads as an answer to what was ",
+    "asked. Reply in plain text saying what this block does instead, and ",
+    "name the block the guidance points to, if it names one.\n",
     "- Use `data_tool` to run R against the input data when ",
     "you need to inspect columns, types, value ranges or unique levels. Use ",
     "`validate_config` to apply a configuration; it returns ok + the EFFECT on ",
@@ -517,6 +528,23 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     }
     client$set_system_prompt(system_prompt)
     log_msg("system", system_prompt)
+  } else if (is.null(client$get_system_prompt())) {
+    # A supplied client is meant to be one WE built and set a prompt on -- the
+    # live board reuses it across turns for conversation memory, which is the
+    # only reason the branch above is conditional. A supplied client with no
+    # system prompt means nobody ever set one, so the model would run with no
+    # block description, no registry guidance, no data-exploration rules and
+    # no HOW TO WORK -- and still answer plausibly, which is the dangerous
+    # part. It silently invalidated every eval that built its own client.
+    # Fail loudly instead of quietly measuring a prompt-less model.
+    stop(
+      "`client` was supplied without a system prompt, so the model would run ",
+      "with no block guidance at all. The system prompt is only built when ",
+      "`client` is NULL. Either omit `client` (and select the model with ",
+      "`options(blockr.ai_model = \"...\")`), or set the prompt yourself with ",
+      "`client$set_system_prompt(...)` before passing it in.",
+      call. = FALSE
+    )
   }
 
   tools <- list(get_tool(validate_tool))
@@ -610,7 +638,9 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
         "user sees no change. If you have a configuration ready, call ",
         "validate_config NOW with it (fix and retry if it errors). Reply in plain ",
         "text ONLY to ask one specific clarifying question, or to say the block ",
-        "genuinely cannot do this."
+        "genuinely cannot do this -- and if it cannot, say WHY in your own ",
+        "words and name a better-suited block if this block's guidance points ",
+        "to one. Do not just repeat this sentence back."
       )
     } else {
       paste0(

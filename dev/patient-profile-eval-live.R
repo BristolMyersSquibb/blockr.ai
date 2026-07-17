@@ -1,5 +1,4 @@
-# LIVE eval of the PATIENT PROFILE / patient builder block (blockr.pharma) on
-# gpt-5.1. Class C (clinical quality) + Class D (observability: result is the dm
+# LIVE eval of the PATIENT PROFILE / patient builder block (blockr.pharma). Class C (clinical quality) + Class D (observability: result is the dm
 # passed through; the real artifact is the CONFIG -- `selected` viz IDs +
 # viz_settings). So we score res$args (config-correctness vs the clinical ask),
 # NOT data_effect. Input: a single-patient safetyData ADaM dm (the CDISC
@@ -13,7 +12,16 @@ suppressMessages({
   pkgload::load_all("/workspace/blockr.pharma", quiet = TRUE)
   pkgload::load_all("/workspace/blockr.ai", quiet = TRUE)
 })
-MODEL <- "gpt-5.1"
+MODEL <- "gpt-5.4"
+# Do NOT build a client here and pass it to discover_block_args(): the system
+# prompt is only assembled when `client` is NULL, so a hand-built client ran
+# the model with NO block guidance at all and this eval silently measured
+# nothing. discover_via_ellmer_tools() now errors on that; select the model
+# with the option instead and let the harness build the client.
+options(blockr.ai_model = MODEL)
+# The AI probes data through blockr.core::eval_env(), which attaches nothing
+# beyond base unless this is set. Prod sets it (blockr.sandbox/app.R).
+options(blockr.attach_default_packages = TRUE)
 `%||%` <- function(a, b) if (is.null(a) || (length(a) == 1 && !nzchar(as.character(a)))) b else a
 
 # --- single-patient dm from the safetyData ADaM universe --------------------
@@ -24,6 +32,10 @@ ae_ids <- unique(tbls$adae$USUBJID)
 one <- ae_ids[1]
 keep <- c("adsl", "adae", "adlbc", "adlbh", "advs", "adqsadas", "adqsnpix")
 filt <- lapply(tbls[keep], function(t) if ("USUBJID" %in% names(t)) t[t$USUBJID == one, , drop = FALSE] else t)
+# safetyData ships no ACTARM and the block now requires an arm (board option
+# or ACTARM), so every case failed 0/6 on the arm error alone -- nothing to do
+# with the model. TRT01A is this study's arm.
+filt$adsl$ACTARM <- filt$adsl$TRT01A
 pp_dm <- do.call(dm::dm, filt)
 cat("single-patient dm:", one, "| adae rows:", nrow(filt$adae),
     "| adlbc PARAMCDs:", length(unique(filt$adlbc$PARAMCD)), "\n\n")
@@ -38,12 +50,11 @@ cases <- list(
   list(ask = "Check this patient's electrolyte balance (sodium, potassium).",      want = c("electrolytes"))
 )
 
-cat("================= PATIENT PROFILE EVAL (gpt-5.1) =================\n")
+cat("================= PATIENT PROFILE EVAL (", MODEL, ") =================\n")
 for (i in seq_along(cases)) {
   cs <- cases[[i]]
   blk <- new_patient_profile_block()
-  client <- ellmer::chat_openai(model = MODEL, echo = "none")
-  res <- tryCatch(discover_block_args(prompt = cs$ask, block = blk, data = pp_dm, client = client),
+  res <- tryCatch(discover_block_args(prompt = cs$ask, block = blk, data = pp_dm),
                   error = function(e) list(success = FALSE, error = conditionMessage(e)))
   sel <- unlist(res$args$selected %||% character())
   hit <- cs$want[cs$want %in% sel]
