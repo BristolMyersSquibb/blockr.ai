@@ -89,6 +89,18 @@ data_exploration_preamble <- function() {
     "the input data before answering. Use it to inspect column names, data ",
     "types, value ranges, unique levels, or anything else you need to ",
     "understand the data well enough to configure this block correctly.\n\n",
+    # The probe env (blockr.core::eval_env) parents to baseenv(), or to base +
+    # stats/utils/... when blockr.attach_default_packages is on. NOTHING is
+    # attached beyond that, so `%>%` never resolves and an unqualified
+    # dplyr call never resolves -- but `dplyr::` does, from any environment.
+    # Unsaid, the model writes magrittr pipes, burns its probe budget on
+    # "could not find function" and gives up on answerable questions. Same
+    # rule blockr.extra states for the function block; keep them in sync.
+    "R coding rules: always use the base pipe |> (never %>%, which is not ",
+    "available here). Namespace-prefix all functions except base and stats ",
+    "(e.g. dplyr::bind_rows(), dplyr::filter(), stringr::str_detect()). ",
+    "Unprefixed dplyr/tidyverse calls will fail with \"could not find ",
+    "function\".\n\n",
     "If the 5-row preview already contains the information you need, go ahead ",
     "and answer directly -- exploration is not required for every task.\n\n",
     "IMPORTANT: keep probes SMALL and TARGETED. Query only the specific ",
