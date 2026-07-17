@@ -7,24 +7,19 @@
 reporter_shiny(chat_id, session)
 }
 \arguments{
-\item{chat_id}{The shinychat chat widget ID (namespaced)}
+\item{chat_id}{The shinychat chat widget ID (unnamespaced)}
 
 \item{session}{The Shiny session}
 }
 \value{
-A reporter list
+A reporter list with a \code{chat_sink} entry
 }
 \description{
-Uses shinychat's chunk protocol to show live progress in the chat widget.
-Opens a single streaming assistant message and maintains an ordered \emph{stack}
-of badges: a transient "Analyzing" badge while the model reasons, plus one
-content-rich badge per tool call (appended as each call fires -- option A).
-Each tool badge shows the tool's action and a one-line summary (the R snippet
-it ran, or the effect a config had). When the turn finishes the transient
-phase badges are dropped and the tool-call trace is left persisted in the
-transcript as a record of what the AI did.
-}
-\details{
-To switch to a single rolling badge (option B) instead of a stack, keep only
-the most recent tool item in \code{upsert()} -- the event plumbing is identical.
+Marker reporter for the live-board path. It carries the shinychat widget
+identity (\verb{$chat_sink}) so the harness renders the turn natively: the
+tool cards and reply text of each exchange are rendered live into the
+widget by \code{chat_with_cards()}, using shinychat's own tool-card UI. All
+phase/tool callbacks are
+therefore no-ops; per-tool display is defined where the tools are built
+(see \code{extra$display} in \code{new_data_tool()} / \code{new_validate_tool()}).
 }

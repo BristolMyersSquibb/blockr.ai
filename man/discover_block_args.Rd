@@ -48,6 +48,10 @@ List with:
 \item{success}{TRUE if args were discovered successfully}
 \item{args}{List of discovered arguments}
 \item{result}{The resulting object: data.frame, dm, ggplot, etc. (if successful)}
+\item{effect}{What the applied config changed (see \code{\link[=data_effect]{data_effect()}}); NULL
+unless successful}
+\item{noop}{TRUE when a config was applied but its effect was a no-op --
+success alone does not mean the config did anything}
 \item{error}{Error message (if failed)}
 \item{conversation}{List of message exchanges (if verbose)}
 \item{client}{The ellmer chat client (R6). Pass to subsequent calls to
