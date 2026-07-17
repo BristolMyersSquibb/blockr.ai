@@ -30,8 +30,6 @@ Imports:
     jsonlite,
     utils,
     shinychat (>= 0.4.0),
-    coro,
-    S7,
     evaluate,
     yaml
 Suggests:
