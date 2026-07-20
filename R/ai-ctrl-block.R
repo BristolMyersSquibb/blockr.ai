@@ -491,8 +491,19 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
     # do the same here, so the assistant can answer about the data the user
     # is looking at. The observer fails silently while the gate is closed
     # and refreshes the cache whenever the input is pullable again.
+    # Deferred to first use, NOT eager: pulling `data()` forces blockr.core's
+    # data validation, and while the upstream is still behind its visibility
+    # req() core captures that silent error as a block condition -- surfacing
+    # as an EMPTY red error band (message "") plus a false error status on
+    # every block carrying a `dat_valid`, i.e. all the blockr.viz renderers.
+    # The cache only has to be warm by the time the submit handler below falls
+    # back to it, so gating on first engagement keeps its purpose (surviving a
+    # later hidden-upstream window) without tripping that at startup.
     r_last_data <- reactiveVal(NULL)
-    observe(r_last_data(data()))
+    observe({
+      req(!is.null(input$submit))
+      r_last_data(data())
+    })
 
     # Persistent client -- created on first prompt, reused for conversation memory
     client <- NULL
