@@ -462,6 +462,70 @@ css_ai_ctrl <- function() {
 }
 
 
+#' Normalize what shinychat hands us as the submitted message.
+#'
+#' We read `input$<id>_user_input` directly rather than through
+#' `shinychat::chat_mod_server()`, so the wire shape is ours to keep up with.
+#' shinychat's `shinychat.userInput` handler (`user_input_contents()`) can
+#' hand back three different things:
+#'
+#' * a character scalar -- what the browser sent up to shinychat `e74ed26`,
+#'   which put a bare string on the wire whenever attachments were off;
+#' * an UNNAMED list of ellmer `Content` objects and/or plain strings -- from
+#'   shinychat `ad7d568` ("make the browser the source of truth for chat
+#'   messages", posit-dev/shinychat#272) on, where `sendInput()` always sends
+#'   `{text, attachments, seq}`, so the handler always takes its contents
+#'   branch even with attachments disabled;
+#' * a named `list(text=, images=)` -- the shape this block was written
+#'   against.
+#'
+#' The middle one is why this is a function and not two lines: reading `$text`
+#' off an unnamed list yields `NULL`, the submit handler treats that as an
+#' empty prompt and returns, and the user is left watching the typing dots
+#' forever with nothing in the log. Fail visibly, never silently.
+#'
+#' @param raw The raw `input$<id>_user_input` value.
+#' @return `list(prompt = <character scalar>, images = <list or NULL>)`, where
+#'   `images` holds whatever non-text content came along (ellmer `Content`
+#'   objects from the new shape, `list(type=, data=)` records from the old).
+#' @noRd
+parse_chat_user_input <- function(raw) {
+
+  empty <- list(prompt = "", images = NULL)
+
+  if (is.null(raw)) {
+    return(empty)
+  }
+
+  if (is.character(raw)) {
+    return(list(prompt = paste(raw, collapse = "\n"), images = NULL))
+  }
+
+  if (!is.list(raw)) {
+    return(empty)
+  }
+
+  # Named shape: {text, images}.
+  if (!is.null(raw[["text"]]) || !is.null(raw[["images"]])) {
+    return(list(prompt = raw[["text"]] %||% "", images = raw[["images"]]))
+  }
+
+  # Contents shape: strings and/or ellmer Content objects, unnamed.
+  is_text <- vapply(
+    raw,
+    function(el) is.character(el) || inherits(el, "ellmer::ContentText"),
+    logical(1)
+  )
+  text <- unlist(lapply(raw[is_text], function(el) {
+    if (is.character(el)) el else el@text
+  }))
+
+  list(
+    prompt = paste(text %||% character(), collapse = "\n"),
+    images = if (any(!is_text)) unname(raw[!is_text])
+  )
+}
+
 #' @param vars Reactive state values (pre-filtered to externally controllable vars)
 #' @param data Input data as list of reactive values
 #' @param eval Reactive that evaluates block expression against input data
@@ -538,14 +602,9 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
     })
 
     observeEvent(input$chat_user_input, {
-      raw_input <- input$chat_user_input
-      if (is.list(raw_input)) {
-        prompt <- raw_input$text %||% ""
-        images <- raw_input$images
-      } else {
-        prompt <- raw_input
-        images <- NULL
-      }
+      parsed <- parse_chat_user_input(input$chat_user_input)
+      prompt <- parsed$prompt
+      images <- parsed$images
       if (is.null(prompt) || (nchar(trimws(prompt)) == 0 &&
           (is.null(images) || length(images) == 0))) return()
 

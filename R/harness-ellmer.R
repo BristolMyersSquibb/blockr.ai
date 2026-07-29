@@ -609,8 +609,15 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     tryCatch({
       inputs <- list(message_text)
       if (with_images && !is.null(images) && length(images) > 0) {
+        # Attachments arrive already built as ellmer content from shinychat
+        # ad7d568 on (its input handler runs `contents_from_attachments()`);
+        # older shinychat and non-Shiny callers pass `list(type=, data=)`.
         inputs <- c(inputs, lapply(images, function(img) {
-          ellmer::ContentImageInline(type = img$type, data = img$data)
+          if (inherits(img, "ellmer::Content")) {
+            img
+          } else {
+            ellmer::ContentImageInline(type = img$type, data = img$data)
+          }
         }))
       }
       if (!is.null(chat_sink)) {
