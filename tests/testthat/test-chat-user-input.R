@@ -86,3 +86,50 @@ test_that("a submitted prompt reaches the harness through the observer", {
     )
   )
 })
+
+test_that("the chat input accepts attachments", {
+  # Clipboard paste, drag-and-drop and the attach button all hang off the
+  # client's upload flag, which starts OFF and is otherwise only turned on by
+  # `chat_server()` -- which this block does not use. Losing this attribute
+  # silently disables pasting a screenshot into the sparkle chat.
+  skip_if_not_installed("blockr.dplyr")
+
+  html <- as.character(ai_ctrl_ui("ai", blockr.dplyr::new_select_block()))
+
+  expect_match(html, "allow-attachments")
+})
+
+test_that("an attachments-only submit still carries a task", {
+  # Paste an image, press Enter, type nothing: the prompt is empty but the
+  # message must not be, or the model gets a "# Task" heading with nothing
+  # under it.
+  skip_if_not_installed("blockr.dplyr")
+  skip_if_not_installed("ellmer")
+
+  seen <- NULL
+  seen_images <- NULL
+  local_mocked_bindings(
+    discover_block_args = function(prompt, ..., images = NULL) {
+      seen <<- prompt
+      seen_images <<- images
+      list(success = TRUE, message = "ok", streamed = TRUE)
+    }
+  )
+
+  img <- ellmer::ContentImageInline(type = "image/png", data = "abc")
+  block <- blockr.dplyr::new_select_block()
+  shiny::testServer(
+    ai_ctrl_server,
+    {
+      session$setInputs(chat_user_input = list(img))
+      expect_true(nzchar(trimws(seen)))
+      expect_length(seen_images, 1L)
+    },
+    args = list(
+      x = block,
+      vars = list(columns = shiny::reactiveVal(character())),
+      data = shiny::reactive(iris),
+      eval = shiny::reactive(iris)
+    )
+  )
+})

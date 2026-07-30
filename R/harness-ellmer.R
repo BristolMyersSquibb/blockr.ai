@@ -603,7 +603,14 @@ discover_via_ellmer_tools <- function(prompt, block, data = NULL,
     "# Task\n\n", prompt
   )
   log_msg("user", msg)
-  message("[discover] ", block_name, " | harness: ellmer | prompt: ", prompt)
+  # Truncated: a pasted text attachment arrives folded into `prompt` (shinychat
+  # turns any paste over 1000 chars into a text/plain attachment), and dumping
+  # tens of kB into the app log per turn buries everything else. The full text
+  # still goes to the model and into the downloadable report.
+  message(
+    "[discover] ", block_name, " | harness: ellmer | prompt: ",
+    truncate_summary(prompt, 200L)
+  )
 
   do_chat <- function(message_text, with_images = FALSE) {
     tryCatch({

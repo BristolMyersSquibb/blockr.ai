@@ -79,7 +79,15 @@ ai_ctrl_ui <- structure(
         placeholder = "Describe what you want...",
         width = "100%",
         height = "auto",
-        icon_assistant = sparkle_icon(16)
+        icon_assistant = sparkle_icon(16),
+        # Attach button, clipboard paste and drag-and-drop. This must be set
+        # explicitly here: the client's upload affordance starts OFF and is
+        # otherwise only enabled by an `update_upload` action from
+        # shinychat::chat_server(), which this block does not use (it reads
+        # `input$chat_user_input` itself). Without it, pasting a screenshot
+        # into the sparkle chat silently does nothing, while blockr.assistant
+        # -- which mounts through chat_mod_server() -- accepts it.
+        allow_attachments = TRUE
       ),
       tags$div(
         style = "padding: 4px 0;",
@@ -607,6 +615,14 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
       images <- parsed$images
       if (is.null(prompt) || (nchar(trimws(prompt)) == 0 &&
           (is.null(images) || length(images) == 0))) return()
+
+      # Attachments-only submit -- pasting a screenshot and hitting Enter with
+      # no typed text. The harness would otherwise send a "# Task" section with
+      # nothing under it, leaving the model to guess that the image IS the
+      # request; say so instead.
+      if (nchar(trimws(prompt)) == 0) {
+        prompt <- "Configure this block based on the attached file(s)."
+      }
 
       gate(FALSE)
       on.exit(gate(TRUE))
