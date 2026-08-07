@@ -32,6 +32,7 @@ Add the AI chat interface to any board:
 
 ```r
 library(blockr.core)
+library(blockr.dplyr)
 library(blockr.ai)
 
 serve(
