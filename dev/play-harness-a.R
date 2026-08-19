@@ -36,7 +36,7 @@ serve(
   new_dock_board(
     blocks = c(
       mtcars_data = new_dataset_block("mtcars"),
-      code        = new_code_block(fn = "function(data) { data }"),
+      code        = new_function_block(fn = "function(data) { data }"),
       filter      = new_filter_block(),
       select      = new_select_block(columns = c("mpg", "cyl", "hp")),
       slice       = new_slice_block(type = "head", n = 10)

@@ -27,7 +27,7 @@ eval_cases <- function() {
   list(
     list(
       id = "code_head3",
-      make_block = function() blockr.extra::new_code_block(),
+      make_block = function() blockr.extra::new_function_block(),
       data = iris,
       prompt = "return only the first 3 rows",
       grade = function(df) is.data.frame(df) && nrow(df) == 3L,
@@ -35,7 +35,7 @@ eval_cases <- function() {
     ),
     list(
       id = "code_filter_cyl4",
-      make_block = function() blockr.extra::new_code_block(),
+      make_block = function() blockr.extra::new_function_block(),
       data = mtcars,
       prompt = "keep only the cars with 4 cylinders",
       grade = function(df) {
@@ -46,7 +46,7 @@ eval_cases <- function() {
     ),
     list(
       id = "code_add_ratio",
-      make_block = function() blockr.extra::new_code_block(),
+      make_block = function() blockr.extra::new_function_block(),
       data = iris,
       prompt = "add a column called ratio equal to Sepal.Length divided by Sepal.Width",
       grade = function(df) {
@@ -68,7 +68,7 @@ eval_cases <- function() {
     ),
     list(
       id = "code_group_mean",
-      make_block = function() blockr.extra::new_code_block(),
+      make_block = function() blockr.extra::new_function_block(),
       data = iris,
       prompt = "average Sepal.Length by Species",
       grade = function(df) {
@@ -79,7 +79,7 @@ eval_cases <- function() {
     ),
     list(
       id = "code_gmail_substring",
-      make_block = function() blockr.extra::new_code_block(),
+      make_block = function() blockr.extra::new_function_block(),
       data = emails_df(),
       prompt = "keep only rows whose email address is a gmail.com address",
       grade = function(df) {

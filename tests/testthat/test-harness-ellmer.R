@@ -272,7 +272,7 @@ skip_live <- function() {
 test_that("ellmer harness (live): configures the code block (freeform R)", {
   skip_live()
 
-  blk <- blockr.extra::new_code_block()
+  blk <- blockr.extra::new_function_block()
   res <- discover_block_args(
     prompt = "return only the first 3 rows",
     block = blk,
