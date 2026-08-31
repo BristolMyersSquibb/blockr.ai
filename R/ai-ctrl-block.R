@@ -427,18 +427,24 @@ css_ai_ctrl <- function() {
     // panel mutation fires, so a cheap poll catches newly-appeared buttons (and
     // attaches their observer); blockrEnsureArrow is a no-op once correct.
     setInterval(blockrSwapSendIcon, 400);
+    // Observe documentElement, not body: this script sits in the page head, so
+    // it runs while body is still null. documentElement exists during head
+    // parsing and subtree: true sees every later insertion just the same.
     new MutationObserver(function(mutations) {
       blockrSwapSendIcon();
       mutations.forEach(function(m) {
         m.addedNodes.forEach(function(node) {
           if (node.nodeType !== 1) return;
-          var ta = node.matches && node.matches('.blockr-ctrl-body .shiny-chat-input textarea')
+          // shinychat's input used to be a textarea and is now a tiptap
+          // contenteditable, so match both.
+          var sel = '.blockr-ctrl-body .shiny-chat-input textarea, .blockr-ctrl-body .shiny-chat-input .ProseMirror';
+          var ta = node.matches && node.matches(sel)
             ? node
-            : node.querySelector && node.querySelector('.blockr-ctrl-body .shiny-chat-input textarea');
+            : node.querySelector && node.querySelector(sel);
           if (ta) setTimeout(function() { ta.focus(); blockrSwapSendIcon(); }, 100);
         });
       });
-    }).observe(document.body, { childList: true, subtree: true });
+    }).observe(document.documentElement, { childList: true, subtree: true });
     Shiny.addCustomMessageHandler('blockr-ai-working', function(data) {
       var container = document.getElementById(data.chatId);
       if (!container) return;
