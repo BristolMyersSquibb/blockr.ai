@@ -62,10 +62,10 @@ api_doc      <- paste0(slurp(DOC_BASE), "\n\n", slurp(DOC_COMP))
 schema_dump  <- data_preview(wide_dm)                 # per-turn schema block
 demog_fn     <- slurp(textConnection(paste0(
   'function(data) {\n  adsl <- data$adsl\n  composer::table(\n    title = "Demographics",\n',
-  '    data = adsl,\n    denominator = composer::make_denom(adsl, pop = "SAFFL", trt = "TRT01A")\n  ) |>\n',
+  '    data = adsl,\n    denominator = composer::make_denom(adsl, "SAFFL == \'Y\'", "Safety Analysis Set")\n  ) |>\n',
   '    composer::colgroup(composer::by(variable = "TRT01A", levels = sort(unique(adsl$TRT01A)))) |>\n',
   '    composer::block_continuous(label = "Age", variable = "AGE", statistic = c("{N:xxx}","{mean:xx.x}")) |>\n',
-  '    composer::compose() -> t\n  t$formatted_table\n}')))
+  '    composer::compose()\n}')))
 state_block  <- format_current_state(list(fn = demog_fn))
 task_block   <- "# Task\n\nUse TRT02A instead"
 

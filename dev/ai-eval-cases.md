@@ -57,7 +57,9 @@ The cases split into three distinct problems; one fix does not solve all.
 - **Cases (template → ADaM dm adjustment):** user picks a template
   (`composer_template_fn(id)`), asks "adjust to the connected data". Must pick
   the right table, map treatment var/levels (adae `TRTA` vs adsl `TRT01A` →
-  `make_denom(adsl, trt="TRT01A", as="TRTA")`), wire `data=`+`denominator=` to
+  carry the column onto the denominator's frame, `adsl$TRTA <- adsl$TRT01A`;
+  composer 2.3.0 deprecated the `as=` alias that used to do it), wire
+  `data=`+`denominator=` to
   populate, and ADAPT absent columns. Pilot ids: teae, demographics (drop absent
   REGION block), disposition (EOSSTT→DCDECOD), lab/biomarker (block_summary),
   serious_ae (AESER filter), ui_multiselect (`arms=list(...)`), cm (no adcm →
