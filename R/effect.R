@@ -212,3 +212,22 @@ effect_primary_df <- function(input) {
   }
   NULL
 }
+
+
+#' Does an effect string indicate the config did nothing meaningful?
+#'
+#' Matches the explicit signals only -- a data.frame that changed no rows or
+#' columns, a table still showing format placeholders ("not populated"), or a
+#' result a [data_effect()] method marked "DEGENERATE" (computed but semantically
+#' empty, e.g. every value zero). Type-owning packages opt results into the noop
+#' nudge by putting one of these markers -- typically "DEGENERATE" -- in their
+#' effect string, ideally with a "hint:" naming the likely cause; the harness
+#' quotes the effect verbatim in the nudge. Deliberately does NOT match a bare
+#' "UNCHANGED" row count, since a same-row transform that adds/modifies a column
+#' is effective.
+#' @noRd
+effect_is_noop <- function(effect) {
+  if (is.null(effect) || !nzchar(effect)) return(FALSE)
+  grepl("not populated|no rows or columns changed|degenerate", effect,
+        ignore.case = TRUE)
+}

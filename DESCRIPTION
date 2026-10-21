@@ -1,6 +1,6 @@
 Package: blockr.ai
 Title: AI-Powered Blocks for 'blockr.core'
-Version: 0.0.14
+Version: 0.1.0
 Authors@R:
     c(person(given = "Nicolas",
              family = "Bennett",
@@ -25,13 +25,12 @@ RoxygenNote: 7.3.3
 Imports:
     shiny,
     blockr.core (>= 0.1.1),
+    blockr.assistant (>= 0.1.0.9000),
     ellmer (>= 0.3.0),
     htmltools,
-    jsonlite,
+    stats,
     utils,
-    shinychat (>= 0.4.0),
-    evaluate,
-    yaml
+    shinychat (>= 0.4.0)
 Suggests:
     testthat (>= 3.0.0),
     blockr.dplyr,

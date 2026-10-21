@@ -59,15 +59,16 @@ test_that("empty and unusable input yield an empty prompt", {
 })
 
 test_that("a submitted prompt reaches the harness through the observer", {
-  # End-to-end through the module: the contents-list shape must produce an
-  # actual discovery call, not a silent return.
+  # End-to-end through the module: the contents-list shape must reach the
+  # turn, not return silently.
   skip_if_not_installed("blockr.dplyr")
 
   seen <- NULL
   local_mocked_bindings(
-    discover_block_args = function(prompt, ...) {
-      seen <<- prompt
-      list(success = TRUE, message = "ok", streamed = TRUE)
+    new_block_client = function(...) list(),
+    block_turn = function(client, scope, inputs, ...) {
+      seen <<- inputs[[1]]
+      "ok"
     }
   )
 
@@ -109,10 +110,11 @@ test_that("an attachments-only submit still carries a task", {
   seen <- NULL
   seen_images <- NULL
   local_mocked_bindings(
-    discover_block_args = function(prompt, ..., images = NULL) {
-      seen <<- prompt
-      seen_images <<- images
-      list(success = TRUE, message = "ok", streamed = TRUE)
+    new_block_client = function(...) list(),
+    block_turn = function(client, scope, inputs, ...) {
+      seen <<- inputs[[1]]
+      seen_images <<- inputs[-1]
+      "ok"
     }
   )
 

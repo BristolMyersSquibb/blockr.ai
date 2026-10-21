@@ -548,71 +548,49 @@ parse_chat_user_input <- function(raw) {
 ai_ctrl_server <- function(id, x, vars, data, eval) {
   moduleServer(id, function(input, output, session) {
 
-    # vars is now pre-filtered by blockr.core to only externally controllable
-    # reactiveVal entries
-    ctrl_names <- names(vars)
-
-    # No reactiveVal vars means this block doesn't support external_ctrl.
-    # Return TRUE (no-op) so default block evaluation proceeds normally.
-    if (length(ctrl_names) == 0) {
+    # vars is pre-filtered by blockr.core to the externally controllable
+    # reactiveVal entries. None means the block has no external control:
+    # return TRUE so evaluation proceeds normally.
+    if (length(names(vars)) == 0) {
       return(reactive(TRUE))
     }
 
-    # Gate controls downstream evaluation
+    # Gate controls downstream evaluation; closed while a turn runs.
     gate <- reactiveVal(TRUE)
 
     # Last good input snapshot. Under deferred evaluation (dock 304+),
     # `data()` is gated by an upstream-visibility req(): once the upstream
     # block's view is hidden, pulling it throws shiny.silent.error even
-    # though it evaluated fine before. The block's own UI survives this by
-    # funnelling `data()` through a reactiveVal that keeps the last value --
-    # do the same here, so the assistant can answer about the data the user
-    # is looking at. The observer fails silently while the gate is closed
-    # and refreshes the cache whenever the input is pullable again.
-    # Deferred to first use, NOT eager: pulling `data()` forces blockr.core's
-    # data validation, and while the upstream is still behind its visibility
-    # req() core captures that silent error as a block condition -- surfacing
-    # as an EMPTY red error band (message "") plus a false error status on
-    # every block carrying a `dat_valid`, i.e. all the blockr.viz renderers.
-    # The cache only has to be warm by the time the submit handler below falls
-    # back to it, so gating on first engagement keeps its purpose (surviving a
-    # later hidden-upstream window) without tripping that at startup.
+    # though it evaluated fine before. Keep the last value, so the assistant
+    # can answer about the data the user is looking at. Deferred to first
+    # use: pulling `data()` at startup, while the upstream is still behind its
+    # visibility req(), makes core record an empty error condition on every
+    # block carrying a `dat_valid`.
     r_last_data <- reactiveVal(NULL)
     observe({
       req(!is.null(input$submit))
       r_last_data(data())
     })
 
-    # Persistent client -- created on first prompt, reused for conversation memory
+    # Created on the first prompt and kept, for conversation memory.
+    scope <- NULL
     client <- NULL
-
-    # Server-side report data accumulator
-    report_entries <- list()
 
     output$download_report <- downloadHandler(
       filename = function() "blockr-ai-report.txt",
       content = function(file) {
-        parts <- vapply(report_entries, function(entry) {
-          section <- sprintf("--- Prompt: %s ---", entry$prompt %||% "")
-          msgs <- vapply(entry$conversation %||% list(), function(m) {
-            sprintf("[%s] %s", toupper(m$role %||% ""), m$content %||% "")
-          }, character(1))
-          result_line <- sprintf(
-            "Result: success=%s, args=%s, error=%s",
-            entry$success,
-            entry$args %||% "null",
-            entry$error %||% "none"
-          )
-          paste(c(section, msgs, result_line), collapse = "\n")
-        }, character(1))
-        writeLines(paste(parts, collapse = "\n\n"), file)
+        txt <- if (is.null(client)) {
+          "No conversation yet."
+        } else {
+          utils::capture.output(print(client))
+        }
+        writeLines(txt, file)
       }
     )
 
     observeEvent(input$clear_chat, {
       shinychat::chat_clear("chat", session = session)
       client <<- NULL
-      report_entries <<- list()
     })
 
     observeEvent(input$chat_user_input, {
@@ -622,10 +600,7 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
       if (is.null(prompt) || (nchar(trimws(prompt)) == 0 &&
           (is.null(images) || length(images) == 0))) return()
 
-      # Attachments-only submit -- pasting a screenshot and hitting Enter with
-      # no typed text. The harness would otherwise send a "# Task" section with
-      # nothing under it, leaving the model to guess that the image IS the
-      # request; say so instead.
+      # Attachments-only submit -- a pasted screenshot with no typed text.
       if (nchar(trimws(prompt)) == 0) {
         prompt <- "Configure this block based on the attached file(s)."
       }
@@ -640,17 +615,13 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         chatId = session$ns("chat"), working = FALSE
       )), add = TRUE)
 
-      # Pulling the upstream result can fail with a shiny.silent.error: under
-      # deferred evaluation (dock 304+), an upstream block on a hidden view is
-      # gated by a visibility req(), and observeEvent swallows silent errors --
-      # the user would see the chat's loading dots forever, with no tools and
-      # no error. Fall back to the cached snapshot (what the block itself is
-      # showing); only give up when the upstream never produced data at all.
-      dat_snapshot <- tryCatch(shiny::isolate(data()), error = function(e) NULL)
-      if (is.null(dat_snapshot)) {
-        dat_snapshot <- shiny::isolate(r_last_data())
+      # A shiny.silent.error here (hidden upstream) would end the observer
+      # with no message; fall back to the cached snapshot.
+      inputs <- tryCatch(shiny::isolate(data()), error = function(e) NULL)
+      if (is.null(inputs)) {
+        inputs <- shiny::isolate(r_last_data())
       }
-      if (is.null(dat_snapshot)) {
+      if (is.null(inputs)) {
         shinychat::chat_append(
           "chat",
           paste0(
@@ -662,96 +633,34 @@ ai_ctrl_server <- function(id, x, vars, data, eval) {
         )
         return()
       }
-      input_data <- if (inherits(dat_snapshot, "dm")) {
-        dat_snapshot
-      } else if (is.list(dat_snapshot) && !is.data.frame(dat_snapshot) &&
-                        length(dat_snapshot) > 0) {
-        dat_snapshot[[1]]
-      } else {
-        dat_snapshot
+      if (is.data.frame(inputs) || !is.list(inputs) || is.null(names(inputs))) {
+        inputs <- list(data = inputs)
       }
 
-      # Validator: sets reactiveVals then reads expr() which recomputes lazily.
-      # Rolls back on failure so block state stays valid.
-      eval_validator <- function(args) {
-        # Save state for rollback on failure
-        old <- lapply(ctrl_names, function(nm) shiny::isolate(vars[[nm]]()))
-        names(old) <- ctrl_names
-        for (nm in names(args)) {
-          if (nm %in% ctrl_names) vars[[nm]](args[[nm]])
-        }
-        result <- try(shiny::isolate(eval()), silent = TRUE)
-        if (inherits(result, "try-error")) {
-          # Rollback to previous state
-          for (nm in ctrl_names) vars[[nm]](old[[nm]])
-          stop(attr(result, "condition"))
-        }
-        result
-      }
-
-      # Snapshot current state for LLM context. Exclude block_name (the block
-      # title) -- it isn't a data parameter, and showing it just invites the
-      # model to rename the block.
-      state_names <- setdiff(ctrl_names, "block_name")
-      current_state <- lapply(vars[state_names], function(v) isolate(v()))
-
-      rpt <- reporter_shiny("chat", session)
-
-      result <- tryCatch(
-        discover_block_args(
-          prompt = prompt,
-          block = x,
-          data = input_data,
-          validate = eval_validator,
-          client = client,
-          current_state = current_state,
-          verbose = TRUE,
-          reporter = rpt,
-          images = images
-        ),
-        error = function(e) {
-          message("[discover] error: ", conditionMessage(e))
-          list(success = FALSE, error = conditionMessage(e))
-        }
-      )
-
-      # Save client for conversation memory across prompts
-      if (!is.null(result$client)) client <<- result$client
-
-      report_entries[[length(report_entries) + 1L]] <<- list(
-        prompt = prompt,
-        success = result$success,
-        args = if (!is.null(result$args)) jsonlite::toJSON(result$args, auto_unbox = TRUE) else NULL,
-        effect = result$effect,
-        noop = result$noop,
-        error = result$error,
-        conversation = lapply(result$conversation %||% list(), function(m) {
-          list(role = m$role, content = m$content)
+      contents <- c(
+        list(prompt),
+        lapply(images %||% list(), function(img) {
+          if (inherits(img, "ellmer::Content")) {
+            img
+          } else {
+            ellmer::ContentImageInline(type = img$type, data = img$data)
+          }
         })
       )
-      # The streaming path renders the reply (text + tool cards) into the chat
-      # as it arrives, so only append what did NOT stream: a "Done!" backstop
-      # when the model went straight to tool calls with no closing text, and
-      # hard failures (LLM errors never reach the widget).
-      streamed <- isTRUE(result$streamed)
-      if (result$success) {
-        if (!nzchar(result$message %||% "")) {
-          shinychat::chat_append("chat", "Done!", session = session)
-        } else if (!streamed) {
-          shinychat::chat_append("chat", result$message, session = session)
-        }
-      } else if (!is.null(result$question)) {
-        # LLM asked a clarifying question -- show it in chat
-        if (!streamed) {
-          shinychat::chat_append("chat", result$question, session = session)
-        }
-      } else {
-        shinychat::chat_append(
-          "chat",
-          paste("Failed:", result$error),
-          session = session
-        )
+
+      res <- tryCatch({
+        if (is.null(scope)) scope <<- new_block_scope(x, vars, eval)
+        scope$set_inputs(inputs)
+        if (is.null(client)) client <<- new_block_client(scope, x, vars)
+        block_turn(client, scope, contents, "chat", session)
+      }, error = function(e) e)
+
+      if (inherits(res, "error")) {
+        msg <- strip_ansi(conditionMessage(res))
+        message("[blockr.ai] turn failed: ", msg)
+        shinychat::chat_append("chat", paste("Failed:", msg), session = session)
       }
+
       session$sendCustomMessage("blockr-scroll-chat", list(
         chatId = session$ns("chat")
       ))
