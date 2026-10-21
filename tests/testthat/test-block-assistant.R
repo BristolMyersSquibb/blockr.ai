@@ -109,3 +109,23 @@ test_that("a commit that changes nothing says so", {
 
   expect_match(review, "did nothing to the result")
 })
+
+test_that("records ellmer turned into a data frame are staged as records", {
+  skip_if_not_installed("blockr.dplyr")
+  s <- select_scope()
+  cl <- new_block_client(s$scope, s$block, s$vars, client = offline_client())
+  pending <- attr(cl, "blockr_pending")
+
+  p <- pending()
+  p$blocks$mod <- list(this_block = list(
+    columns = data.frame(column = c("cyl", "mpg"),
+                         direction = factor(c("asc", "desc")))
+  ))
+  pending(p)
+
+  expect_identical(
+    pending()$blocks$mod$this_block$columns,
+    list(list(column = "cyl", direction = "asc"),
+         list(column = "mpg", direction = "desc"))
+  )
+})

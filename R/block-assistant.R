@@ -201,6 +201,7 @@ new_block_client <- function(scope, x, vars, client = llm_client()) {
       stop("This chat can only change this block; other blocks, links and ",
            "stacks are out of reach.", call. = FALSE)
     }
+    p$blocks$mod <- lapply(p$blocks$mod, function(d) lapply(d, as_block_value))
     payload <<- p
     invisible(payload)
   }
@@ -316,6 +317,39 @@ block_turn <- function(client, scope, inputs, chat_id = NULL, session = NULL) {
   }
 
   paste(as.character(reply), collapse = "\n")
+}
+
+# ellmer converts an array of objects in a tool call into a data frame (NA for
+# members a record left out, factors for enums). Blocks take a list of records,
+# so convert back before a delta is staged. Same fix as blockr.assistant
+# fix/typed-tool-records; harmless once that is merged.
+as_block_value <- function(x) {
+
+  if (is.factor(x)) {
+    return(as.character(x))
+  }
+
+  if (is.data.frame(x)) {
+    x <- lapply(seq_len(nrow(x)), function(i) lapply(x, function(col) col[[i]]))
+  }
+
+  if (!is.list(x)) {
+    return(x)
+  }
+
+  x <- lapply(x, as_block_value)
+
+  if (is.null(names(x))) {
+    return(x)
+  }
+
+  unset <- vapply(
+    x,
+    function(v) is.null(v) || (is.atomic(v) && length(v) == 1L && is.na(v)),
+    logical(1)
+  )
+
+  x[!unset]
 }
 
 strip_ansi <- function(x) {
